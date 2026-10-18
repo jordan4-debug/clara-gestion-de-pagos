@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Modal, Field, FormError, Submit, formData } from '../components/ui';
-import { send, solesToCents } from '../lib/api';
-import type { Bill, Supplier } from '../types';
+import { useState } from "react";
+import { Modal, Field, FormError, Submit, formData } from "../components/ui";
+import { send, solesToCents } from "../lib/api";
+import type { Bill, Supplier } from "../types";
 type Props = { onClose: () => void; onSaved: (month?: string) => void };
 export function BillForm({
   suppliers,
@@ -10,28 +10,28 @@ export function BillForm({
   onClose,
   onSaved,
 }: { suppliers: Supplier[]; bill?: Bill; month: string } & Props) {
-  const [error, setError] = useState(''),
+  const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   return (
-    <Modal title={bill ? 'Editar pago' : 'Nuevo pago'} onClose={onClose}>
+    <Modal title={bill ? "Editar pago" : "Nuevo pago"} onClose={onClose}>
       <form
         className="form-body"
         onSubmit={async (e) => {
           const f = formData(e);
           setBusy(true);
-          setError('');
-          const due = String(f.get('due_date'));
+          setError("");
+          const due = String(f.get("due_date"));
           try {
             await send(
-              bill ? `/bills/${bill.id}` : '/bills',
+              bill ? `/bills/${bill.id}` : "/bills",
               {
-                title: f.get('title'),
-                supplier_id: Number(f.get('supplier_id')),
-                amount_cents: solesToCents(f.get('amount')),
+                title: f.get("title"),
+                supplier_id: Number(f.get("supplier_id")),
+                amount_cents: solesToCents(f.get("amount")),
                 due_date: due,
-                notes: f.get('notes'),
+                notes: f.get("notes"),
               },
-              bill ? 'PATCH' : 'POST',
+              bill ? "PATCH" : "POST",
             );
             onSaved(due.slice(0, 7));
           } catch (e) {
@@ -53,7 +53,11 @@ export function BillForm({
           />
         </Field>
         <Field label="Proveedor o entidad">
-          <select name="supplier_id" required defaultValue={bill?.supplier_id || ''}>
+          <select
+            name="supplier_id"
+            required
+            defaultValue={bill?.supplier_id || ""}
+          >
             <option value="" disabled>
               Selecciona un proveedor
             </option>
@@ -65,14 +69,17 @@ export function BillForm({
           </select>
         </Field>
         <div className="form-grid">
-          <Field label="Monto en soles" hint="Déjalo vacío si aún no conoces el monto.">
+          <Field
+            label="Monto en soles"
+            hint="Déjalo vacío si aún no conoces el monto."
+          >
             <input
               name="amount"
               type="number"
               min="0.01"
               max="1000000"
               step="0.01"
-              defaultValue={bill?.amount_cents ? bill.amount_cents / 100 : ''}
+              defaultValue={bill?.amount_cents ? bill.amount_cents / 100 : ""}
               placeholder="Por definir"
             />
           </Field>
@@ -95,36 +102,43 @@ export function BillForm({
           />
         </Field>
         <p className="info-text">
-          Los impuestos se ingresan según la declaración o el recibo de la entidad. El sistema no
-          calcula tributos.
+          Los impuestos se ingresan según la declaración o el recibo de la
+          entidad. El sistema no calcula tributos.
         </p>
         <FormError message={error} />
         <div className="form-actions">
           <button type="button" className="button" onClick={onClose}>
             Cancelar
           </button>
-          <Submit busy={busy}>{bill ? 'Guardar cambios' : 'Crear pago'}</Submit>
+          <Submit busy={busy}>{bill ? "Guardar cambios" : "Crear pago"}</Submit>
         </div>
       </form>
     </Modal>
   );
 }
-export function SupplierForm({ supplier, onClose, onSaved }: { supplier?: Supplier } & Props) {
-  const [error, setError] = useState(''),
+export function SupplierForm({
+  supplier,
+  onClose,
+  onSaved,
+}: { supplier?: Supplier } & Props) {
+  const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   return (
-    <Modal title={supplier ? 'Editar proveedor' : 'Nuevo proveedor'} onClose={onClose}>
+    <Modal
+      title={supplier ? "Editar proveedor" : "Nuevo proveedor"}
+      onClose={onClose}
+    >
       <form
         className="form-body"
         onSubmit={async (e) => {
           const f = formData(e);
-          setError('');
+          setError("");
           setBusy(true);
           try {
             await send(
-              supplier ? `/suppliers/${supplier.id}` : '/suppliers',
+              supplier ? `/suppliers/${supplier.id}` : "/suppliers",
               Object.fromEntries(f),
-              supplier ? 'PUT' : 'POST',
+              supplier ? "PUT" : "POST",
             );
             onSaved();
           } catch (e) {
@@ -146,32 +160,49 @@ export function SupplierForm({ supplier, onClose, onSaved }: { supplier?: Suppli
         </Field>
         <div className="form-grid">
           <Field label="Categoría">
-            <select name="category" defaultValue={supplier?.category || 'Servicios'}>
-              {['Servicios', 'Impuestos', 'Alquiler', 'Préstamos', 'Otros'].map((x) => (
-                <option key={x}>{x}</option>
-              ))}
+            <select
+              name="category"
+              defaultValue={supplier?.category || "Servicios"}
+            >
+              {["Servicios", "Impuestos", "Alquiler", "Préstamos", "Otros"].map(
+                (x) => (
+                  <option key={x}>{x}</option>
+                ),
+              )}
             </select>
           </Field>
           <Field label="Canal de pago">
-            <select name="channel" defaultValue={supplier?.channel || 'external'}>
+            <select
+              name="channel"
+              defaultValue={supplier?.channel || "external"}
+            >
               <option value="external">Banco o portal de entidad</option>
             </select>
           </Field>
         </div>
         <p className="info-text">
-          Culqi abona al comercio de las llaves configuradas. No realiza transferencias a la cuenta
-          bancaria de esta ficha.
+          Estos datos ayudan a preparar el pago en el banco o portal de la
+          entidad. El sistema conserva el registro y su comprobante; no ejecuta
+          transferencias.
         </p>
         <div className="form-grid">
           <Field label="Banco">
             <input name="bank" maxLength={100} defaultValue={supplier?.bank} />
           </Field>
           <Field label="Cuenta / CCI">
-            <input name="account" maxLength={50} defaultValue={supplier?.account} />
+            <input
+              name="account"
+              maxLength={50}
+              defaultValue={supplier?.account}
+            />
           </Field>
         </div>
         <Field label="Referencia / suministro">
-          <input name="reference" maxLength={160} defaultValue={supplier?.reference} />
+          <input
+            name="reference"
+            maxLength={160}
+            defaultValue={supplier?.reference}
+          />
         </Field>
         <Field label="Portal oficial (HTTPS)">
           <input
@@ -194,8 +225,12 @@ export function SupplierForm({ supplier, onClose, onSaved }: { supplier?: Suppli
     </Modal>
   );
 }
-export function TemplateForm({ suppliers, onClose, onSaved }: { suppliers: Supplier[] } & Props) {
-  const [error, setError] = useState(''),
+export function TemplateForm({
+  suppliers,
+  onClose,
+  onSaved,
+}: { suppliers: Supplier[] } & Props) {
+  const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   return (
     <Modal title="Nuevo gasto recurrente" onClose={onClose}>
@@ -204,13 +239,13 @@ export function TemplateForm({ suppliers, onClose, onSaved }: { suppliers: Suppl
         onSubmit={async (e) => {
           const f = formData(e);
           setBusy(true);
-          setError('');
+          setError("");
           try {
-            await send('/templates', {
-              title: f.get('title'),
-              supplier_id: Number(f.get('supplier_id')),
-              amount_cents: solesToCents(f.get('amount')),
-              day: Number(f.get('day')),
+            await send("/templates", {
+              title: f.get("title"),
+              supplier_id: Number(f.get("supplier_id")),
+              amount_cents: solesToCents(f.get("amount")),
+              day: Number(f.get("day")),
             });
             onSaved();
           } catch (e) {
@@ -221,7 +256,13 @@ export function TemplateForm({ suppliers, onClose, onSaved }: { suppliers: Suppl
         }}
       >
         <Field label="Concepto">
-          <input name="title" required minLength={2} maxLength={120} autoFocus />
+          <input
+            name="title"
+            required
+            minLength={2}
+            maxLength={120}
+            autoFocus
+          />
         </Field>
         <Field label="Proveedor">
           <select name="supplier_id" required>
@@ -233,11 +274,30 @@ export function TemplateForm({ suppliers, onClose, onSaved }: { suppliers: Suppl
           </select>
         </Field>
         <div className="form-grid">
-          <Field label="Monto fijo en soles" hint="Vacío: crear cada mes por definir monto.">
-            <input name="amount" type="number" min="0.01" max="1000000" step="0.01" />
+          <Field
+            label="Monto fijo en soles"
+            hint="Vacío: crear cada mes por definir monto."
+          >
+            <input
+              name="amount"
+              type="number"
+              min="0.01"
+              max="1000000"
+              step="0.01"
+            />
           </Field>
-          <Field label="Día de vencimiento" hint="Se ajusta al último día en meses cortos.">
-            <input name="day" type="number" min={1} max={31} required defaultValue={20} />
+          <Field
+            label="Día de vencimiento"
+            hint="Se ajusta al último día en meses cortos."
+          >
+            <input
+              name="day"
+              type="number"
+              min={1}
+              max={31}
+              required
+              defaultValue={20}
+            />
           </Field>
         </div>
         <FormError message={error} />

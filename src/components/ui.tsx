@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import type { ReactNode, FormEvent } from 'react';
+import { useEffect, useRef, useId } from "react";
+import type { ReactNode, FormEvent } from "react";
 import {
   X,
   Clock3,
@@ -15,7 +15,7 @@ import {
   FileText,
   ArrowUpRight,
   Repeat2,
-} from 'lucide-react';
+} from "lucide-react";
 export function Brand() {
   return (
     <div className="brand">
@@ -33,36 +33,42 @@ export function Brand() {
 }
 export function Badge({ status }: { status: string }) {
   const Icon =
-    status === 'Pagado'
+    status === "Pagado"
       ? Check
-      : status === 'Por definir'
+      : status === "Por definir"
         ? Ellipsis
-        : status === 'Por autorizar'
+        : status === "Por autorizar"
           ? Hourglass
-          : status === 'Bloqueado' || status === 'Vencido'
+          : status === "Bloqueado" || status === "Vencido"
             ? AlertCircle
             : Clock3;
   return (
     <span
-      className={`badge ${status === 'Pagado' ? 'green' : status === 'Por definir' ? 'gray' : status === 'Vencido' || status === 'Bloqueado' ? 'red' : 'amber'}`}
+      className={`badge ${status === "Pagado" ? "green" : status === "Por definir" ? "gray" : status === "Vencido" || status === "Bloqueado" ? "red" : "amber"}`}
     >
       <Icon size={14} />
       {status}
     </span>
   );
 }
-export function BillIcon({ title, category }: { title: string; category: string }) {
+export function BillIcon({
+  title,
+  category,
+}: {
+  title: string;
+  category: string;
+}) {
   const Icon = /luz/i.test(title)
     ? Lightbulb
     : /agua/i.test(title)
       ? Droplet
       : /internet/i.test(title)
         ? Wifi
-        : category === 'Impuestos'
+        : category === "Impuestos"
           ? Landmark
-          : category === 'Alquiler'
+          : category === "Alquiler"
             ? Building2
-            : category === 'Otros'
+            : category === "Otros"
               ? ArrowUpRight
               : FileText;
   return (
@@ -83,6 +89,7 @@ export function Modal({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   useEffect(() => {
     const dialog = ref.current;
     dialog?.showModal();
@@ -91,7 +98,8 @@ export function Modal({
   return (
     <dialog
       ref={ref}
-      className={wide ? 'modal wide' : 'modal'}
+      aria-labelledby={titleId}
+      className={wide ? "modal wide" : "modal"}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -101,8 +109,12 @@ export function Modal({
       }}
     >
       <header className="modal-head">
-        <h2>{title}</h2>
-        <button className="icon-button" aria-label="Cerrar ventana" onClick={onClose}>
+        <h2 id={titleId}>{title}</h2>
+        <button
+          className="icon-button"
+          aria-label="Cerrar ventana"
+          onClick={onClose}
+        >
           <X size={20} />
         </button>
       </header>
@@ -135,7 +147,11 @@ export function FormError({ message }: { message: string }) {
     </p>
   ) : null;
 }
-export function Empty({ text = 'No hay pagos con estos filtros.' }: { text?: string }) {
+export function Empty({
+  text = "No hay pagos con estos filtros.",
+}: {
+  text?: string;
+}) {
   return (
     <div className="empty">
       <Repeat2 size={26} />
@@ -144,10 +160,16 @@ export function Empty({ text = 'No hay pagos con estos filtros.' }: { text?: str
     </div>
   );
 }
-export function Submit({ busy, children }: { busy: boolean; children: ReactNode }) {
+export function Submit({
+  busy,
+  children,
+}: {
+  busy: boolean;
+  children: ReactNode;
+}) {
   return (
     <button className="button primary" disabled={busy} type="submit">
-      {busy ? 'Guardando…' : children}
+      {busy ? "Guardando…" : children}
     </button>
   );
 }

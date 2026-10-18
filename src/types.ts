@@ -2,7 +2,7 @@ export type User = {
   id: number;
   name: string;
   email: string;
-  role: 'owner' | 'assistant';
+  role: "owner" | "assistant";
   demo?: boolean;
 };
 export type Supplier = {
@@ -13,7 +13,7 @@ export type Supplier = {
   account: string;
   reference: string;
   portal: string;
-  channel: 'external' | 'culqi';
+  channel: "external" | "culqi";
 };
 export type Bill = {
   id: number;
@@ -21,7 +21,7 @@ export type Bill = {
   supplier_id: number;
   supplier: string;
   category: string;
-  channel: 'external' | 'culqi';
+  channel: "external" | "culqi";
   amount_cents: number | null;
   paid_cents: number;
   remaining_cents: number | null;
@@ -31,6 +31,8 @@ export type Bill = {
   approval: string;
   notes: string;
   pending_attempt: string | null;
+  pending_reviews: number;
+  observed_reviews: number;
   bank?: string;
   account?: string;
   reference?: string;
@@ -46,6 +48,46 @@ export type Payment = {
   actor: string;
   receipt_id: number | null;
   receipt_name?: string;
+  actor_id?: number;
+  destination?: {
+    supplier: string;
+    bank: string;
+    account: string;
+    reference: string;
+  };
+  review_status?: "pending" | "observed" | "verified";
+  review_revision?: number;
+  review_note?: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  review_events?: {
+    status: string;
+    note: string;
+    actor: string;
+    receipt_id: number | null;
+    created_at: string;
+  }[];
+};
+export type Review = Payment & {
+  bill_id: number;
+  title: string;
+  supplier: string;
+  month: string;
+};
+export type Member = User & { active: number; created_at: string };
+export type Report = {
+  month: string;
+  totals: Dashboard["totals"];
+  categories: {
+    category: string;
+    count: number;
+    pending: number;
+    recorded: number;
+  }[];
+  trend: { month: string; recorded: number }[];
+  bills: Bill[];
+  recorded_count: number;
+  verified_count: number;
 };
 export type Template = {
   id: number;
@@ -80,11 +122,17 @@ export type Dashboard = {
   today: string;
   month: string;
   bills: Bill[];
-  totals: { pending: number; week: number; paid: number; undefined: number; weekUndefined: number };
+  totals: {
+    pending: number;
+    week: number;
+    paid: number;
+    undefined: number;
+    weekUndefined: number;
+  };
   upcoming: Bill[];
   notifications: Bill[];
   activity: Activity[];
-  settings: Omit<Settings, 'payment'>;
+  settings: Omit<Settings, "payment">;
 };
 export type Attempt = {
   id: string;

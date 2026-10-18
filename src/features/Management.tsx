@@ -1,7 +1,15 @@
-import { Plus, Pause, Play, Pencil, Repeat2, Landmark, ExternalLink } from 'lucide-react';
-import { money, dateTime } from '../lib/api';
-import { Empty } from '../components/ui';
-import type { Supplier, Template, Activity, User } from '../types';
+import {
+  Plus,
+  Pause,
+  Play,
+  Pencil,
+  Repeat2,
+  Landmark,
+  ExternalLink,
+} from "lucide-react";
+import { money, dateTime } from "../lib/api";
+import { Empty } from "../components/ui";
+import type { Supplier, Template, Activity, User } from "../types";
 export function Suppliers({
   items,
   user,
@@ -17,7 +25,7 @@ export function Suppliers({
     <section className="panel">
       <div className="panel-title">
         <h2>Tus proveedores y entidades</h2>
-        {user.role === 'owner' ? (
+        {user.role === "owner" ? (
           <button className="button primary" onClick={onNew}>
             <Plus size={16} />
             Nuevo proveedor
@@ -36,11 +44,11 @@ export function Suppliers({
             <div className="supplier-info">
               <strong>{s.name}</strong>
               <p>
-                {s.category} · {s.channel === 'culqi' ? 'Comercio Culqi' : 'Pago externo'}
+                {s.category} · {"Pago externo"}
               </p>
               <small>
-                {s.bank || 'Banco por registrar'}
-                {s.account ? ` · ${s.account}` : ''}
+                {s.bank || "Banco por registrar"}
+                {s.account ? ` · ${s.account}` : ""}
               </small>
             </div>
             <div className="button-row">
@@ -55,7 +63,7 @@ export function Suppliers({
                   <ExternalLink size={17} />
                 </a>
               ) : null}
-              {user.role === 'owner' ? (
+              {user.role === "owner" ? (
                 <button className="button" onClick={() => onEdit(s)}>
                   <Pencil size={14} />
                   Editar
@@ -88,7 +96,7 @@ export function Templates({
     <section className="panel">
       <div className="panel-title">
         <h2>Los gastos que vuelven cada mes</h2>
-        {user.role === 'owner' ? (
+        {user.role === "owner" ? (
           <button className="button primary" onClick={onNew}>
             <Plus size={16} />
             Nuevo recurrente
@@ -96,7 +104,8 @@ export function Templates({
         ) : null}
       </div>
       <p className="section-description">
-        Define una vez. Genera el mes sin duplicados. Los montos variables quedan por definir.
+        Define una vez. Genera el mes sin duplicados. Los montos variables
+        quedan por definir.
       </p>
       <div className="table-scroll">
         <table className="management-table">
@@ -124,19 +133,21 @@ export function Templates({
                 <td>{t.supplier}</td>
                 <td>Día {t.day}</td>
                 <td>
-                  {t.amount_cents === null ? 'Variable · por definir' : money(t.amount_cents)}
+                  {t.amount_cents === null
+                    ? "Variable · por definir"
+                    : money(t.amount_cents)}
                 </td>
                 <td>
-                  <span className={`badge ${t.active ? 'green' : 'gray'}`}>
-                    {t.active ? 'Activo' : 'Pausado'}
+                  <span className={`badge ${t.active ? "green" : "gray"}`}>
+                    {t.active ? "Activo" : "Pausado"}
                   </span>
                 </td>
                 <td>
-                  {user.role === 'owner' ? (
+                  {user.role === "owner" ? (
                     <button
                       className="icon-button"
                       disabled={busy}
-                      aria-label={`${t.active ? 'Pausar' : 'Activar'} ${t.title}`}
+                      aria-label={`${t.active ? "Pausar" : "Activar"} ${t.title}`}
                       onClick={() => onToggle(t)}
                     >
                       {t.active ? <Pause size={17} /> : <Play size={17} />}
@@ -150,8 +161,12 @@ export function Templates({
       </div>
       <div className="section-footer">
         <p>El día 31 se ajusta al último día en meses cortos.</p>
-        <button className="button outline-green" onClick={onPrepare} disabled={busy}>
-          {busy ? 'Preparando…' : 'Preparar el mes seleccionado'}
+        <button
+          className="button outline-green"
+          onClick={onPrepare}
+          disabled={busy}
+        >
+          {busy ? "Preparando…" : "Preparar el mes seleccionado"}
         </button>
       </div>
     </section>
@@ -164,7 +179,9 @@ export function HistoryView({ items }: { items: Activity[] }) {
         <h2>Historial de actividad</h2>
         <span className="muted">Últimos 300 eventos</span>
       </div>
-      <p className="section-description">Quién hizo cada cambio y cuándo. Horario de Lima, Perú.</p>
+      <p className="section-description">
+        Quién hizo cada cambio y cuándo. Horario de Lima, Perú.
+      </p>
       <div className="history-list">
         {items.map((a) => (
           <article className="history-row" key={a.id}>
@@ -172,7 +189,7 @@ export function HistoryView({ items }: { items: Activity[] }) {
             <div>
               <strong>{a.action}</strong>
               <p>{a.detail}</p>
-              <small>{a.actor || 'Sistema'}</small>
+              <small>{a.actor || "Sistema"}</small>
             </div>
             <time>{dateTime(a.created_at)}</time>
           </article>

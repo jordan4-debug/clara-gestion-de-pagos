@@ -1,14 +1,26 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { Plus, Bell, CalendarDays, X, ChevronRight, CheckCircle2, RefreshCw } from 'lucide-react';
-import { Shell, nav } from './components/Shell';
-import { Login } from './features/Access';
-import { Overview, Metrics } from './features/Overview';
-import { BillTable } from './features/BillTable';
-import { BillDetail } from './features/BillDetail';
-import { BillForm, SupplierForm, TemplateForm } from './features/EntityForms';
-import { Suppliers, Templates, HistoryView } from './features/Management';
-import { SettingsView } from './features/SettingsView';
-import { api, send, setCsrf, shortDate } from './lib/api';
+import { useEffect, useState, useCallback, useRef } from "react";
+import {
+  Plus,
+  Bell,
+  CalendarDays,
+  X,
+  ChevronRight,
+  CheckCircle2,
+  RefreshCw,
+} from "lucide-react";
+import { Shell, navigation } from "./components/Shell";
+import { Login } from "./features/Access";
+import { Metrics } from "./features/Overview";
+import { RoleOverview, Approvals } from "./features/RoleOverview";
+import { Reviews } from "./features/Reviews";
+import { Reports } from "./features/Reports";
+import { Team } from "./features/Team";
+import { BillTable } from "./features/BillTable";
+import { BillDetail } from "./features/BillDetail";
+import { BillForm, SupplierForm, TemplateForm } from "./features/EntityForms";
+import { Suppliers, Templates, HistoryView } from "./features/Management";
+import { SettingsView } from "./features/SettingsView";
+import { api, send, setCsrf, shortDate, ApiError } from "./lib/api";
 import type {
   User,
   Dashboard,
@@ -18,19 +30,22 @@ import type {
   Settings,
   Attempt,
   Bill,
-} from './types';
+  Review,
+} from "./types";
 type Editor =
-  { type: 'bill'; bill?: Bill } | { type: 'supplier'; supplier?: Supplier } | { type: 'template' };
+  | { type: "bill"; bill?: Bill }
+  | { type: "supplier"; supplier?: Supplier }
+  | { type: "template" };
 export function App() {
   const [user, setUser] = useState<User | null>(null),
     [checking, setChecking] = useState(true),
     [demo, setDemo] = useState(false),
-    [page, setPage] = useState('summary'),
+    [page, setPage] = useState("summary"),
     [month, setMonth] = useState(
-      new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Lima',
-        year: 'numeric',
-        month: '2-digit',
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Lima",
+        year: "numeric",
+        month: "2-digit",
       })
         .format(new Date())
         .slice(0, 7),
@@ -41,29 +56,32 @@ export function App() {
     [activity, setActivity] = useState<Activity[]>([]),
     [settings, setSettings] = useState<Settings | null>(null),
     [attempts, setAttempts] = useState<Attempt[]>([]),
+    [reviews, setReviews] = useState<Review[]>([]),
     [selected, setSelected] = useState<number | null>(null),
     [editor, setEditor] = useState<Editor | null>(null),
-    [error, setError] = useState(''),
-    [toast, setToast] = useState(''),
+    [error, setError] = useState(""),
+    [toast, setToast] = useState(""),
     [busy, setBusy] = useState(false),
     [notifications, setNotifications] = useState(false);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
   const requestVersion = useRef(0);
   const data = snapshot?.month === month ? snapshot : null;
   const notify = useCallback((message: string) => {
     setToast(message);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(''), 5500);
+    toastTimer.current = setTimeout(() => setToast(""), 5500);
   }, []);
   useEffect(() => {
     void Promise.all([
-      api<{ user: User; csrf: string }>('/auth/me')
+      api<{ user: User; csrf: string }>("/auth/me")
         .then((x) => {
           setCsrf(x.csrf);
           setUser(x.user);
         })
         .catch(() => {}),
-      api<{ demo: boolean }>('/public-config')
+      api<{ demo: boolean }>("/public-config")
         .then((x) => setDemo(x.demo))
         .catch(() => {}),
     ]).finally(() => setChecking(false));
@@ -75,13 +93,16 @@ export function App() {
     if (!user) return;
     const version = ++requestVersion.current;
     try {
-      const [d, s, t, a, c, p] = await Promise.all([
+      const [d, s, t, a, c, p, r] = await Promise.all([
         api<Dashboard>(`/dashboard?month=${month}`),
-        api<Supplier[]>('/suppliers'),
-        api<Template[]>('/templates'),
-        api<Activity[]>('/activity'),
-        api<Settings>('/settings'),
-        user.role === 'owner' ? api<Attempt[]>('/attempts') : Promise.resolve([]),
+        api<Supplier[]>("/suppliers"),
+        api<Template[]>("/templates"),
+        api<Activity[]>("/activity"),
+        api<Settings>("/settings"),
+        user.role === "owner"
+          ? api<Attempt[]>("/attempts")
+          : Promise.resolve([]),
+        api<Review[]>(`/reviews?month=${month}`),
       ]);
       if (version !== requestVersion.current) return;
       setData(d);
@@ -90,8 +111,17 @@ export function App() {
       setActivity(a);
       setSettings(c);
       setAttempts(p);
-      setError('');
+      setReviews(r);
+      setError("");
     } catch (e) {
+      if (version !== requestVersion.current) return;
+      if (e instanceof ApiError && e.status === 401) {
+        setUser(null);
+        setData(null);
+        setCsrf("");
+        setPage("summary");
+        return;
+      }
       if (version === requestVersion.current) setError((e as Error).message);
     }
   }, [user, month]);
@@ -101,24 +131,24 @@ export function App() {
   useEffect(() => {
     if (!user || selected !== null || editor) return;
     const timer = setInterval(() => {
-      if (document.visibilityState === 'visible') void refresh();
+      if (document.visibilityState === "visible") void refresh();
     }, 20000);
     const onFocus = () => void refresh();
-    window.addEventListener('focus', onFocus);
+    window.addEventListener("focus", onFocus);
     return () => {
       clearInterval(timer);
-      window.removeEventListener('focus', onFocus);
+      window.removeEventListener("focus", onFocus);
     };
   }, [user, selected, editor, refresh]);
   async function prepare() {
     setBusy(true);
     try {
-      const x = await send<{ created: number }>('/months/generate', { month });
+      const x = await send<{ created: number }>("/months/generate", { month });
       await refresh();
       notify(
         x.created
           ? `${x.created} pagos creados para ${month}.`
-          : 'Este mes ya está preparado. No se crearon duplicados.',
+          : "Este mes ya está preparado. No se crearon duplicados.",
       );
     } catch (e) {
       notify((e as Error).message);
@@ -127,15 +157,16 @@ export function App() {
     }
   }
   const onNavigate = (id: string) => {
+    if (!user || !navigation(user).some((n) => n.id === id)) return;
     setPage(id);
     setNotifications(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
   const saved = (newMonth?: string) => {
     setEditor(null);
     if (newMonth && newMonth !== month) setMonth(newMonth);
     else void refresh();
-    notify('Cambios guardados.');
+    notify("Cambios guardados.");
   };
   if (checking)
     return (
@@ -145,16 +176,32 @@ export function App() {
     );
   if (!user) return <Login onLogin={setUser} demo={demo} />;
   const title =
-    page === 'summary'
-      ? 'Todo en orden, cada mes.'
-      : nav.find((x) => x.id === page)?.label || 'Pagos';
+    page === "summary"
+      ? user.role === "owner"
+        ? "Tu gestión, bajo control."
+        : "Tu trabajo de hoy, en orden."
+      : navigation(user).find((x) => x.id === page)?.label || "Pagos";
   const subtitle: Record<string, string> = {
-    summary: 'Tus pagos, vencimientos y comprobantes en un solo lugar.',
-    bills: 'Controla cada obligación, desde el pendiente hasta su comprobante.',
-    templates: 'Una lista que recuerda por ti, todos los meses.',
-    suppliers: 'Toda la información que necesitas para pagar bien.',
-    history: 'Cada movimiento queda registrado.',
-    settings: 'Tu manera de trabajar, tus reglas.',
+    summary:
+      user.role === "owner"
+        ? "Supervisa el saldo, autoriza excepciones y revisa los respaldos."
+        : "Una bandeja para avanzar, sin perder de vista los vencimientos.",
+    bills: "Controla cada obligación, desde el pendiente hasta su comprobante.",
+    templates: "Una lista que recuerda por ti, todos los meses.",
+    suppliers: "Toda la información que necesitas para pagar bien.",
+    history: "Cada movimiento queda registrado.",
+    settings:
+      user.role === "owner"
+        ? "Tu manera de trabajar, tus reglas."
+        : "Consulta tu acceso y administra tu contraseña.",
+    approvals: "Decide qué puede continuar y qué debe esperar.",
+    reviews:
+      user.role === "owner"
+        ? "Comprueba cada constancia y deja observaciones claras."
+        : "Consulta el estado de tus constancias y atiende las observaciones.",
+    reports:
+      "Entiende cómo se distribuyen los gastos y los abonos registrados.",
+    team: "Accesos individuales con responsabilidades claras.",
   };
   return (
     <Shell
@@ -162,24 +209,37 @@ export function App() {
       page={page}
       onNavigate={onNavigate}
       onLogout={() => {
-        void send('/auth/logout', {})
+        void send("/auth/logout", {})
           .then(() => {
+            requestVersion.current++;
             setUser(null);
             setData(null);
-            setPage('summary');
+            setPage("summary");
           })
           .catch((e) => notify(e.message));
       }}
     >
       <div className="topbar">
         <div className="topbar-left">
-          {user.demo ? (
-            <span className="demo-label">Demo compartida · Pagos reales desactivados</span>
+          <span className="workspace-role">
+            {user.role === "owner" ? "Propietario" : "Asistente"}
+          </span>
+          {demo ? (
+            <span className="demo-label">
+              Demo compartida · Pagos reales desactivados
+            </span>
           ) : (
             <span className="workspace-label">Mi espacio de trabajo</span>
           )}
         </div>
         <div className="topbar-right">
+          <button
+            className="icon-button sync-button"
+            aria-label="Actualizar datos"
+            onClick={() => void refresh()}
+          >
+            <RefreshCw size={18} />
+          </button>
           <label className="month-control">
             <CalendarDays size={17} />
             <input
@@ -234,7 +294,9 @@ export function App() {
                 </button>
               ))
             ) : (
-              <p className="muted">No hay avisos para tu rol con la anticipación configurada.</p>
+              <p className="muted">
+                No hay avisos para tu rol con la anticipación configurada.
+              </p>
             )}
             <small>Recordatorios dentro de la aplicación.</small>
           </div>
@@ -245,10 +307,10 @@ export function App() {
           <h1>{title}</h1>
           <p>{subtitle[page]}</p>
         </div>
-        {page === 'summary' || page === 'bills' ? (
+        {page === "bills" ? (
           <button
             className="button primary new-payment"
-            onClick={() => setEditor({ type: 'bill' })}
+            onClick={() => setEditor({ type: "bill" })}
           >
             <Plus size={19} />
             Nuevo pago
@@ -265,42 +327,62 @@ export function App() {
         </div>
       ) : null}
       {!data && !error ? <p className="muted">Cargando pagos…</p> : null}
-      {data && page === 'summary' ? (
-        <Overview
+      {data && page === "summary" ? (
+        <RoleOverview
           data={data}
+          user={user}
+          reviews={reviews}
           onSelect={setSelected}
           onNavigate={onNavigate}
           onPrepare={() => void prepare()}
           busy={busy}
         />
       ) : null}
-      {data && page === 'bills' ? (
+      {data && page === "approvals" && user.role === "owner" ? (
+        <Approvals data={data} onSelect={setSelected} />
+      ) : null}
+      {data && page === "reviews" ? (
+        <Reviews
+          items={reviews}
+          user={user}
+          onChanged={() => void refresh()}
+          onSelect={setSelected}
+          notify={notify}
+        />
+      ) : null}
+      {data && page === "reports" && user.role === "owner" ? (
+        <Reports data={data} />
+      ) : null}
+      {page === "team" && user.role === "owner" ? (
+        <Team user={user} notify={notify} publicDemo={demo} />
+      ) : null}
+      {data && page === "bills" ? (
         <>
           <Metrics data={data} />
           <BillTable bills={data.bills} month={month} onSelect={setSelected} />
         </>
       ) : null}
-      {page === 'suppliers' ? (
+      {page === "suppliers" ? (
         <Suppliers
           items={suppliers}
           user={user}
-          onNew={() => setEditor({ type: 'supplier' })}
-          onEdit={(supplier) => setEditor({ type: 'supplier', supplier })}
+          onNew={() => setEditor({ type: "supplier" })}
+          onEdit={(supplier) => setEditor({ type: "supplier", supplier })}
         />
       ) : null}
-      {page === 'templates' ? (
+      {page === "templates" ? (
         <Templates
           items={templates}
           user={user}
-          onNew={() => setEditor({ type: 'template' })}
+          onNew={() => setEditor({ type: "template" })}
           busy={busy}
           onPrepare={() => void prepare()}
           onToggle={async (t) => {
             setBusy(true);
             try {
-              await send(`/templates/${t.id}`, { active: !t.active }, 'PATCH');
+              await send(`/templates/${t.id}`, { active: !t.active }, "PATCH");
               await refresh();
-              notify(t.active ? 'Recurrente pausado.' : 'Recurrente activado.');
+              notify(t.active ? "Recurrente pausado." : "Recurrente activado.");
             } catch (e) {
               notify((e as Error).message);
             } finally {
@@ -309,8 +391,8 @@ export function App() {
           }}
         />
       ) : null}
-      {page === 'history' ? <HistoryView items={activity} /> : null}
-      {page === 'settings' && settings ? (
+      {page === "history" ? <HistoryView items={activity} /> : null}
+      {page === "settings" && settings ? (
         <SettingsView
           settings={settings}
           user={user}
@@ -330,12 +412,12 @@ export function App() {
           onChanged={() => void refresh()}
           onEdit={(bill) => {
             setSelected(null);
-            setEditor({ type: 'bill', bill });
+            setEditor({ type: "bill", bill });
           }}
           notify={notify}
         />
       ) : null}
-      {editor?.type === 'bill' ? (
+      {editor?.type === "bill" ? (
         <BillForm
           suppliers={suppliers}
           month={month}
@@ -344,17 +426,25 @@ export function App() {
           onSaved={saved}
         />
       ) : null}
-      {editor?.type === 'supplier' ? (
-        <SupplierForm supplier={editor.supplier} onClose={() => setEditor(null)} onSaved={saved} />
+      {editor?.type === "supplier" ? (
+        <SupplierForm
+          supplier={editor.supplier}
+          onClose={() => setEditor(null)}
+          onSaved={saved}
+        />
       ) : null}
-      {editor?.type === 'template' ? (
-        <TemplateForm suppliers={suppliers} onClose={() => setEditor(null)} onSaved={saved} />
+      {editor?.type === "template" ? (
+        <TemplateForm
+          suppliers={suppliers}
+          onClose={() => setEditor(null)}
+          onSaved={saved}
+        />
       ) : null}
       {toast ? (
         <div role="status" className="toast">
           <CheckCircle2 size={19} />
           {toast}
-          <button aria-label="Cerrar aviso" onClick={() => setToast('')}>
+          <button aria-label="Cerrar aviso" onClick={() => setToast("")}>
             <X size={16} />
           </button>
         </div>

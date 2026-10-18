@@ -63,6 +63,8 @@ npm run user:create -- --remote
 
 La contraseña se escribe localmente sin mostrarse ni incluirse en argumentos del proceso. No se publica una función de registro que permita a visitantes asignarse permisos de propietario. Para trabajar con cuentas privadas y datos de una empresa, crear las cuentas, cambiar `DEMO_MODE` a `"false"` y volver a publicar. El acceso público de demostración permite explorar todos sus registros; usar solo datos ficticios mientras esté activo.
 
+Después de crear el primer propietario privado, iniciar sesión con él y abrir **Equipo** para crear integrantes con rol de propietario o asistente, activar o desactivar accesos y consultar el historial de cambios del equipo. Desactivar una cuenta cierra sus sesiones y conserva sus operaciones. Las cuentas públicas de demostración solo ven los integrantes ficticios y no pueden administrar cuentas privadas. No se debe colocar información real mientras `DEMO_MODE` siga activo, aunque ya existan cuentas privadas.
+
 ## Funciones
 
 - Resumen del mes, saldo de los próximos siete días, pagos abonados y montos por definir.
@@ -71,6 +73,13 @@ La contraseña se escribe localmente sin mostrarse ni incluirse en argumentos de
 - Registro de abonos parciales o completos con número de operación y comprobante obligatorio.
 - Prevención de duplicados y sobrepagos; bloqueo de edición después de un abono.
 - Historial, exportación CSV y respaldo JSON protegido para el propietario.
+- Panel propio del propietario: saldo requerido, autorizaciones, revisión de constancias y reportes.
+- Bandeja del asistente: pagos listos, montos por completar, espera de autorización y comprobantes observados.
+- Revisión de comprobantes con comentario, corrección del archivo, historial y control de revisiones concurrentes. Corregir una constancia no modifica ni duplica el importe abonado.
+- Reportes por categoría y tendencia de seis meses, con fechas de registro en horario de Lima.
+- Gestión de integrantes privados y revocación de sesiones, protegida en el servidor.
+
+Ver [responsabilidades y flujo completo](docs/FLUJOS.md). La revisión de una constancia documenta la verificación del propietario; no confirma una transferencia con el banco.
 
 **Los pagos reales están desactivados.** Registrar un pago externo no mueve dinero ni confirma una transferencia con el banco. Izipay es una etapa posterior que requiere un comercio habilitado y una integración verificada.
 
@@ -81,6 +90,9 @@ src/                 Interfaz, componentes y pantallas
 server/api.mjs       API y validación de operaciones
 server/auth.mjs      Cuentas, sesiones, permisos e inicio de sesión
 server/passwords.mjs Hash y verificación de contraseñas
+server/reviews.mjs   Revisión, observación y corrección de comprobantes
+server/reports.mjs   Reportes por periodo y categoría
+server/team.mjs      Administración de cuentas privadas y auditoría
 server/cloud-state.mjs Persistencia compartida y cálculos
 server/storage.mjs   Archivos divididos en bloques en D1
 server/worker.mjs    Entrada de Pages Functions
@@ -118,6 +130,15 @@ node tests/integration.mjs
 ```
 
 Las pruebas cubren contraseñas con sal, concurrencia, rechazo sin escrituras parciales, archivos de hasta 3 MB, inicio y cierre de sesión, roles, CSRF/origen, fechas de febrero, idempotencia mensual, abonos, duplicados y sobrepagos. La prueba HTTP genera registros ficticios y se niega a ejecutarse sobre un dominio público.
+
+También se prueban observación y corrección sin alterar saldos, conservación de constancias anteriores, decisiones simultáneas, registros antiguos sin archivo, permisos de equipo, desactivación de cuentas, nueva autorización al cambiar el destino y el límite de mes en horario de Lima. `node scripts/smoke-live.mjs` comprueba el alojamiento publicado mediante lecturas y sesiones transitorias; no genera obligaciones ni abonos en la nube.
+
+## Etapas pendientes
+
+- Conectar Izipay y conciliar cobros reales al final de la implementación.
+- Configurar el primer propietario privado y desactivar la demostración para usar datos reales.
+- Recuperación de contraseña mediante un canal verificado y notificaciones por correo o WhatsApp.
+- Separar los datos de negocio del documento JSON en tablas relacionadas, automatizar respaldos y ensayar recuperación antes de ampliar el volumen de uso.
 
 ## Traslado y respaldos
 

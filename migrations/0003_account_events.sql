@@ -1,0 +1,7 @@
+CREATE TABLE account_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  actor_id INTEGER NOT NULL REFERENCES accounts(id),
+  target_id INTEGER NOT NULL REFERENCES accounts(id),
+  action TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
