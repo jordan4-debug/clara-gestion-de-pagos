@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "clara-gestion-de-pagos",
+  "pages_build_output_dir": "dist",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "clara-gestion-de-pagos",
+      "database_id": "33c7c921-d61a-4476-ae85-6b72293d0c76",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "DEMO_MODE": "true"
+  }
+}

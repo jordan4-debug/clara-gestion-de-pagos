@@ -1,0 +1,9 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "Clara: desarrollo", "type": "npm", "script": "dev", "isBackground": true },
+    { "label": "Clara: compilar", "type": "npm", "script": "build", "group": "build" },
+    { "label": "Clara: pruebas", "type": "npm", "script": "test", "group": "test" },
+    { "label": "Clara: base local", "type": "npm", "script": "db:local" }
+  ]
+}
