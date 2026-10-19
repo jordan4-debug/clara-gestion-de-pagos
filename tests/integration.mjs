@@ -121,7 +121,7 @@ assert.equal(
     await call('/bills/' + id, 'PATCH', {
       title: 'Edición prohibida',
       supplier_id: 1,
-      amount_cents: 1000,
+      amount_cents: 1001,
       due_date: '2027-02-20',
     })
   ).status,

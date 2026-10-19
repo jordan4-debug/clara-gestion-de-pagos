@@ -39,13 +39,23 @@ const first = await call(owner, "/dashboard"),
 assert.equal(first.status, 200);
 assert.deepEqual(first.data.bills, second.data.bills);
 assert.ok(first.data.bills.length >= 6);
+const loans = await call(owner, "/loans");
+assert.equal(loans.status, 200);
+assert.ok(Array.isArray(loans.data));
+assert.equal((await call(assistant, "/loans")).status, 200);
+const suppliers = await call(owner, "/suppliers");
+assert.equal(suppliers.status, 200);
+assert.ok(suppliers.data.some((s) => s.name === "Caja Trujillo"));
+assert.ok(first.data.bills.every((b) => b.approval === "approved"));
+assert.ok(
+  first.data.bills.every((b) => Array.isArray(b.provider_payment.methods)),
+);
 const backup = await call(owner, "/export");
 assert.equal(backup.status, 200);
 assert.equal((await call(assistant, "/export")).status, 403);
 assert.equal(
   (
     await call(assistant, "/settings", "PUT", {
-      threshold_cents: 50000,
       reminder_days: 3,
       recipient: "both",
     })

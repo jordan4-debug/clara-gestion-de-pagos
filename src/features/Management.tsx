@@ -15,11 +15,13 @@ export function Suppliers({
   user,
   onNew,
   onEdit,
+  onMethods,
 }: {
   items: Supplier[];
   user: User;
   onNew: () => void;
   onEdit: (s: Supplier) => void;
+  onMethods: (s: Supplier) => void;
 }) {
   return (
     <section className="panel">
@@ -62,6 +64,11 @@ export function Suppliers({
                 >
                   <ExternalLink size={17} />
                 </a>
+              ) : null}
+              {user.role === "owner" ? (
+                <button className="button" onClick={() => onMethods(s)}>
+                  Métodos de pago
+                </button>
               ) : null}
               {user.role === "owner" ? (
                 <button className="button" onClick={() => onEdit(s)}>

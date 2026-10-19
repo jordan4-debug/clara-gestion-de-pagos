@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Modal, Field, FormError, Submit, formData } from "../components/ui";
-import { send, solesToCents } from "../lib/api";
+import { send, solesToCents, localToday } from "../lib/api";
 import type { Bill, Supplier } from "../types";
 type Props = { onClose: () => void; onSaved: (month?: string) => void };
 export function BillForm({
@@ -71,11 +71,17 @@ export function BillForm({
         <div className="form-grid">
           <Field
             label="Monto en soles"
-            hint="Déjalo vacío si aún no conoces el monto."
+            hint={
+              bill?.amount_cents != null
+                ? "Monto fijado al crear el pago. No se puede modificar."
+                : "Define el importe una sola vez."
+            }
           >
             <input
               name="amount"
               type="number"
+              required
+              readOnly={bill?.amount_cents != null}
               min="0.01"
               max="1000000"
               step="0.01"
@@ -88,11 +94,21 @@ export function BillForm({
               name="due_date"
               type="date"
               required
-              defaultValue={bill?.due_date || `${month}-20`}
+              min={
+                bill?.due_date && bill.due_date < localToday()
+                  ? bill.due_date
+                  : localToday()
+              }
+              defaultValue={
+                bill?.due_date ||
+                (month > localToday().slice(0, 7)
+                  ? `${month}-01`
+                  : localToday())
+              }
             />
           </Field>
         </div>
-        <Field label="Notas / procedimiento de pago">
+        <Field label="Notas / procedimiento de pago (opcional)">
           <textarea
             name="notes"
             maxLength={2000}

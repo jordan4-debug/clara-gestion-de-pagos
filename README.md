@@ -1,6 +1,6 @@
 # Clara · Gestión de pagos
 
-Aplicación web en español para organizar obligaciones, proveedores, gastos recurrentes, autorizaciones y comprobantes. Interfaz blanca con acentos verdes, acceso mediante correo y contraseña, panel adaptable a computadora y celular. Montos en soles y horario de Lima.
+Aplicación web en español para organizar obligaciones, proveedores, gastos recurrentes, préstamos y comprobantes. Interfaz blanca con acentos verdes, acceso mediante correo y contraseña, panel adaptable a computadora y celular. Montos en soles y horario de Lima.
 
 ## Tecnologías
 
@@ -67,14 +67,18 @@ Después de crear el primer propietario privado, iniciar sesión con él y abrir
 
 ## Funciones
 
-- Resumen del mes, saldo de los próximos siete días, pagos abonados y montos por definir.
+- Resumen del mes, obligaciones de los próximos siete días, pagos abonados y montos por definir. Los indicadores no representan una billetera ni requieren recargar dinero.
 - Proveedores, obligaciones y plantillas recurrentes; generación mensual sin duplicados y ajuste de días al calendario.
-- Autorización o bloqueo por el propietario; reglas por monto y avisos dentro de la aplicación.
-- Registro de abonos parciales o completos con número de operación y comprobante obligatorio.
-- Prevención de duplicados y sobrepagos; bloqueo de edición después de un abono.
+- Creación y registro de pagos por ambos roles, sin autorización previa del propietario.
+- Métodos configurables por proveedor y flujo dentro del pago creado: elegir medio, consultar el portal oficial o instrucciones y registrar el comprobante del pago externo.
+- Monto fijo al crear la obligación, protegido también por la API. Una obligación recurrente sin monto permite definirlo una sola vez.
+- Edición del vencimiento y notas opcionales mientras exista un importe pendiente. El pago vence después de terminar su fecha en horario de Lima.
+- Préstamos con entidad financiera, contrato opcional y cronograma mensual de cuotas; ajustes para meses cortos y última cuota diferente.
+- Registro de abonos externos con operación y comprobante obligatorio; prevención de duplicados y sobrepagos. La API admite abonos parciales y el formulario propone el pendiente completo sin editar el monto de la obligación.
 - Historial, exportación CSV y respaldo JSON protegido para el propietario.
-- Panel propio del propietario: saldo requerido, autorizaciones, revisión de constancias y reportes.
-- Bandeja del asistente: pagos listos, montos por completar, espera de autorización y comprobantes observados.
+- Panel propio del propietario: próximos vencimientos, importes pendientes, revisión de constancias y reportes.
+- Bandeja del asistente: pagos listos, montos por completar, pagos vencidos y comprobantes observados.
+- Confirmación antes de cerrar sesión y aviso al finalizar.
 - Revisión de comprobantes con comentario, corrección del archivo, historial y control de revisiones concurrentes. Corregir una constancia no modifica ni duplica el importe abonado.
 - Reportes por categoría y tendencia de seis meses, con fechas de registro en horario de Lima.
 - Gestión de integrantes privados y revocación de sesiones, protegida en el servidor.
@@ -92,6 +96,8 @@ server/auth.mjs      Cuentas, sesiones, permisos e inicio de sesión
 server/passwords.mjs Hash y verificación de contraseñas
 server/reviews.mjs   Revisión, observación y corrección de comprobantes
 server/reports.mjs   Reportes por periodo y categoría
+server/loans.mjs     Contratos y generación del cronograma de cuotas
+server/provider-payments.mjs Métodos e instrucciones por proveedor
 server/team.mjs      Administración de cuentas privadas y auditoría
 server/cloud-state.mjs Persistencia compartida y cálculos
 server/storage.mjs   Archivos divididos en bloques en D1
@@ -131,7 +137,7 @@ node tests/integration.mjs
 
 Las pruebas cubren contraseñas con sal, concurrencia, rechazo sin escrituras parciales, archivos de hasta 3 MB, inicio y cierre de sesión, roles, CSRF/origen, fechas de febrero, idempotencia mensual, abonos, duplicados y sobrepagos. La prueba HTTP genera registros ficticios y se niega a ejecutarse sobre un dominio público.
 
-También se prueban observación y corrección sin alterar saldos, conservación de constancias anteriores, decisiones simultáneas, registros antiguos sin archivo, permisos de equipo, desactivación de cuentas, nueva autorización al cambiar el destino y el límite de mes en horario de Lima. `node scripts/smoke-live.mjs` comprueba el alojamiento publicado mediante lecturas y sesiones transitorias; no genera obligaciones ni abonos en la nube.
+También se prueban observación y corrección sin alterar importes, conservación de constancias anteriores, decisiones simultáneas, registros antiguos sin archivo, permisos de equipo, desactivación de cuentas, monto inmutable, métodos por proveedor, préstamos y vencimientos en horario de Lima. La migración de proveedores conserva importes, comprobantes y datos personalizados. `node scripts/smoke-live.mjs` comprueba el alojamiento publicado mediante lecturas y sesiones transitorias; no genera obligaciones ni abonos en la nube.
 
 ## Etapas pendientes
 

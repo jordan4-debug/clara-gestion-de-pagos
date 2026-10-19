@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ShieldCheck, Bell, KeyRound, AlertCircle } from "lucide-react";
+import { Bell, KeyRound, AlertCircle } from "lucide-react";
 import { Field, FormError, Submit, formData } from "../components/ui";
-import { send, solesToCents } from "../lib/api";
+import { send } from "../lib/api";
 import type { Settings, User, Attempt } from "../types";
 export function SettingsView({
   settings,
@@ -22,12 +22,12 @@ export function SettingsView({
       {user.role === "owner" ? (
         <section className="panel settings-panel">
           <h2>
-            <ShieldCheck size={21} />
-            Autorizaciones y avisos
+            <Bell size={21} />
+            Vencimientos y avisos
           </h2>
           <p className="muted">
-            El asistente gestiona los pagos habituales. Tú autorizas las
-            excepciones.
+            Los pagos se gestionan directamente, sin autorización previa del
+            gerente.
           </p>
           <form
             onSubmit={async (e) => {
@@ -38,14 +38,13 @@ export function SettingsView({
                 await send(
                   "/settings",
                   {
-                    threshold_cents: solesToCents(f.get("threshold")),
                     reminder_days: Number(f.get("days")),
                     recipient: f.get("recipient"),
                   },
                   "PUT",
                 );
                 onChanged();
-                notify("Reglas guardadas.");
+                notify("Avisos guardados.");
               } catch (e) {
                 setError((e as Error).message);
               } finally {
@@ -54,17 +53,6 @@ export function SettingsView({
             }}
           >
             <fieldset disabled={user.role !== "owner" || busy}>
-              <Field label="Pedir autorización desde (S/)">
-                <input
-                  name="threshold"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  max="1000000"
-                  required
-                  defaultValue={settings.threshold_cents / 100}
-                />
-              </Field>
               <div className="form-grid">
                 <Field label="Días de anticipación">
                   <input
@@ -90,10 +78,10 @@ export function SettingsView({
                 envían correos ni mensajes de WhatsApp.
               </p>
               {user.role === "owner" ? (
-                <Submit busy={busy}>Guardar reglas</Submit>
+                <Submit busy={busy}>Guardar avisos</Submit>
               ) : (
                 <p className="muted">
-                  Solo el propietario puede cambiar las reglas.
+                  Solo el propietario puede cambiar los avisos.
                 </p>
               )}
             </fieldset>

@@ -78,7 +78,143 @@ function memory() {
   return { sqlite, db, env, client };
 }
 
-test("Changing a provider destination invalidates the remaining balance authorization after a partial abono", async () => {
+test("Loans generate monthly fixed installments, preserve end-of-month dates and prevent duplicate contracts", async () => {
+  const { sqlite, client } = memory(),
+    assistant = client();
+  await demo(assistant, "assistant");
+  const suppliers = (await assistant("/suppliers")).data;
+  const lender = suppliers.find((s) => s.category === "Préstamos");
+  assert.ok(lender);
+  const input = {
+    title: "Préstamo para probar cuotas",
+    supplier_id: lender.id,
+    principal_cents: 30000,
+    installment_cents: 10000,
+    last_installment_cents: 15000,
+    installments: 3,
+    first_due_date: "2027-01-31",
+    reference: "CONTRATO-FICTICIO-001",
+    notes: "",
+  };
+  const create = await assistant("/loans", "POST", input);
+  assert.equal(create.status, 201, JSON.stringify(create.data));
+  const loan = (await assistant("/loans")).data.find(
+    (l) => l.id === create.data.id,
+  );
+  assert.deepEqual(
+    loan.installments.map((b) => b.due_date),
+    ["2027-01-31", "2027-02-28", "2027-03-31"],
+  );
+  assert.deepEqual(
+    loan.installments.map((b) => b.amount_cents),
+    [10000, 10000, 15000],
+  );
+  assert.equal(loan.total_cents, 35000);
+  assert.equal(loan.remaining_cents, 35000);
+  assert.equal(loan.installment_count, 3);
+  assert.equal((await assistant("/loans", "POST", input)).status, 409);
+  assert.equal(
+    (
+      await assistant("/loans", "POST", {
+        ...input,
+        reference: "INVALIDO",
+        installments: 0,
+      })
+    ).status,
+    400,
+  );
+  const bill = loan.installments[0],
+    patch = {
+      title: bill.title,
+      supplier_id: bill.supplier_id,
+      amount_cents: 12000,
+      due_date: bill.due_date,
+      notes: "",
+    };
+  assert.equal(
+    (await assistant(`/bills/${bill.id}`, "PATCH", patch)).status,
+    409,
+  );
+  assert.equal(
+    (
+      await assistant(`/bills/${bill.id}/payments`, "POST", {
+        amount_cents: 10000,
+        method: "Transferencia",
+        operation: "CUOTA-FICTICIA-001",
+        receipt: receipt(),
+      })
+    ).status,
+    201,
+  );
+  const updated = (await assistant("/loans")).data.find(
+    (l) => l.id === loan.id,
+  );
+  assert.equal(updated.paid_installments, 1);
+  assert.equal(updated.remaining_cents, 25000);
+  sqlite.close();
+});
+
+test("Payment methods are configured per provider and rejected when unavailable", async () => {
+  const { sqlite, client } = memory(),
+    owner = client(),
+    assistant = client();
+  await demo(owner, "owner");
+  await demo(assistant, "assistant");
+  const supplier = (await owner("/suppliers")).data.find((s) => s.id === 1);
+  assert.equal(
+    (
+      await owner("/suppliers/1", "PUT", {
+        ...supplier,
+        payment_gateway: "manual",
+        payment_methods: ["Yape", "Plin"],
+      })
+    ).status,
+    200,
+  );
+  const {
+    data: { id },
+  } = await assistant("/bills", "POST", {
+    title: "Método por proveedor",
+    supplier_id: 1,
+    amount_cents: 1000,
+    due_date: "2027-02-20",
+  });
+  assert.deepEqual(
+    (await assistant(`/bills/${id}`)).data.provider_payment.methods,
+    ["Yape", "Plin"],
+  );
+  const pay = {
+    amount_cents: 1000,
+    method: "Transferencia",
+    operation: "METODO-FICTICIO-001",
+    receipt: receipt(),
+  };
+  assert.equal(
+    (await assistant(`/bills/${id}/payments`, "POST", pay)).status,
+    400,
+  );
+  assert.equal(
+    (
+      await assistant(`/bills/${id}/payments`, "POST", {
+        ...pay,
+        method: "Yape",
+      })
+    ).status,
+    201,
+  );
+  assert.equal(
+    (
+      await assistant("/suppliers/1", "PUT", {
+        ...supplier,
+        payment_methods: ["Otro"],
+      })
+    ).status,
+    403,
+  );
+  sqlite.close();
+});
+
+test("Provider changes preserve the destination snapshot and payments do not require manager approval", async () => {
   const { sqlite, client } = memory(),
     owner = client(),
     assistant = client();
@@ -122,7 +258,7 @@ test("Changing a provider destination invalidates the remaining balance authoriz
     200,
   );
   const bill = (await assistant(`/bills/${id}`)).data;
-  assert.equal(bill.approval, "required");
+  assert.equal(bill.approval, "approved");
   assert.equal(bill.paid_cents, 1000);
   assert.equal(bill.payments[0].destination.account, "");
   assert.equal(
@@ -134,7 +270,7 @@ test("Changing a provider destination invalidates the remaining balance authoriz
         receipt: receipt(),
       })
     ).status,
-    403,
+    201,
   );
   sqlite.close();
 });
@@ -477,44 +613,73 @@ test("Private team management denies demo administration, revokes disabled sessi
   sqlite.close();
 });
 
-test("Approved payments require another authorization after changing destination or authorized amount", async () => {
+test("Created amounts are immutable for both roles while due dates can be corrected without manager approval", async () => {
   const { sqlite, client } = memory(),
     owner = client(),
     assistant = client();
   await demo(owner, "owner");
   await demo(assistant, "assistant");
   const input = {
-    title: "Destino sensible",
+    title: "Pago de importe fijo",
     supplier_id: 1,
     amount_cents: 90000,
-    due_date: "2026-10-27",
+    due_date: "2027-02-27",
   };
   const {
     data: { id },
   } = await assistant("/bills", "POST", input);
+  assert.equal((await assistant(`/bills/${id}`)).data.approval, "approved");
+  for (const call of [owner, assistant])
+    assert.equal(
+      (await call(`/bills/${id}`, "PATCH", { ...input, amount_cents: 1000 }))
+        .status,
+      409,
+    );
+  assert.equal(
+    (
+      await assistant(`/bills/${id}`, "PATCH", {
+        ...input,
+        due_date: "2027-03-01",
+        notes: "Fecha corregida según recibo.",
+      })
+    ).status,
+    200,
+  );
+  assert.equal((await assistant(`/bills/${id}`)).data.amount_cents, 90000);
+  assert.equal((await assistant(`/bills/${id}`)).data.due_date, "2027-03-01");
   assert.equal(
     (await assistant(`/bills/${id}/approval`, "POST", { approval: "approved" }))
       .status,
-    403,
+    410,
   );
   assert.equal(
-    (await owner(`/bills/${id}/approval`, "POST", { approval: "approved" }))
+    (await assistant("/bills", "POST", { ...input, due_date: "2020-01-01" }))
       .status,
+    400,
+  );
+  const variable = (await assistant("/dashboard")).data.bills.find(
+    (b) => b.amount_cents === null,
+  );
+  const known = {
+    title: variable.title,
+    supplier_id: variable.supplier_id,
+    amount_cents: 3000,
+    due_date: variable.due_date,
+    notes: "",
+  };
+  assert.equal(
+    (await assistant(`/bills/${variable.id}`, "PATCH", known)).status,
     200,
   );
   assert.equal(
-    (await assistant(`/bills/${id}`, "PATCH", { ...input, amount_cents: 1000 }))
-      .status,
-    200,
+    (
+      await assistant(`/bills/${variable.id}`, "PATCH", {
+        ...known,
+        amount_cents: 3500,
+      })
+    ).status,
+    409,
   );
-  assert.equal((await assistant(`/bills/${id}`)).data.approval, "required");
-  await owner(`/bills/${id}/approval`, "POST", { approval: "approved" });
-  await assistant(`/bills/${id}`, "PATCH", {
-    ...input,
-    amount_cents: 1000,
-    supplier_id: 2,
-  });
-  assert.equal((await assistant(`/bills/${id}`)).data.approval, "required");
   sqlite.close();
 });
 

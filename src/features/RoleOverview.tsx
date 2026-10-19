@@ -2,12 +2,11 @@ import { useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
-  ShieldCheck,
   FileCheck2,
   Clock3,
   ListTodo,
   CircleAlert,
-  Wallet,
+  CalendarClock,
 } from "lucide-react";
 import { Badge, Empty } from "../components/ui";
 import { money, shortDate, dateTime } from "../lib/api";
@@ -46,57 +45,6 @@ function WorkList({
     <Empty text={empty} />
   );
 }
-export function Approvals({
-  data,
-  onSelect,
-}: {
-  data: Dashboard;
-  onSelect: (id: number) => void;
-}) {
-  const [filter, setFilter] = useState("required");
-  const bills = data.bills.filter(
-    (b) => b.approval === filter && b.status !== "Pagado",
-  );
-  return (
-    <section className="panel workflow-panel">
-      <div className="panel-title">
-        <h2>Decisiones pendientes</h2>
-        <ShieldCheck size={22} />
-      </div>
-      <p className="muted">
-        Revisa el importe, proveedor y destino antes de autorizar. Los pagos
-        habituales que cumplen tus reglas siguen disponibles para el asistente.
-      </p>
-      <div className="queue-filters">
-        {[
-          ["required", "Por autorizar"],
-          ["blocked", "Detenidos"],
-        ].map(([id, label]) => (
-          <button
-            className={filter === id ? "active" : ""}
-            aria-pressed={filter === id}
-            onClick={() => setFilter(id)}
-            key={id}
-          >
-            {label}
-            <span>
-              {
-                data.bills.filter(
-                  (b) => b.approval === id && b.status !== "Pagado",
-                ).length
-              }
-            </span>
-          </button>
-        ))}
-      </div>
-      <WorkList
-        bills={bills}
-        onSelect={onSelect}
-        empty="No hay decisiones pendientes en este estado."
-      />
-    </section>
-  );
-}
 export function RoleOverview({
   data,
   reviews,
@@ -116,11 +64,9 @@ export function RoleOverview({
 }) {
   const owner = user.role === "owner";
   const pending = data.bills.filter((b) => b.status !== "Pagado");
-  const ready = pending.filter(
-    (b) => b.approval === "approved" && b.amount_cents !== null,
-  );
+  const ready = pending.filter((b) => b.amount_cents !== null);
   const undefinedBills = pending.filter((b) => b.amount_cents === null);
-  const authorizations = pending.filter((b) => b.approval === "required");
+  const overdue = pending.filter((b) => b.status === "Vencido");
   const observed = reviews.filter((p) => p.review_status === "observed");
   const unchecked = reviews.filter(
     (p) => !p.review_status || p.review_status === "pending",
@@ -130,24 +76,24 @@ export function RoleOverview({
     filter === "undefined"
       ? undefinedBills
       : filter === "waiting"
-        ? pending.filter((b) => b.approval !== "approved")
+        ? overdue
         : ready;
   const cards = owner
     ? [
         {
-          label: "Saldo necesario · 7 días",
+          label: "Pagos próximos · 7 días",
           value: money(data.totals.week),
           hint: `${data.totals.weekUndefined} ${data.totals.weekUndefined === 1 ? "importe" : "importes"} por completar`,
-          icon: Wallet,
+          icon: CalendarClock,
           page: "bills",
           tone: "green",
         },
         {
-          label: "Por autorizar",
-          value: String(authorizations.length),
-          hint: "Decisiones que dependen de ti",
-          icon: ShieldCheck,
-          page: "approvals",
+          label: "Pagos vencidos",
+          value: String(overdue.length),
+          hint: "Revisar fechas y obligaciones",
+          icon: CircleAlert,
+          page: "bills",
           tone: "amber",
         },
         {
@@ -159,7 +105,7 @@ export function RoleOverview({
           tone: "blue",
         },
         {
-          label: "Saldo pendiente del mes",
+          label: "Pendiente por pagar",
           value: money(data.totals.pending),
           hint: `${pending.length} obligaciones abiertas`,
           icon: Clock3,
@@ -169,9 +115,9 @@ export function RoleOverview({
       ]
     : [
         {
-          label: "Listos para registrar",
+          label: "Listos para pagar",
           value: String(ready.length),
-          hint: "Con monto y autorización",
+          hint: "Con importe definido",
           icon: ListTodo,
           page: "bills",
           tone: "green",
@@ -193,10 +139,10 @@ export function RoleOverview({
           tone: "red",
         },
         {
-          label: "Esperando autorización",
-          value: String(authorizations.length),
-          hint: "El propietario debe revisarlos",
-          icon: ShieldCheck,
+          label: "Pagos vencidos",
+          value: String(overdue.length),
+          hint: "Prioriza estas obligaciones",
+          icon: CircleAlert,
           page: "bills",
           tone: "blue",
         },
@@ -205,7 +151,7 @@ export function RoleOverview({
     <>
       <div className="role-intro">
         <span className="eyebrow">
-          {owner ? "SUPERVISIÓN Y CONTROL" : "OPERACIÓN DIARIA"}
+          {owner ? "SUPERVISIÓN Y SEGUIMIENTO" : "OPERACIÓN DIARIA"}
         </span>
         <p>
           {owner
@@ -241,14 +187,9 @@ export function RoleOverview({
         <section className="panel workflow-panel" id="task-queue">
           <div className="panel-title">
             <h2>
-              {owner
-                ? "Pendientes de tu autorización"
-                : "Tu bandeja de trabajo"}
+              {owner ? "Pagos que necesitan atención" : "Tu bandeja de trabajo"}
             </h2>
-            <button
-              className="text-button"
-              onClick={() => onNavigate(owner ? "approvals" : "bills")}
-            >
+            <button className="text-button" onClick={() => onNavigate("bills")}>
               Ver todos <ArrowRight size={15} />
             </button>
           </div>
@@ -257,7 +198,7 @@ export function RoleOverview({
               {[
                 ["ready", "Listos"],
                 ["undefined", "Por completar"],
-                ["waiting", "En espera"],
+                ["waiting", "Vencidos"],
               ].map(([id, label]) => (
                 <button
                   key={id}
@@ -271,15 +212,16 @@ export function RoleOverview({
             </div>
           ) : (
             <p className="muted">
-              El asistente puede continuar cuando autorices estas excepciones.
+              Revisa los vencimientos cercanos y los importes que aún faltan
+              completar.
             </p>
           )}
           <WorkList
-            bills={owner ? authorizations : taskBills}
+            bills={owner ? pending : taskBills}
             onSelect={onSelect}
             empty={
               owner
-                ? "No tienes autorizaciones pendientes."
+                ? "No tienes pagos pendientes en este mes."
                 : "No hay tareas en esta bandeja para el mes seleccionado."
             }
           />

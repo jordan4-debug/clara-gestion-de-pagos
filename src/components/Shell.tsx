@@ -8,7 +8,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-  ShieldCheck,
+  Landmark,
   FileCheck2,
   BarChart3,
   Menu,
@@ -22,7 +22,7 @@ export const nav = [
   { id: "suppliers", label: "Proveedores", icon: Users },
   { id: "history", label: "Historial", icon: History },
   { id: "settings", label: "Configuración", icon: Settings },
-  { id: "approvals", label: "Autorizaciones", icon: ShieldCheck },
+  { id: "loans", label: "Préstamos", icon: Landmark },
   { id: "reviews", label: "Comprobantes", icon: FileCheck2 },
   { id: "reports", label: "Reportes", icon: BarChart3 },
   { id: "team", label: "Equipo", icon: Users },
@@ -32,7 +32,7 @@ export function navigation(user: User) {
     user.role === "owner"
       ? [
           "summary",
-          "approvals",
+          "loans",
           "reviews",
           "bills",
           "reports",
@@ -45,6 +45,7 @@ export function navigation(user: User) {
       : [
           "summary",
           "bills",
+          "loans",
           "reviews",
           "templates",
           "suppliers",
@@ -85,8 +86,8 @@ export function Shell({
   const items = navigation(user);
   const mobileIds =
     user.role === "owner"
-      ? ["summary", "approvals", "reviews", "reports"]
-      : ["summary", "bills", "reviews", "history"];
+      ? ["summary", "bills", "loans", "reviews"]
+      : ["summary", "bills", "loans", "reviews"];
   const navigate = (id: string) => {
     setMenu(false);
     onNavigate(id);

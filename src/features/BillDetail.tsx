@@ -1,23 +1,10 @@
 import { useState, useEffect } from "react";
-import {
-  ExternalLink,
-  Copy,
-  ShieldCheck,
-  LockKeyhole,
-  Pencil,
-  Upload,
-} from "lucide-react";
-import {
-  Modal,
-  Badge,
-  Field,
-  FormError,
-  Submit,
-  formData,
-} from "../components/ui";
-import { api, send, money, shortDate, solesToCents } from "../lib/api";
+import { ExternalLink, Copy, Pencil } from "lucide-react";
+import { Modal, Badge, FormError } from "../components/ui";
+import { api, money, shortDate } from "../lib/api";
 import type { Bill, User } from "../types";
-import { ReviewCard, receiptPayload } from "./Reviews";
+import { ReviewCard } from "./Reviews";
+import { PaymentFlow } from "./PaymentFlow";
 export function BillDetail({
   id,
   user,
@@ -34,29 +21,13 @@ export function BillDetail({
   notify: (s: string) => void;
 }) {
   const [bill, setBill] = useState<Bill | null>(null),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
-    [register, setRegister] = useState(false);
+    [error, setError] = useState("");
   const load = () => api<Bill>(`/bills/${id}`).then(setBill);
   useEffect(() => {
     void api<Bill>(`/bills/${id}`)
       .then(setBill)
       .catch((e) => setError(e.message));
   }, [id]);
-  async function approve(approval: string) {
-    setBusy(true);
-    setError("");
-    try {
-      await send(`/bills/${id}/approval`, { approval });
-      await load();
-      onChanged();
-      notify(approval === "approved" ? "Pago autorizado." : "Pago bloqueado.");
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <Modal title={bill?.title || "Detalle del pago"} onClose={onClose} wide>
       <div className="detail-body">
@@ -79,17 +50,17 @@ export function BillDetail({
                   Abonado <b>{money(bill.paid_cents)}</b>
                 </span>
                 <span>
-                  Saldo <b>{money(bill.remaining_cents)}</b>
+                  Pendiente <b>{money(bill.remaining_cents)}</b>
                 </span>
               </div>
             ) : null}
             <div className="detail-section">
               <div className="section-head">
                 <h3>Datos para pagar</h3>
-                {!bill.paid_cents && !bill.pending_attempt ? (
+                {bill.status !== "Pagado" && !bill.pending_attempt ? (
                   <button className="text-button" onClick={() => onEdit(bill)}>
                     <Pencil size={14} />
-                    Editar
+                    Editar vencimiento y notas
                   </button>
                 ) : null}
               </div>
@@ -140,42 +111,6 @@ export function BillDetail({
               ) : null}
               {bill.notes ? <p className="notes">{bill.notes}</p> : null}
             </div>
-            {bill.approval !== "approved" ? (
-              <div className="authorization">
-                <ShieldCheck size={22} />
-                <div>
-                  <strong>
-                    {bill.approval === "blocked"
-                      ? "Pago detenido por el propietario"
-                      : "Este pago requiere autorización"}
-                  </strong>
-                  <p>
-                    El asistente podrá registrarlo después de que el propietario
-                    lo autorice.
-                  </p>
-                </div>
-                {user.role === "owner" ? (
-                  <button
-                    className="button outline-green"
-                    disabled={busy}
-                    onClick={() => void approve("approved")}
-                  >
-                    Autorizar
-                  </button>
-                ) : null}
-              </div>
-            ) : user.role === "owner" &&
-              bill.status !== "Pagado" &&
-              !bill.pending_attempt ? (
-              <button
-                className="text-button stop-button"
-                disabled={busy}
-                onClick={() => void approve("blocked")}
-              >
-                <LockKeyhole size={14} />
-                Detener este pago
-              </button>
-            ) : null}
             {bill.amount_cents === null ? (
               <div className="notice">
                 <strong>Primero define el monto</strong>
@@ -191,115 +126,15 @@ export function BillDetail({
                 </button>
               </div>
             ) : null}
-            {bill.status !== "Pagado" &&
-            bill.amount_cents !== null &&
-            bill.approval === "approved" &&
-            !bill.pending_attempt ? (
-              <section className="detail-section">
-                <h3>Registrar un pago realizado</h3>
-                <p className="muted">
-                  Realiza el pago en tu banco o en la entidad. Luego adjunta su
-                  constancia para que el propietario pueda revisarla.
-                </p>
-                {!register ? (
-                  <button
-                    className="button primary"
-                    onClick={() => setRegister(true)}
-                  >
-                    <Upload size={16} />
-                    Adjuntar comprobante y registrar
-                  </button>
-                ) : (
-                  <form
-                    onSubmit={async (e) => {
-                      const f = formData(e);
-                      setBusy(true);
-                      setError("");
-                      try {
-                        const receipt = await receiptPayload(
-                          f.get("receipt") as File,
-                        );
-                        await send(`/bills/${id}/payments`, {
-                          amount_cents: solesToCents(f.get("amount")),
-                          method: f.get("method"),
-                          operation: f.get("operation"),
-                          receipt,
-                        });
-                        setRegister(false);
-                        await load();
-                        onChanged();
-                        notify("Pago y comprobante guardados.");
-                      } catch (e) {
-                        setError((e as Error).message);
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    <div className="form-grid">
-                      <Field label="Monto abonado (S/)">
-                        <input
-                          type="number"
-                          name="amount"
-                          required
-                          min="0.01"
-                          step="0.01"
-                          max={(bill.remaining_cents || 0) / 100}
-                          defaultValue={(bill.remaining_cents || 0) / 100}
-                        />
-                      </Field>
-                      <Field label="Medio de pago">
-                        <select name="method">
-                          {[
-                            "Transferencia",
-                            "Ventanilla",
-                            "Portal de entidad",
-                            "Otro",
-                          ].map((x) => (
-                            <option key={x}>{x}</option>
-                          ))}
-                        </select>
-                      </Field>
-                    </div>
-                    <Field label="Número de operación">
-                      <input
-                        name="operation"
-                        required
-                        minLength={3}
-                        maxLength={100}
-                        placeholder="Número que figura en tu comprobante"
-                      />
-                    </Field>
-                    <Field
-                      label="Voucher / comprobante"
-                      hint="PDF, PNG o JPG · hasta 3 MB"
-                    >
-                      <input
-                        className="file-input"
-                        type="file"
-                        name="receipt"
-                        accept="application/pdf,image/png,image/jpeg"
-                        required
-                      />
-                    </Field>
-                    <label className="checkbox-line">
-                      <input type="checkbox" required />
-                      Confirmo que este pago ya fue realizado y el comprobante
-                      corresponde al abono.
-                    </label>
-                    <div className="form-actions">
-                      <button
-                        className="button"
-                        type="button"
-                        onClick={() => setRegister(false)}
-                      >
-                        Cancelar
-                      </button>
-                      <Submit busy={busy}>Registrar abono</Submit>
-                    </div>
-                  </form>
-                )}
-              </section>
+            {bill.status !== "Pagado" && bill.amount_cents !== null ? (
+              <PaymentFlow
+                bill={bill}
+                onChanged={() => {
+                  void load();
+                  onChanged();
+                }}
+                notify={notify}
+              />
             ) : null}
             <section className="detail-section">
               <h3>Abonos y comprobantes</h3>

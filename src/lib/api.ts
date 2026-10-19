@@ -75,7 +75,7 @@ export function exportBills(bills: import("../types").Bill[], month: string) {
       "Vencimiento",
       "Monto PEN",
       "Pagado PEN",
-      "Saldo PEN",
+      "Pendiente PEN",
       "Estado",
     ],
     ...bills.map((b) => [
@@ -102,3 +102,11 @@ export function exportBills(bills: import("../types").Bill[], month: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+export const localToday = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Lima",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());

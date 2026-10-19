@@ -100,7 +100,9 @@ export function BillTable({
             <tr>
               <th>Concepto</th>
               <th>Vencimiento</th>
-              <th className="number">{compact ? "Monto" : "Monto / saldo"}</th>
+              <th className="number">
+                {compact ? "Monto" : "Monto / pendiente"}
+              </th>
               <th>Estado</th>
               <th>
                 <span className="sr-only">Detalle</span>
@@ -128,7 +130,7 @@ export function BillTable({
                 <td className="number">
                   {money(b.amount_cents)}
                   {!compact && b.paid_cents > 0 ? (
-                    <small>Saldo {money(b.remaining_cents)}</small>
+                    <small>Pendiente {money(b.remaining_cents)}</small>
                   ) : null}
                 </td>
                 <td>

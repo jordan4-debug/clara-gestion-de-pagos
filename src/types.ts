@@ -14,6 +14,9 @@ export type Supplier = {
   reference: string;
   portal: string;
   channel: "external" | "culqi";
+  payment_gateway?: "portal" | "manual" | "izipay";
+  payment_url?: string;
+  payment_methods?: string[];
 };
 export type Bill = {
   id: number;
@@ -31,6 +34,16 @@ export type Bill = {
   approval: string;
   notes: string;
   pending_attempt: string | null;
+  provider_payment: {
+    gateway: "portal" | "manual" | "izipay";
+    url: string;
+    methods: string[];
+    recipient: string;
+    integrated_enabled: boolean;
+  };
+  loan_id?: number;
+  installment_number?: number;
+  service_reference?: string;
   pending_reviews: number;
   observed_reviews: number;
   bank?: string;
@@ -113,10 +126,28 @@ export type PaymentConfig = {
   merchant: string;
 };
 export type Settings = {
-  threshold_cents: number;
   reminder_days: number;
   recipient: string;
   payment: PaymentConfig;
+};
+export type Loan = {
+  id: number;
+  title: string;
+  supplier: string;
+  supplier_id: number;
+  principal_cents: number;
+  total_cents: number;
+  paid_cents: number;
+  remaining_cents: number;
+  installment_count: number;
+  installment_cents: number;
+  last_installment_cents: number;
+  paid_installments: number;
+  overdue_installments: number;
+  next_due_date: string | null;
+  reference: string;
+  notes: string;
+  installments: Bill[];
 };
 export type Dashboard = {
   today: string;

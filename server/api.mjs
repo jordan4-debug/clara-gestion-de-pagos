@@ -28,6 +28,8 @@ import {
 } from "./reviews.mjs";
 import { report } from "./reports.mjs";
 import { handleTeam } from "./team.mjs";
+import { loanInput, createLoan, listLoans } from "./loans.mjs";
+import { assertProviderMethod } from "./provider-payments.mjs";
 
 const fail = (message, status = 400) => {
   throw Object.assign(new Error(message), { status });
@@ -42,7 +44,7 @@ const json = (value, status = 200, headers = {}) =>
     },
   });
 const settingsSchema = z.object({
-  threshold_cents: cents,
+  threshold_cents: cents.optional(),
   reminder_days: z.number().int().min(0).max(30),
   recipient: z.enum(["owner", "assistant", "both"]),
 });
@@ -109,6 +111,7 @@ export async function handleRequest(request, env) {
     }
     if (method === "GET") {
       const { state } = await readState(env.DB);
+      if (path === "/loans") return json(listLoans(state));
       if (path === "/reviews") {
         const queue = reviewQueue(
           state,
@@ -190,6 +193,14 @@ export async function handleRequest(request, env) {
     if (/\/checkout$|^\/attempts\//.test(path))
       fail("Los pagos reales están desactivados en esta demostración.", 503);
     const input = await body(request);
+    if (method === "POST" && path === "/loans") {
+      const data = loanInput.parse(input);
+      return json(
+        await mutateState(env.DB, (s) => createLoan(s, data, user)),
+        201,
+      );
+    }
+
     let reviewMatch = path.match(/^\/payments\/(\d+)\/review$/);
     if (method === "POST" && reviewMatch) {
       owner(session);
@@ -274,19 +285,7 @@ export async function handleRequest(request, env) {
           } else if (method === "PUT" && id) {
             const previous = state.suppliers.find((s) => s.id === id);
             if (!previous) fail("Proveedor no encontrado.", 404);
-            const sensitive =
-              previous.bank !== x.bank || previous.account !== x.account;
             Object.assign(previous, x);
-            if (sensitive)
-              for (const bill of state.bills.filter(
-                (b) =>
-                  b.supplier_id === id &&
-                  (b.amount_cents === null || b.paid_cents < b.amount_cents),
-              )) {
-                if (bill.approval !== "blocked") bill.approval = "required";
-                bill.approved_by = null;
-                bill.approved_at = null;
-              }
           } else fail("Ruta no encontrada.", 404);
           addAudit(state, actor, "Proveedor guardado", x.name);
           return { ok: true };
@@ -350,11 +349,7 @@ export async function handleRequest(request, env) {
               month: selected,
               template_id: t.id,
               notes: "",
-              approval:
-                t.amount_cents !== null &&
-                t.amount_cents >= state.settings.threshold_cents
-                  ? "required"
-                  : "approved",
+              approval: "approved",
             });
             created++;
           }
@@ -376,31 +371,40 @@ export async function handleRequest(request, env) {
     ) {
       const x = billInput.parse(input),
         id = match ? Number(match[1]) : null;
+      if (!id && x.due_date < today())
+        fail("El vencimiento del nuevo pago no puede ser anterior a hoy.");
       return json(
         await mutateState(env.DB, (state) => {
           supplierExists(state, x.supplier_id);
           if (id) {
             const bill = findBill(state, id);
-            if (bill.paid_cents > 0)
-              fail("No se modifica un pago con abonos.", 409);
-            const changed =
-              x.amount_cents !== bill.amount_cents ||
-              x.supplier_id !== bill.supplier_id;
-            const approval =
-              bill.approval === "blocked"
-                ? "blocked"
-                : changed &&
-                    (bill.approved_by ||
-                      x.supplier_id !== bill.supplier_id ||
-                      (x.amount_cents !== null &&
-                        x.amount_cents >= state.settings.threshold_cents))
-                  ? "required"
-                  : bill.approval;
-            Object.assign(bill, x, { month: x.due_date.slice(0, 7), approval });
-            if (changed) {
-              bill.approved_by = null;
-              bill.approved_at = null;
-            }
+            if (bill.paid_cents === bill.amount_cents)
+              fail("No se modifica una obligación pagada.", 409);
+            if (
+              bill.amount_cents !== null &&
+              x.amount_cents !== bill.amount_cents
+            )
+              fail("El monto del pago creado no se puede modificar.", 409);
+            if (bill.paid_cents > 0 && x.supplier_id !== bill.supplier_id)
+              fail(
+                "No se cambia el proveedor de una obligación con abonos.",
+                409,
+              );
+            if (
+              bill.loan_id &&
+              (x.supplier_id !== bill.supplier_id ||
+                x.amount_cents !== bill.amount_cents)
+            )
+              fail(
+                "No se modifica el contrato ni el importe de una cuota de préstamo.",
+                409,
+              );
+            if (x.due_date !== bill.due_date && x.due_date < today())
+              fail("El nuevo vencimiento no puede ser anterior a hoy.");
+            Object.assign(bill, x, {
+              month: x.due_date.slice(0, 7),
+              approval: "approved",
+            });
           } else {
             cap(state.bills, 300);
             state.bills.push({
@@ -409,11 +413,7 @@ export async function handleRequest(request, env) {
               paid_cents: 0,
               month: x.due_date.slice(0, 7),
               template_id: null,
-              approval:
-                x.amount_cents !== null &&
-                x.amount_cents >= state.settings.threshold_cents
-                  ? "required"
-                  : "approved",
+              approval: "approved",
             });
           }
           addAudit(
@@ -427,34 +427,8 @@ export async function handleRequest(request, env) {
         id ? 200 : 201,
       );
     }
-    match = path.match(/^\/bills\/(\d+)\/approval$/);
-    if (method === "POST" && match) {
-      owner(session);
-      const x = z
-          .object({ approval: z.enum(["approved", "blocked"]) })
-          .parse(input),
-        id = Number(match[1]);
-      return json(
-        await mutateState(env.DB, (state) => {
-          const bill = findBill(state, id);
-          if (
-            bill.amount_cents !== null &&
-            bill.paid_cents === bill.amount_cents
-          )
-            fail("Este pago ya está completo.", 409);
-          bill.approval = x.approval;
-          bill.approved_by = user.id;
-          bill.approved_at = new Date().toISOString();
-          addAudit(
-            state,
-            actor,
-            x.approval === "approved" ? "Pago autorizado" : "Pago bloqueado",
-            bill.title,
-          );
-          return { ok: true };
-        }),
-      );
-    }
+    if (method === "POST" && /^\/bills\/\d+\/approval$/.test(path))
+      fail("Los pagos ya no requieren autorización previa del gerente.", 410);
     match = path.match(/^\/bills\/(\d+)\/payments$/);
     if (method === "POST" && match) {
       const x = paymentInput.parse(input),
@@ -463,6 +437,7 @@ export async function handleRequest(request, env) {
       // Validate before uploading; validate again inside the optimistic transaction.
       const { state } = await readState(env.DB);
       assertPayable(findBill(state, id), x.amount_cents);
+      assertProviderMethod(state, findBill(state, id), x.method);
       cap(state.receipts, 100);
       const key = `demo-receipts/${randomUUID()}`;
       await env.BUCKET.put(key, content, {
@@ -473,6 +448,7 @@ export async function handleRequest(request, env) {
           await mutateState(env.DB, (state) => {
             const bill = findBill(state, id);
             assertPayable(bill, x.amount_cents);
+            assertProviderMethod(state, bill, x.method);
             cap(state.payments, 300);
             cap(state.receipts, 100);
             if (
@@ -538,23 +514,15 @@ export async function handleRequest(request, env) {
       const x = settingsSchema.parse(input);
       return json(
         await mutateState(env.DB, (state) => {
-          const thresholdChanged =
-            state.settings.threshold_cents !== x.threshold_cents;
-          state.settings = x;
-          for (const b of state.bills)
-            if (
-              thresholdChanged &&
-              b.approval === "approved" &&
-              b.amount_cents !== null &&
-              b.paid_cents < b.amount_cents &&
-              b.amount_cents >= x.threshold_cents
-            )
-              b.approval = "required";
+          state.settings = {
+            reminder_days: x.reminder_days,
+            recipient: x.recipient,
+          };
           addAudit(
             state,
             actor,
             "Configuración actualizada",
-            "Reglas de autorización y avisos guardadas.",
+            "Anticipación y destinatarios de avisos guardados.",
           );
           return { ok: true };
         }),

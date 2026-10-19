@@ -14,7 +14,7 @@ import type { Dashboard } from '../types';
 export function Metrics({ data }: { data: Dashboard }) {
   const t = data.totals;
   const items = [
-    { label: 'Pendiente del mes', value: money(t.pending), icon: Clock3, color: 'amber' },
+    { label: 'Pendiente por pagar', value: money(t.pending), icon: Clock3, color: 'amber' },
     { label: 'Próximos 7 días', value: money(t.week), icon: CalendarDays, color: 'blue' },
     { label: 'Pagado este mes', value: money(t.paid), icon: Check, color: 'green' },
     { label: 'Por definir', value: `${t.undefined} pagos`, icon: Ellipsis, color: 'gray' },

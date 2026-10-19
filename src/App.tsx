@@ -11,7 +11,10 @@ import {
 import { Shell, navigation } from "./components/Shell";
 import { Login } from "./features/Access";
 import { Metrics } from "./features/Overview";
-import { RoleOverview, Approvals } from "./features/RoleOverview";
+import { RoleOverview } from "./features/RoleOverview";
+import { Loans } from "./features/Loans";
+import { PaymentMethodForm } from "./features/PaymentMethodForm";
+import { Modal, FormError } from "./components/ui";
 import { Reviews } from "./features/Reviews";
 import { Reports } from "./features/Reports";
 import { Team } from "./features/Team";
@@ -35,7 +38,8 @@ import type {
 type Editor =
   | { type: "bill"; bill?: Bill }
   | { type: "supplier"; supplier?: Supplier }
-  | { type: "template" };
+  | { type: "template" }
+  | { type: "method"; supplier: Supplier };
 export function App() {
   const [user, setUser] = useState<User | null>(null),
     [checking, setChecking] = useState(true),
@@ -62,7 +66,11 @@ export function App() {
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
     [busy, setBusy] = useState(false),
-    [notifications, setNotifications] = useState(false);
+    [notifications, setNotifications] = useState(false),
+    [logoutPrompt, setLogoutPrompt] = useState(false),
+    [logoutBusy, setLogoutBusy] = useState(false),
+    [logoutError, setLogoutError] = useState(""),
+    [loginNotice, setLoginNotice] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );
@@ -168,13 +176,46 @@ export function App() {
     else void refresh();
     notify("Cambios guardados.");
   };
+  async function logout() {
+    setLogoutBusy(true);
+    setLogoutError("");
+    try {
+      await send("/auth/logout", {});
+      requestVersion.current++;
+      setUser(null);
+      setData(null);
+      setCsrf("");
+      setPage("summary");
+      setLogoutPrompt(false);
+      setLoginNotice("Sesión cerrada correctamente.");
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        setUser(null);
+        setData(null);
+        setLogoutPrompt(false);
+        setLoginNotice("Tu sesión ya estaba cerrada.");
+      } else setLogoutError((e as Error).message);
+    } finally {
+      setLogoutBusy(false);
+    }
+  }
   if (checking)
     return (
       <div className="loading-screen">
         Clara<span>Cargando tu espacio…</span>
       </div>
     );
-  if (!user) return <Login onLogin={setUser} demo={demo} />;
+  if (!user)
+    return (
+      <Login
+        onLogin={(u) => {
+          setLoginNotice("");
+          setUser(u);
+        }}
+        demo={demo}
+        notice={loginNotice}
+      />
+    );
   const title =
     page === "summary"
       ? user.role === "owner"
@@ -184,7 +225,7 @@ export function App() {
   const subtitle: Record<string, string> = {
     summary:
       user.role === "owner"
-        ? "Supervisa el saldo, autoriza excepciones y revisa los respaldos."
+        ? "Supervisa los vencimientos, los préstamos y sus comprobantes."
         : "Una bandeja para avanzar, sin perder de vista los vencimientos.",
     bills: "Controla cada obligación, desde el pendiente hasta su comprobante.",
     templates: "Una lista que recuerda por ti, todos los meses.",
@@ -194,7 +235,8 @@ export function App() {
       user.role === "owner"
         ? "Tu manera de trabajar, tus reglas."
         : "Consulta tu acceso y administra tu contraseña.",
-    approvals: "Decide qué puede continuar y qué debe esperar.",
+    loans:
+      "Organiza contratos y cuotas sin modificar los importes registrados.",
     reviews:
       user.role === "owner"
         ? "Comprueba cada constancia y deja observaciones claras."
@@ -209,14 +251,8 @@ export function App() {
       page={page}
       onNavigate={onNavigate}
       onLogout={() => {
-        void send("/auth/logout", {})
-          .then(() => {
-            requestVersion.current++;
-            setUser(null);
-            setData(null);
-            setPage("summary");
-          })
-          .catch((e) => notify(e.message));
+        setLogoutError("");
+        setLogoutPrompt(true);
       }}
     >
       <div className="topbar">
@@ -338,9 +374,6 @@ export function App() {
           busy={busy}
         />
       ) : null}
-      {data && page === "approvals" && user.role === "owner" ? (
-        <Approvals data={data} onSelect={setSelected} />
-      ) : null}
       {data && page === "reviews" ? (
         <Reviews
           items={reviews}
@@ -368,6 +401,15 @@ export function App() {
           user={user}
           onNew={() => setEditor({ type: "supplier" })}
           onEdit={(supplier) => setEditor({ type: "supplier", supplier })}
+          onMethods={(supplier) => setEditor({ type: "method", supplier })}
+        />
+      ) : null}
+      {data && page === "loans" ? (
+        <Loans
+          suppliers={suppliers}
+          version={data}
+          onChanged={() => void refresh()}
+          onSelect={setSelected}
         />
       ) : null}
       {page === "templates" ? (
@@ -432,6 +474,45 @@ export function App() {
           onClose={() => setEditor(null)}
           onSaved={saved}
         />
+      ) : null}
+      {editor?.type === "method" ? (
+        <PaymentMethodForm
+          supplier={editor.supplier}
+          onClose={() => setEditor(null)}
+          onSaved={() => saved()}
+        />
+      ) : null}
+      {logoutPrompt ? (
+        <Modal
+          title="¿Cerrar sesión?"
+          onClose={() => {
+            if (!logoutBusy) setLogoutPrompt(false);
+          }}
+        >
+          <div className="form-body">
+            <p>
+              Tu trabajo guardado se conservará. Tendrás que iniciar sesión para
+              volver a entrar.
+            </p>
+            <FormError message={logoutError} />
+            <div className="form-actions">
+              <button
+                className="button"
+                disabled={logoutBusy}
+                onClick={() => setLogoutPrompt(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                className="button primary"
+                disabled={logoutBusy}
+                onClick={() => void logout()}
+              >
+                {logoutBusy ? "Cerrando…" : "Sí, cerrar sesión"}
+              </button>
+            </div>
+          </div>
+        </Modal>
       ) : null}
       {editor?.type === "template" ? (
         <TemplateForm

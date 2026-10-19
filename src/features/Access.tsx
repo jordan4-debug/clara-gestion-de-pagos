@@ -1,15 +1,23 @@
-import { useState } from 'react';
-import { ArrowRight, ShieldCheck, FileCheck2, Eye, EyeOff } from 'lucide-react';
-import { Brand, Field, FormError, formData } from '../components/ui';
-import { send, setCsrf } from '../lib/api';
-import type { User } from '../types';
-export function Login({ onLogin, demo }: { onLogin: (user: User) => void; demo: boolean }) {
-  const [error, setError] = useState(''),
+import { useState } from "react";
+import { ArrowRight, ShieldCheck, FileCheck2, Eye, EyeOff } from "lucide-react";
+import { Brand, Field, FormError, formData } from "../components/ui";
+import { send, setCsrf } from "../lib/api";
+import type { User } from "../types";
+export function Login({
+  onLogin,
+  demo,
+  notice,
+}: {
+  onLogin: (user: User) => void;
+  demo: boolean;
+  notice?: string;
+}) {
+  const [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [visible, setVisible] = useState(false);
-  async function login(body: unknown, path = '/auth/login') {
+  async function login(body: unknown, path = "/auth/login") {
     setBusy(true);
-    setError('');
+    setError("");
     try {
       const x = await send<{ user: User; csrf: string }>(path, body);
       setCsrf(x.csrf);
@@ -46,10 +54,18 @@ export function Login({ onLogin, demo }: { onLogin: (user: User) => void; demo: 
         <div className="login-form">
           <h2>Bienvenido a Clara</h2>
           <p className="muted">Ingresa a tu espacio de trabajo.</p>
+          {notice ? (
+            <p className="login-notice" role="status">
+              {notice}
+            </p>
+          ) : null}
           <form
             onSubmit={(e) => {
               const f = formData(e);
-              void login({ email: f.get('email'), password: f.get('password') });
+              void login({
+                email: f.get("email"),
+                password: f.get("password"),
+              });
             }}
           >
             <Field label="Correo electrónico">
@@ -66,7 +82,7 @@ export function Login({ onLogin, demo }: { onLogin: (user: User) => void; demo: 
               <div className="password-input">
                 <input
                   name="password"
-                  type={visible ? 'text' : 'password'}
+                  type={visible ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="Tu contraseña"
                   required
@@ -74,7 +90,9 @@ export function Login({ onLogin, demo }: { onLogin: (user: User) => void; demo: 
                 />
                 <button
                   type="button"
-                  aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  aria-label={
+                    visible ? "Ocultar contraseña" : "Mostrar contraseña"
+                  }
                   onClick={() => setVisible(!visible)}
                 >
                   {visible ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -83,7 +101,7 @@ export function Login({ onLogin, demo }: { onLogin: (user: User) => void; demo: 
             </Field>
             <FormError message={error} />
             <button className="button primary full" disabled={busy}>
-              {busy ? 'Ingresando…' : 'Iniciar sesión'}
+              {busy ? "Ingresando…" : "Iniciar sesión"}
               <ArrowRight size={19} />
             </button>
           </form>
@@ -95,14 +113,16 @@ export function Login({ onLogin, demo }: { onLogin: (user: User) => void; demo: 
                 <button
                   className="button"
                   disabled={busy}
-                  onClick={() => void login({ role: 'owner' }, '/auth/demo')}
+                  onClick={() => void login({ role: "owner" }, "/auth/demo")}
                 >
                   Como propietario
                 </button>
                 <button
                   className="button"
                   disabled={busy}
-                  onClick={() => void login({ role: 'assistant' }, '/auth/demo')}
+                  onClick={() =>
+                    void login({ role: "assistant" }, "/auth/demo")
+                  }
                 >
                   Como asistente
                 </button>
@@ -126,7 +146,9 @@ export function Login({ onLogin, demo }: { onLogin: (user: User) => void; demo: 
               </details>
             </div>
           ) : null}
-          <p className="login-foot">Los pagos reales están desactivados durante la presentación.</p>
+          <p className="login-foot">
+            Los pagos reales están desactivados durante la presentación.
+          </p>
         </div>
       </section>
     </div>

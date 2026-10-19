@@ -1,14 +1,20 @@
 import { today, monthDate, status, remaining } from "./domain.mjs";
+import { providerPayment } from "./provider-payments.mjs";
 
 export function seedState() {
   const selected = today().slice(0, 7);
   const suppliers = [
-    ["Pluz Energía", "Servicios", "https://www.pluz.pe/"],
-    ["Sedapal", "Servicios", "https://www.sedapal.com.pe/"],
+    [
+      "Hidrandina",
+      "Servicios",
+      "https://servicios.distriluz.com.pe/OficinaVirtual/",
+    ],
+    ["Sedalib", "Servicios", "https://oficinavirtual.sedalib.com.pe/login"],
     ["Movistar", "Servicios", "https://www.movistar.com.pe/"],
-    ["SAT", "Impuestos", "https://www.sat.gob.pe/"],
+    ["SATT", "Impuestos", "https://digital.satt.gob.pe/pagos/"],
     ["SUNAT", "Impuestos", "https://www.sunat.gob.pe/"],
-    ["Inmobiliaria Los Pinos (ficticia)", "Alquiler", ""],
+    ["Inmobiliaria Los Pinos · Trujillo (ficticia)", "Alquiler", ""],
+    ["Caja Trujillo", "Préstamos", "https://www.cajatrujillo.com.pe/"],
   ].map(([name, category, portal], i) => ({
     id: i + 1,
     name,
@@ -18,6 +24,14 @@ export function seedState() {
     account: "",
     reference: "Ejemplo ficticio · no usar para transferencias",
     channel: "external",
+    payment_gateway: category === "Préstamos" || !portal ? "manual" : "portal",
+    payment_url: category === "Préstamos" ? "" : portal,
+    payment_methods:
+      category === "Préstamos"
+        ? ["Transferencia", "Ventanilla", "Otro"]
+        : portal
+          ? ["Portal de entidad", "Transferencia", "Ventanilla", "Otro"]
+          : ["Transferencia", "Yape", "Plin", "Ventanilla", "Otro"],
   }));
   const definitions = [
     ["Luz", 1, null, 20],
@@ -53,14 +67,12 @@ export function seedState() {
     due_date: monthDate(selected, t.day),
     month: selected,
     template_id: t.id,
-    approval:
-      t.amount_cents !== null && t.amount_cents >= 50000
-        ? "required"
-        : "approved",
+    approval: "approved",
     notes: "Dato ficticio para la demostración compartida.",
   }));
   return {
     suppliers,
+    loans: [],
     templates,
     bills,
     payments: [],
@@ -74,9 +86,10 @@ export function seedState() {
         created_at: new Date().toISOString(),
       },
     ],
-    settings: { threshold_cents: 50000, reminder_days: 3, recipient: "both" },
+    settings: { reminder_days: 3, recipient: "both" },
     next: {
-      suppliers: 7,
+      suppliers: 8,
+      loans: 1,
       templates: 7,
       bills: 7,
       payments: 1,
@@ -140,6 +153,8 @@ export function decorate(state, bill) {
     ...supplier,
     ...bill,
     supplier: supplier.name,
+    provider_payment: providerPayment(supplier),
+    approval: "approved",
     status: status(bill),
     remaining_cents: remaining(bill),
     pending_attempt: null,

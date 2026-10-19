@@ -1,4 +1,221 @@
 /* Role workspaces extend the established white and emerald design. */
+.login-notice {
+  background: #e9f5ed;
+  color: #176442;
+  border: 1px solid #cfe7d6;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.payment-flow > .muted {
+  margin-bottom: 18px;
+  font-size: 13px;
+}
+.payment-step {
+  display: inline-block;
+  color: #52715f;
+  font-size: 11px;
+  font-weight: 650;
+  margin: 8px 0 16px;
+}
+.payment-method-cards {
+  border: 0;
+  padding: 0;
+  margin: 18px 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.payment-method-cards legend,
+.method-options legend {
+  font-size: 13px;
+  font-weight: 650;
+  margin-bottom: 14px;
+}
+.payment-method-cards label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.payment-method-cards label.selected {
+  border-color: #78b99a;
+  background: #eef8f2;
+  color: var(--green);
+}
+.payment-method-cards input {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  accent-color: var(--green);
+  flex-shrink: 0;
+}
+.payment-method-cards label > span {
+  flex: 1;
+}
+.selected-payment-method {
+  border: 1px solid #dce9e1;
+  border-radius: 9px;
+  padding: 22px;
+  background: #fbfdfb;
+}
+.selected-payment-method p {
+  font-size: 13px;
+  line-height: 1.8;
+  margin-bottom: 16px;
+}
+.selected-payment-method .button {
+  white-space: normal;
+}
+.selected-payment-method .bank-details {
+  margin: 18px 0;
+}
+.selected-payment-method .payment-disclaimer {
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 20px;
+}
+.payment-record-form {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 18px;
+}
+.payment-record-form .field {
+  margin-bottom: 18px;
+}
+.payment-record-form input[readonly],
+.form-body input[readonly] {
+  background: #f2f6f3;
+  color: #3f6450;
+  border-style: dashed;
+  cursor: default;
+}
+.method-options {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 20px 0;
+  padding: 18px;
+}
+.method-options .checkbox-line {
+  margin: 8px 0;
+  min-height: 32px;
+}
+.loan-list {
+  display: grid;
+  gap: 22px;
+}
+.loan-title {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  min-width: 0;
+}
+.loan-title p {
+  font-size: 12px;
+  margin-top: 7px;
+}
+.loan-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+.loan-summary dt {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 9px;
+}
+.loan-summary dd {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 650;
+}
+.loan-progress {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 22px 0 15px;
+}
+.loan-progress progress {
+  height: 9px;
+  flex: 1;
+  accent-color: var(--green);
+}
+.loan-progress span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.loan-next {
+  font-size: 12px;
+  margin-top: 10px;
+}
+.loan-schedule {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.loan-schedule summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  min-height: 40px;
+}
+@media (max-width: 760px) {
+  .payment-method-cards {
+    grid-template-columns: 1fr;
+  }
+  .selected-payment-method {
+    padding: 16px;
+  }
+  .payment-flow .section-head {
+    flex-wrap: wrap;
+  }
+  .payment-flow .section-head h3 {
+    font-size: 16px;
+  }
+  .loan-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 14px;
+  }
+  .loan-summary dd {
+    font-size: 19px;
+  }
+  .loan-progress {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .loan-title {
+    align-items: flex-start;
+  }
+  .loan-title h2 {
+    font-size: 17px;
+  }
+  .loan-list .panel-title {
+    flex-wrap: wrap;
+  }
+  .supplier-row .button-row {
+    flex-wrap: wrap;
+  }
+  .supplier-row .button-row .button {
+    font-size: 11px;
+    min-height: 40px;
+  }
+}
 button:focus-visible,
 a:focus-visible {
   outline: 3px solid #087c5a;

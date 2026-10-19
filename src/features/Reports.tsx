@@ -61,7 +61,7 @@ export function Reports({ data }: { data: Dashboard }) {
           <small>{visible.recorded_count} operaciones declaradas</small>
         </div>
         <div className="role-metric amber">
-          <span>Saldo de obligaciones del mes</span>
+          <span>Obligaciones pendientes del mes</span>
           <strong>{money(visible.totals.pending)}</strong>
           <small>{visible.totals.undefined} importes aún por definir</small>
         </div>
@@ -122,7 +122,7 @@ export function Reports({ data }: { data: Dashboard }) {
                 <tr>
                   <th>Categoría</th>
                   <th>Obligaciones</th>
-                  <th>Saldo del mes</th>
+                  <th>Pendiente del mes</th>
                   <th>Abonos del periodo</th>
                 </tr>
               </thead>
