@@ -14,7 +14,7 @@ Aplicación web en español para organizar obligaciones, proveedores, gastos rec
 
 **Web publicada:** https://clara-gestion-de-pagos.pages.dev/
 
-El proyecto funciona de forma independiente de Sites y no necesita una cuenta de ChatGPT para visitarlo o iniciar sesión.
+El acceso se realiza mediante las cuentas y los permisos definidos en el sistema.
 
 ## Trabajar en equipo
 
@@ -144,4 +144,4 @@ También se prueban observación y corrección sin alterar saldos, conservación
 
 `scripts/import-previous-demo.mjs` recupera el espacio del alojamiento anterior y sus archivos. Se niega a sobrescribir una base de destino que ya contiene un espacio. Los respaldos y el SQL de importación están en `.local/`, fuera del repositorio. No se trasladan sesiones, cookies ni contraseñas del alojamiento anterior.
 
-No incluir `.local`, `.wrangler`, `.env`, tokens, base local o archivos de usuarios al preparar un ZIP o repositorio. Las imágenes de concepto de `docs/` son referencias de diseño, no capturas de funcionalidades verificadas.
+No incluir `.local`, `.wrangler`, `.env`, tokens, base local o archivos de usuarios al preparar un ZIP o repositorio.

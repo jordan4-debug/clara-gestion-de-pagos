@@ -1,6 +1,11 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { run } from './cloudflare.mjs';
-const previous = 'https://clara-gestion-de-pagos.mauricioraul7272.chatgpt.site';
+const source = process.env.PREVIOUS_APP_URL;
+if (!source) throw new Error('Define PREVIOUS_APP_URL con la dirección del origen que deseas importar.');
+const previousUrl = new URL(source);
+if (previousUrl.protocol !== 'https:' || previousUrl.username || previousUrl.password || previousUrl.search || previousUrl.hash)
+  throw new Error('El origen debe ser una dirección HTTPS sin credenciales ni parámetros.');
+const previous = previousUrl.origin;
 const sql = (value) => "'" + String(value).replaceAll("'", "''") + "'";
 const existing = JSON.parse(
   run([

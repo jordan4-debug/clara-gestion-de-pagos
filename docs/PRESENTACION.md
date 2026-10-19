@@ -1,6 +1,6 @@
 # Guía breve para la exposición
 
-1. Abrir el enlace de Cloudflare Pages. Mostrar que la dirección y el acceso son independientes de ChatGPT.
+1. Abrir la web publicada y explicar su objetivo: organizar obligaciones, proveedores, abonos y comprobantes mediante dos roles de trabajo.
 2. Iniciar sesión con correo y contraseña del propietario; mostrar el error al escribir una contraseña incorrecta.
 3. Mostrar el panel de supervisión: saldo de siete días, autorizaciones, constancias por revisar y saldo mensual. Un monto por definir no se suma como si fuera cero conocido.
 4. Abrir «Recurrentes» y preparar un mes. Repetir la acción y comprobar que no duplica obligaciones.
