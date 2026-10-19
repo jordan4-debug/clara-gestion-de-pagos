@@ -41,6 +41,9 @@ export type Bill = {
     recipient: string;
     integrated_enabled: boolean;
   };
+  invoice_receipt_id?: number;
+  invoice_name?: string;
+  created_by?: string;
   loan_id?: number;
   installment_number?: number;
   service_reference?: string;
@@ -154,6 +157,8 @@ export type Dashboard = {
   month: string;
   bills: Bill[];
   totals: {
+    total: number;
+    monthPaid: number;
     pending: number;
     week: number;
     paid: number;
@@ -172,4 +177,21 @@ export type Attempt = {
   state: string;
   charge_id: string | null;
   created_at: string;
+};
+
+export type CashData = {
+  people: { id: number; name: string; active: number; balance_cents: number }[];
+  balance_cents: number;
+  totals: { delivered: number; spent: number; returned: number };
+  movements: {
+    id: number;
+    kind: "delivery" | "expense" | "return";
+    holder_id: number;
+    amount_cents: number;
+    note: string;
+    actor: string;
+    created_at: string;
+    bill_id?: number;
+    payment_id?: number;
+  }[];
 };

@@ -73,6 +73,7 @@ export function seedState() {
   return {
     suppliers,
     loans: [],
+    cash_movements: [],
     templates,
     bills,
     payments: [],
@@ -90,6 +91,7 @@ export function seedState() {
     next: {
       suppliers: 8,
       loans: 1,
+      cash: 1,
       templates: 7,
       bills: 7,
       payments: 1,
@@ -201,6 +203,8 @@ export function dashboard(state, selected, role) {
     bills,
     settings: state.settings,
     totals: {
+      total: bills.reduce((n, b) => n + (b.amount_cents || 0), 0),
+      monthPaid: bills.reduce((n, b) => n + b.paid_cents, 0),
       pending: bills.reduce((s, b) => s + (b.remaining_cents || 0), 0),
       week: week.reduce((s, b) => s + (b.remaining_cents || 0), 0),
       paid: state.payments

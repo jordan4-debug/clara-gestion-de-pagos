@@ -10,7 +10,7 @@ import {
   Badge,
 } from "../components/ui";
 import { api, send, money, localToday, solesToCents } from "../lib/api";
-import type { Loan, Supplier, Dashboard } from "../types";
+import type { Loan, Supplier, Dashboard, User } from "../types";
 const loanDate = (date: string) =>
   new Intl.DateTimeFormat("es-PE", {
     day: "numeric",
@@ -20,11 +20,13 @@ const loanDate = (date: string) =>
   }).format(new Date(`${date}T12:00:00Z`));
 export function Loans({
   suppliers,
+  user,
   version,
   onChanged,
   onSelect,
 }: {
   suppliers: Supplier[];
+  user: User;
   version: Dashboard;
   onChanged: () => void;
   onSelect: (id: number) => void;
@@ -55,10 +57,12 @@ export function Loans({
         <p className="muted">
           Cada préstamo conserva su contrato y genera una obligación por cuota.
         </p>
-        <button className="button primary" onClick={() => setCreating(true)}>
-          <Plus size={17} />
-          Registrar préstamo
-        </button>
+        {user.role === "assistant" ? (
+          <button className="button primary" onClick={() => setCreating(true)}>
+            <Plus size={17} />
+            Registrar préstamo
+          </button>
+        ) : null}
       </div>
       <FormError message={error} />
       {error ? (
@@ -190,7 +194,7 @@ export function Loans({
       {!items.length && !error ? (
         <Empty text="Todavía no hay préstamos registrados." />
       ) : null}
-      {creating ? (
+      {creating && user.role === "assistant" ? (
         <LoanForm
           suppliers={suppliers.filter((s) => s.category === "Préstamos")}
           onClose={() => setCreating(false)}

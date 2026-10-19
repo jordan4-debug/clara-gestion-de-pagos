@@ -30,7 +30,11 @@ export function BillTable({
   const filtered = bills.filter(
     (b) =>
       (tab === "all" ||
-        (tab === "paid" ? b.status === "Pagado" : b.status !== "Pagado")) &&
+        (tab === "overdue"
+          ? b.status === "Vencido"
+          : tab === "paid"
+            ? b.status === "Pagado"
+            : b.status !== "Pagado")) &&
       (category === "all" || b.category === category) &&
       `${b.title} ${b.supplier}`
         .toLocaleLowerCase()
@@ -39,7 +43,7 @@ export function BillTable({
   return (
     <section className="panel payments-panel">
       <div className="panel-title">
-        <h2>Pagos del mes</h2>
+        <h2>Deudas y pagos del mes</h2>
         {!compact ? (
           <button
             className="text-button"
@@ -55,6 +59,11 @@ export function BillTable({
           ["all", "Todos", bills.length],
           ["pending", "Pendientes", pending.length],
           ["paid", "Pagados", paid.length],
+          [
+            "overdue",
+            "Vencidos",
+            bills.filter((b) => b.status === "Vencido").length,
+          ],
         ].map(([id, label, count]) => (
           <button
             key={id}
@@ -135,6 +144,11 @@ export function BillTable({
                 </td>
                 <td>
                   <Badge status={b.status} />
+                  {!b.invoice_receipt_id && !b.loan_id ? (
+                    <small className="review-count">
+                      Falta recibo original
+                    </small>
+                  ) : null}
                   {b.observed_reviews ? (
                     <small className="review-count observed">
                       {b.observed_reviews} comprobante observado

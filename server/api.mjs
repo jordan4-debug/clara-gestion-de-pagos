@@ -29,6 +29,13 @@ import {
 import { report } from "./reports.mjs";
 import { handleTeam } from "./team.mjs";
 import { loanInput, createLoan, listLoans } from "./loans.mjs";
+import {
+  cashInput,
+  cashPeople,
+  cashView,
+  addCash,
+  spendCash,
+} from "./cash.mjs";
 import { assertProviderMethod } from "./provider-payments.mjs";
 
 const fail = (message, status = 400) => {
@@ -58,6 +65,13 @@ const paymentConfig = {
 const owner = (session) => {
   if (session.role !== "owner")
     fail("Solo el propietario puede hacer esto.", 403);
+};
+const assistant = (session) => {
+  if (session.role !== "assistant")
+    fail(
+      "El asistente registra los recibos y préstamos; el propietario supervisa y puede pagar.",
+      403,
+    );
 };
 const cap = (items, max) => {
   if (items.length >= max)
@@ -111,6 +125,15 @@ export async function handleRequest(request, env) {
     }
     if (method === "GET") {
       const { state } = await readState(env.DB);
+      if (path === "/cash")
+        return json(
+          cashView(
+            state,
+            month.parse(url.searchParams.get("month") || today().slice(0, 7)),
+            user,
+            await cashPeople(env.DB, user),
+          ),
+        );
       if (path === "/loans") return json(listLoans(state));
       if (path === "/reviews") {
         const queue = reviewQueue(
@@ -193,7 +216,58 @@ export async function handleRequest(request, env) {
     if (/\/checkout$|^\/attempts\//.test(path))
       fail("Los pagos reales están desactivados en esta demostración.", 503);
     const input = await body(request);
+    if (method === "POST" && path === "/cash") {
+      const data = cashInput.parse(input),
+        people = await cashPeople(env.DB, user);
+      if (
+        !people.some(
+          (p) =>
+            p.id === data.holder_id && (data.kind === "return" || p.active),
+        )
+      )
+        fail("Selecciona un asistente activo.");
+      await mutateState(env.DB, (state) => addCash(state, data, user));
+      return json({ ok: true }, 201);
+    }
+    let documentMatch = path.match(/^\/bills\/(\d+)\/document$/);
+    if (method === "POST" && documentMatch) {
+      assistant(session);
+      const data = z.object({ receipt: receiptInput }).parse(input),
+        id = Number(documentMatch[1]),
+        content = decodeReceipt(data.receipt);
+      const { state } = await readState(env.DB);
+      if (findBill(state, id).invoice_receipt_id)
+        fail("El recibo original ya está archivado y no se reemplaza.", 409);
+      cap(state.receipts, 100);
+      const key = `documents/${randomUUID()}`;
+      await env.BUCKET.put(key, content, {
+        httpMetadata: { contentType: data.receipt.mime },
+      });
+      try {
+        await mutateState(env.DB, (state) => {
+          const bill = findBill(state, id);
+          if (bill.invoice_receipt_id)
+            fail("El recibo original ya está archivado.", 409);
+          cap(state.receipts, 100);
+          const receipt_id = state.next.receipts++;
+          state.receipts.push({
+            id: receipt_id,
+            key,
+            name: data.receipt.name,
+            mime: data.receipt.mime,
+          });
+          bill.invoice_receipt_id = receipt_id;
+          bill.invoice_name = data.receipt.name;
+          addAudit(state, actor, "Recibo original archivado", bill.title);
+        });
+      } catch (e) {
+        await env.BUCKET.delete(key);
+        throw e;
+      }
+      return json({ ok: true }, 201);
+    }
     if (method === "POST" && path === "/loans") {
+      assistant(session);
       const data = loanInput.parse(input);
       return json(
         await mutateState(env.DB, (s) => createLoan(s, data, user)),
@@ -327,6 +401,7 @@ export async function handleRequest(request, env) {
       );
     }
     if (method === "POST" && path === "/months/generate") {
+      assistant(session);
       const selected = month.parse(input.month);
       return json(
         await mutateState(env.DB, (state) => {
@@ -369,63 +444,95 @@ export async function handleRequest(request, env) {
       (method === "POST" && path === "/bills") ||
       (method === "PATCH" && match)
     ) {
+      assistant(session);
       const x = billInput.parse(input),
         id = match ? Number(match[1]) : null;
       if (!id && x.due_date < today())
         fail("El vencimiento del nuevo pago no puede ser anterior a hoy.");
-      return json(
-        await mutateState(env.DB, (state) => {
-          supplierExists(state, x.supplier_id);
-          if (id) {
-            const bill = findBill(state, id);
-            if (bill.paid_cents === bill.amount_cents)
-              fail("No se modifica una obligación pagada.", 409);
-            if (
-              bill.amount_cents !== null &&
-              x.amount_cents !== bill.amount_cents
-            )
-              fail("El monto del pago creado no se puede modificar.", 409);
-            if (bill.paid_cents > 0 && x.supplier_id !== bill.supplier_id)
-              fail(
-                "No se cambia el proveedor de una obligación con abonos.",
-                409,
-              );
-            if (
-              bill.loan_id &&
-              (x.supplier_id !== bill.supplier_id ||
-                x.amount_cents !== bill.amount_cents)
-            )
-              fail(
-                "No se modifica el contrato ni el importe de una cuota de préstamo.",
-                409,
-              );
-            if (x.due_date !== bill.due_date && x.due_date < today())
-              fail("El nuevo vencimiento no puede ser anterior a hoy.");
-            Object.assign(bill, x, {
-              month: x.due_date.slice(0, 7),
-              approval: "approved",
-            });
-          } else {
-            cap(state.bills, 300);
-            state.bills.push({
-              id: state.next.bills++,
-              ...x,
-              paid_cents: 0,
-              month: x.due_date.slice(0, 7),
-              template_id: null,
-              approval: "approved",
-            });
-          }
-          addAudit(
-            state,
-            actor,
-            id ? "Pago actualizado" : "Pago creado",
-            x.title,
-          );
-          return { id: id || state.next.bills - 1 };
-        }),
-        id ? 200 : 201,
-      );
+      let document = null,
+        documentKey = null;
+      if (!id) {
+        document = receiptInput.parse(input.invoice);
+        const content = decodeReceipt(document);
+        const { state } = await readState(env.DB);
+        supplierExists(state, x.supplier_id);
+        cap(state.bills, 300);
+        cap(state.receipts, 100);
+        documentKey = `documents/${randomUUID()}`;
+        await env.BUCKET.put(documentKey, content, {
+          httpMetadata: { contentType: document.mime },
+        });
+      }
+      try {
+        return json(
+          await mutateState(env.DB, (state) => {
+            supplierExists(state, x.supplier_id);
+            if (id) {
+              const bill = findBill(state, id);
+              if (bill.paid_cents === bill.amount_cents)
+                fail("No se modifica una obligación pagada.", 409);
+              if (
+                bill.amount_cents !== null &&
+                x.amount_cents !== bill.amount_cents
+              )
+                fail("El monto del pago creado no se puede modificar.", 409);
+              if (bill.paid_cents > 0 && x.supplier_id !== bill.supplier_id)
+                fail(
+                  "No se cambia el proveedor de una obligación con abonos.",
+                  409,
+                );
+              if (
+                bill.loan_id &&
+                (x.supplier_id !== bill.supplier_id ||
+                  x.amount_cents !== bill.amount_cents)
+              )
+                fail(
+                  "No se modifica el contrato ni el importe de una cuota de préstamo.",
+                  409,
+                );
+              if (x.due_date !== bill.due_date && x.due_date < today())
+                fail("El nuevo vencimiento no puede ser anterior a hoy.");
+              Object.assign(bill, x, {
+                month: x.due_date.slice(0, 7),
+                approval: "approved",
+              });
+            } else {
+              cap(state.bills, 300);
+              cap(state.receipts, 100);
+              const documentId = state.next.receipts++;
+              state.receipts.push({
+                id: documentId,
+                key: documentKey,
+                name: document.name,
+                mime: document.mime,
+              });
+              state.bills.push({
+                invoice_receipt_id: documentId,
+                invoice_name: document.name,
+                created_by: actor,
+                created_by_id: user.id,
+                id: state.next.bills++,
+                ...x,
+                paid_cents: 0,
+                month: x.due_date.slice(0, 7),
+                template_id: null,
+                approval: "approved",
+              });
+            }
+            addAudit(
+              state,
+              actor,
+              id ? "Pago actualizado" : "Pago creado",
+              x.title,
+            );
+            return { id: id || state.next.bills - 1 };
+          }),
+          id ? 200 : 201,
+        );
+      } catch (e) {
+        if (documentKey) await env.BUCKET.delete(documentKey);
+        throw e;
+      }
     }
     if (method === "POST" && /^\/bills\/\d+\/approval$/.test(path))
       fail("Los pagos ya no requieren autorización previa del gerente.", 410);
@@ -460,6 +567,15 @@ export async function handleRequest(request, env) {
                 "Esta operación ya está registrada. No vuelvas a ingresarla.",
                 409,
               );
+            if (x.method === "Efectivo")
+              spendCash(
+                state,
+                bill,
+                state.next.payments,
+                x.amount_cents,
+                user,
+                x.cash_holder_id,
+              );
             const receipt_id = state.next.receipts++;
             state.receipts.push({
               id: receipt_id,
@@ -473,6 +589,12 @@ export async function handleRequest(request, env) {
               amount_cents: x.amount_cents,
               method: x.method,
               operation: x.operation,
+              cash_holder_id:
+                x.method === "Efectivo"
+                  ? user.role === "assistant"
+                    ? user.id
+                    : x.cash_holder_id || null
+                  : null,
               receipt_id,
               receipt_name: x.receipt.name,
               actor,

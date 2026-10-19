@@ -1,6 +1,6 @@
 # Clara · Gestión de pagos
 
-Aplicación web en español para organizar obligaciones, proveedores, gastos recurrentes, préstamos y comprobantes. Interfaz blanca con acentos verdes, acceso mediante correo y contraseña, panel adaptable a computadora y celular. Montos en soles y horario de Lima.
+Aplicación web en español para consultar deudas mensuales, delegar su registro y pago a un asistente, controlar préstamos, documentos y efectivo. Interfaz blanca con acentos verdes, acceso mediante correo y contraseña, panel adaptable a computadora y celular. Montos en soles y horario de Lima.
 
 ## Tecnologías
 
@@ -63,27 +63,30 @@ npm run user:create -- --remote
 
 La contraseña se escribe localmente sin mostrarse ni incluirse en argumentos del proceso. No se publica una función de registro que permita a visitantes asignarse permisos de propietario. Para trabajar con cuentas privadas y datos de una empresa, crear las cuentas, cambiar `DEMO_MODE` a `"false"` y volver a publicar. El acceso público de demostración permite explorar todos sus registros; usar solo datos ficticios mientras esté activo.
 
-Después de crear el primer propietario privado, iniciar sesión con él y abrir **Equipo** para crear integrantes con rol de propietario o asistente, activar o desactivar accesos y consultar el historial de cambios del equipo. Desactivar una cuenta cierra sus sesiones y conserva sus operaciones. Las cuentas públicas de demostración solo ven los integrantes ficticios y no pueden administrar cuentas privadas. No se debe colocar información real mientras `DEMO_MODE` siga activo, aunque ya existan cuentas privadas.
+Después de crear el primer propietario privado, iniciar sesión con él y abrir **Configuración → Equipo** para crear integrantes con rol de propietario o asistente, activar o desactivar accesos y consultar el historial de cambios del equipo. Desactivar una cuenta cierra sus sesiones y conserva sus operaciones. Las cuentas públicas de demostración solo ven los integrantes ficticios y no pueden administrar cuentas privadas. No se debe colocar información real mientras `DEMO_MODE` siga activo, aunque ya existan cuentas privadas.
 
 ## Funciones
 
-- Resumen del mes, obligaciones de los próximos siete días, pagos abonados y montos por definir. Los indicadores no representan una billetera ni requieren recargar dinero.
-- Proveedores, obligaciones y plantillas recurrentes; generación mensual sin duplicados y ajuste de días al calendario.
-- Creación y registro de pagos por ambos roles, sin autorización previa del propietario.
+- Resumen mensual con total de obligaciones, abonado, pendiente, vencimientos y montos por definir. Los indicadores no representan una billetera ni requieren recargar dinero.
+- Obligaciones y entidades configuradas por el propietario; las plantillas anteriores se conservan por compatibilidad, sin una pantalla adicional de recurrentes.
+- El asistente registra recibos y préstamos. El propietario supervisa; ambos pueden registrar pagos externos sin autorización previa obligatoria.
 - Métodos configurables por proveedor y flujo dentro del pago creado: elegir medio, consultar el portal oficial o instrucciones y registrar el comprobante del pago externo.
 - Monto fijo al crear la obligación, protegido también por la API. Una obligación recurrente sin monto permite definirlo una sola vez.
 - Edición del vencimiento y notas opcionales mientras exista un importe pendiente. El pago vence después de terminar su fecha en horario de Lima.
 - Préstamos con entidad financiera, contrato opcional y cronograma mensual de cuotas; ajustes para meses cortos y última cuota diferente.
 - Registro de abonos externos con operación y comprobante obligatorio; prevención de duplicados y sobrepagos. La API admite abonos parciales y el formulario propone el pendiente completo sin editar el monto de la obligación.
-- Historial, exportación CSV y respaldo JSON protegido para el propietario.
-- Panel propio del propietario: próximos vencimientos, importes pendientes, revisión de constancias y reportes.
-- Bandeja del asistente: pagos listos, montos por completar, pagos vencidos y comprobantes observados.
+- Consulta de meses anteriores, exportación CSV de la lista y respaldo JSON protegido para el propietario desde Configuración.
+- Inicio directo en deudas del mes para ambos roles, con total, abonado, pendiente y navegación entre meses.
+- Acciones de registro reservadas al asistente y revisión de constancias para el propietario, en el detalle de cada deuda.
+- Recibo original obligatorio en el alta manual, archivado por separado de la constancia de pago.
+- Control de efectivo por asistente: entregas, gastos y devoluciones, con protección ante gasto simultáneo e importes insuficientes.
+- Navegación reducida: deudas, préstamos, efectivo y configuración. Los menús independientes de historial y recurrentes se retiraron; se conservan sus datos anteriores.
 - Confirmación antes de cerrar sesión y aviso al finalizar.
 - Revisión de comprobantes con comentario, corrección del archivo, historial y control de revisiones concurrentes. Corregir una constancia no modifica ni duplica el importe abonado.
 - Reportes por categoría y tendencia de seis meses, con fechas de registro en horario de Lima.
 - Gestión de integrantes privados y revocación de sesiones, protegida en el servidor.
 
-Ver [responsabilidades y flujo completo](docs/FLUJOS.md). La revisión de una constancia documenta la verificación del propietario; no confirma una transferencia con el banco.
+Ver [responsabilidades y flujo completo](docs/FLUJOS.md) y [decisiones de la revisión del Product Owner](docs/REVISION-PRODUCT-OWNER.md). La revisión de una constancia documenta la verificación del propietario; no confirma una transferencia con el banco.
 
 **Los pagos reales están desactivados.** Registrar un pago externo no mueve dinero ni confirma una transferencia con el banco. Izipay es una etapa posterior que requiere un comercio habilitado y una integración verificada.
 
@@ -97,6 +100,7 @@ server/passwords.mjs Hash y verificación de contraseñas
 server/reviews.mjs   Revisión, observación y corrección de comprobantes
 server/reports.mjs   Reportes por periodo y categoría
 server/loans.mjs     Contratos y generación del cronograma de cuotas
+server/cash.mjs      Entregas, pagos y devoluciones de efectivo por asistente
 server/provider-payments.mjs Métodos e instrucciones por proveedor
 server/team.mjs      Administración de cuentas privadas y auditoría
 server/cloud-state.mjs Persistencia compartida y cálculos

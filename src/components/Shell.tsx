@@ -1,73 +1,28 @@
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import {
   House,
-  CreditCard,
-  CalendarDays,
-  Users,
-  History,
   Settings,
   LogOut,
   ChevronRight,
   Landmark,
-  FileCheck2,
-  BarChart3,
-  Menu,
+  Banknote,
 } from "lucide-react";
 import { Brand } from "./ui";
 import type { User } from "../types";
 export const nav = [
-  { id: "summary", label: "Resumen", icon: House },
-  { id: "bills", label: "Pagos", icon: CreditCard },
-  { id: "templates", label: "Recurrentes", icon: CalendarDays },
-  { id: "suppliers", label: "Proveedores", icon: Users },
-  { id: "history", label: "Historial", icon: History },
-  { id: "settings", label: "Configuración", icon: Settings },
+  { id: "summary", label: "Deudas del mes", icon: House },
   { id: "loans", label: "Préstamos", icon: Landmark },
-  { id: "reviews", label: "Comprobantes", icon: FileCheck2 },
-  { id: "reports", label: "Reportes", icon: BarChart3 },
-  { id: "team", label: "Equipo", icon: Users },
+  { id: "cash", label: "Control de efectivo", icon: Banknote },
+  { id: "settings", label: "Configuración", icon: Settings },
 ];
 export function navigation(user: User) {
-  const ids =
-    user.role === "owner"
-      ? [
-          "summary",
-          "loans",
-          "reviews",
-          "bills",
-          "reports",
-          "suppliers",
-          "templates",
-          "history",
-          "team",
-          "settings",
-        ]
-      : [
-          "summary",
-          "bills",
-          "loans",
-          "reviews",
-          "templates",
-          "suppliers",
-          "history",
-          "settings",
-        ];
-  return ids.map((id) => {
-    const item = nav.find((n) => n.id === id)!;
-    return {
-      ...item,
-      label:
-        id === "summary"
-          ? user.role === "owner"
-            ? "Panel de control"
-            : "Mis tareas"
-          : id === "reviews" && user.role === "assistant"
-            ? "Mis comprobantes"
-            : id === "settings" && user.role === "assistant"
-              ? "Mi cuenta"
-              : item.label,
-    };
-  });
+  return nav.map((item) => ({
+    ...item,
+    label:
+      item.id === "settings" && user.role === "assistant"
+        ? "Mi cuenta"
+        : item.label,
+  }));
 }
 export function Shell({
   user,
@@ -82,14 +37,8 @@ export function Shell({
   onLogout: () => void;
   children: ReactNode;
 }) {
-  const [menu, setMenu] = useState(false);
   const items = navigation(user);
-  const mobileIds =
-    user.role === "owner"
-      ? ["summary", "bills", "loans", "reviews"]
-      : ["summary", "bills", "loans", "reviews"];
   const navigate = (id: string) => {
-    setMenu(false);
     onNavigate(id);
   };
   return (
@@ -140,44 +89,18 @@ export function Shell({
       </aside>
       <main className="main">{children}</main>
       <footer className="mobile-nav">
-        {items
-          .filter((n) => mobileIds.includes(n.id))
-          .map(({ id, label, icon: Icon }) => (
-            <button
-              aria-current={page === id ? "page" : undefined}
-              className={page === id ? "active" : ""}
-              key={id}
-              onClick={() => navigate(id)}
-            >
-              <Icon size={19} />
-              <span>{label}</span>
-            </button>
-          ))}
-        <button
-          onClick={() => setMenu(!menu)}
-          aria-expanded={menu}
-          aria-controls="mobile-more-menu"
-        >
-          <Menu size={19} />
-          <span>Más</span>
-        </button>
+        {items.map(({ id, label, icon: Icon }) => (
+          <button
+            aria-current={page === id ? "page" : undefined}
+            className={page === id ? "active" : ""}
+            key={id}
+            onClick={() => navigate(id)}
+          >
+            <Icon size={19} />
+            <span>{label}</span>
+          </button>
+        ))}
       </footer>
-      {menu ? (
-        <nav
-          id="mobile-more-menu"
-          className="mobile-more-menu"
-          aria-label="Más opciones"
-        >
-          {items
-            .filter((n) => !mobileIds.includes(n.id))
-            .map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => navigate(id)}>
-                <Icon size={18} />
-                {label}
-              </button>
-            ))}
-        </nav>
-      ) : null}
     </div>
   );
 }

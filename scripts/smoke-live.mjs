@@ -33,11 +33,22 @@ async function call(session, path, method = "GET", body) {
 const owner = await login("owner"),
   assistant = await login("assistant");
 assert.equal((await call(owner, "/auth/me")).data.user.role, "owner");
-assert.equal((await call(assistant, "/auth/me")).data.user.role, "assistant");
+const assistantIdentity = (await call(assistant, "/auth/me")).data.user;
+assert.equal(assistantIdentity.role, "assistant");
 const first = await call(owner, "/dashboard"),
   second = await call(assistant, "/dashboard");
 assert.equal(first.status, 200);
 assert.deepEqual(first.data.bills, second.data.bills);
+assert.equal(first.data.totals.total, first.data.totals.monthPaid + first.data.totals.pending);
+for (const session of [owner, assistant]) {
+  const cash = await call(session, `/cash?month=${first.data.month}`);
+  assert.equal(cash.status, 200);
+  assert.ok(Array.isArray(cash.data.movements));
+  assert.ok(cash.data.people.every((p) => p.balance_cents >= 0));
+  if (session === assistant) assert.ok(cash.data.people.every((p) => p.id === assistantIdentity.id));
+}
+assert.equal((await call(owner, "/bills", "POST", {})).status, 403);
+assert.equal((await call(owner, "/loans", "POST", {})).status, 403);
 assert.ok(first.data.bills.length >= 6);
 const loans = await call(owner, "/loans");
 assert.equal(loans.status, 200);
@@ -83,5 +94,5 @@ assert.equal(
 await call(owner, "/auth/logout", "POST", {});
 await call(assistant, "/auth/logout", "POST", {});
 console.log(
-  `PASS: ${base} · acceso, roles, reportes coherentes, comprobantes, equipo protegido y ${backup.data.state.bills.length} obligaciones; pagos reales desactivados. No se alteraron obligaciones ni comprobantes.`,
+  `PASS: ${base} · acceso, roles, totales mensuales, efectivo por asistente, comprobantes, equipo protegido y ${backup.data.state.bills.length} obligaciones; pagos reales desactivados. No se alteraron obligaciones, efectivo ni comprobantes.`,
 );

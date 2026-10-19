@@ -1150,3 +1150,223 @@ button.role-metric:hover {
     margin-top: 24px;
   }
 }
+
+/* Monthly workspace: fewer choices, readable controls and direct actions. */
+.monthly-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 4px 0 24px;
+}
+.monthly-intro > p {
+  max-width: 620px;
+  color: var(--muted, #65766f);
+  font-size: 16px;
+  line-height: 1.7;
+  margin: 0;
+}
+.monthly-metrics {
+  margin-bottom: 24px;
+}
+.monthly-metrics .role-metric {
+  min-height: 124px;
+}
+.monthly-metrics .role-metric > strong {
+  font-size: 30px;
+}
+.monthly-intro .button {
+  min-height: 48px;
+  font-size: 15px;
+}
+.month-step {
+  min-height: 44px;
+  min-width: 36px;
+}
+.settings-disclosure {
+  padding: 22px;
+  margin-top: 20px;
+}
+.settings-disclosure > summary {
+  cursor: pointer;
+  font-size: 17px;
+  font-weight: 700;
+  padding: 4px 0;
+}
+.settings-disclosure[open] > summary {
+  margin-bottom: 20px;
+}
+.settings-disclosure > .panel {
+  border: 0;
+  box-shadow: none;
+}
+.cash-person {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid #e3eae6;
+}
+.cash-list > article {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid #e3eae6;
+}
+.cash-list p {
+  margin: 8px 0;
+}
+.cash-list small {
+  color: #65766f;
+}
+.cash-list > article > strong {
+  white-space: nowrap;
+}
+.cash-list,
+.original-document {
+  margin-top: 20px;
+}
+.original-document h3 {
+  margin-bottom: 12px;
+}
+.original-document > small {
+  display: block;
+  margin-top: 12px;
+  color: #65766f;
+}
+.document-upload {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.document-upload .field {
+  flex: 1;
+  min-width: 220px;
+}
+.amount-note > svg {
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.tabs {
+  flex-wrap: wrap;
+}
+.topbar-right {
+  gap: 8px;
+}
+.table-filters input,
+.table-filters select {
+  min-height: 44px;
+}
+@media (max-width: 900px) {
+  .monthly-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .monthly-intro .button-row {
+    width: 100%;
+  }
+  .monthly-metrics .role-metric > strong {
+    font-size: 27px;
+  }
+  .cash-list > article {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 600px) {
+  .topbar-right {
+    flex-wrap: wrap;
+  }
+  .month-control {
+    padding: 6px;
+  }
+  .month-control input {
+    max-width: 165px;
+  }
+  .monthly-intro .button-row {
+    flex-direction: column;
+  }
+  .monthly-intro .button {
+    width: 100%;
+    justify-content: center;
+  }
+  .settings-disclosure {
+    padding: 16px;
+  }
+  .monthly-metrics {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .monthly-metrics .role-metric {
+    padding: 16px;
+    min-height: 120px;
+  }
+  .monthly-metrics .role-metric > strong {
+    font-size: 24px;
+  }
+  .monthly-metrics .role-metric > span {
+    font-size: 13px;
+  }
+  .cash-list small {
+    line-height: 1.7;
+  }
+  .settings-disclosure .supplier-row {
+    padding: 16px 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+  .topbar-left {
+    flex-direction: row;
+    max-width: none;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .topbar-left .demo-label {
+    max-width: 220px;
+    text-align: right;
+  }
+  .topbar-right {
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: 6px;
+    justify-content: space-between;
+  }
+  .topbar-right .month-control {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+  }
+  .topbar-right .month-control input {
+    width: 100%;
+    min-width: 0;
+    max-width: 170px;
+  }
+  .month-step {
+    min-width: 38px;
+    flex-shrink: 0;
+  }
+  .topbar-right .bell-button {
+    flex-shrink: 0;
+  }
+}
+.provider-information {
+  margin-top: 12px;
+}
+.provider-information > summary {
+  cursor: pointer;
+  color: #087c5a;
+  font-weight: 650;
+  margin-bottom: 12px;
+}
+.provider-information .bank-details {
+  margin-top: 16px;
+}

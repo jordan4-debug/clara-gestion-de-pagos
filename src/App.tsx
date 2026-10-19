@@ -1,44 +1,30 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
-  Plus,
   Bell,
   CalendarDays,
   X,
   ChevronRight,
   CheckCircle2,
   RefreshCw,
+  ChevronLeft,
 } from "lucide-react";
 import { Shell, navigation } from "./components/Shell";
 import { Login } from "./features/Access";
-import { Metrics } from "./features/Overview";
 import { RoleOverview } from "./features/RoleOverview";
+import { Cash } from "./features/Cash";
 import { Loans } from "./features/Loans";
 import { PaymentMethodForm } from "./features/PaymentMethodForm";
 import { Modal, FormError } from "./components/ui";
-import { Reviews } from "./features/Reviews";
-import { Reports } from "./features/Reports";
 import { Team } from "./features/Team";
-import { BillTable } from "./features/BillTable";
 import { BillDetail } from "./features/BillDetail";
-import { BillForm, SupplierForm, TemplateForm } from "./features/EntityForms";
-import { Suppliers, Templates, HistoryView } from "./features/Management";
+import { BillForm, SupplierForm } from "./features/EntityForms";
+import { Suppliers } from "./features/Management";
 import { SettingsView } from "./features/SettingsView";
 import { api, send, setCsrf, shortDate, ApiError } from "./lib/api";
-import type {
-  User,
-  Dashboard,
-  Supplier,
-  Template,
-  Activity,
-  Settings,
-  Attempt,
-  Bill,
-  Review,
-} from "./types";
+import type { User, Dashboard, Supplier, Settings, Bill } from "./types";
 type Editor =
   | { type: "bill"; bill?: Bill }
   | { type: "supplier"; supplier?: Supplier }
-  | { type: "template" }
   | { type: "method"; supplier: Supplier };
 export function App() {
   const [user, setUser] = useState<User | null>(null),
@@ -56,16 +42,11 @@ export function App() {
     ),
     [snapshot, setData] = useState<Dashboard | null>(null),
     [suppliers, setSuppliers] = useState<Supplier[]>([]),
-    [templates, setTemplates] = useState<Template[]>([]),
-    [activity, setActivity] = useState<Activity[]>([]),
     [settings, setSettings] = useState<Settings | null>(null),
-    [attempts, setAttempts] = useState<Attempt[]>([]),
-    [reviews, setReviews] = useState<Review[]>([]),
     [selected, setSelected] = useState<number | null>(null),
     [editor, setEditor] = useState<Editor | null>(null),
     [error, setError] = useState(""),
     [toast, setToast] = useState(""),
-    [busy, setBusy] = useState(false),
     [notifications, setNotifications] = useState(false),
     [logoutPrompt, setLogoutPrompt] = useState(false),
     [logoutBusy, setLogoutBusy] = useState(false),
@@ -101,25 +82,15 @@ export function App() {
     if (!user) return;
     const version = ++requestVersion.current;
     try {
-      const [d, s, t, a, c, p, r] = await Promise.all([
+      const [d, s, c] = await Promise.all([
         api<Dashboard>(`/dashboard?month=${month}`),
         api<Supplier[]>("/suppliers"),
-        api<Template[]>("/templates"),
-        api<Activity[]>("/activity"),
         api<Settings>("/settings"),
-        user.role === "owner"
-          ? api<Attempt[]>("/attempts")
-          : Promise.resolve([]),
-        api<Review[]>(`/reviews?month=${month}`),
       ]);
       if (version !== requestVersion.current) return;
       setData(d);
       setSuppliers(s);
-      setTemplates(t);
-      setActivity(a);
       setSettings(c);
-      setAttempts(p);
-      setReviews(r);
       setError("");
     } catch (e) {
       if (version !== requestVersion.current) return;
@@ -148,21 +119,12 @@ export function App() {
       window.removeEventListener("focus", onFocus);
     };
   }, [user, selected, editor, refresh]);
-  async function prepare() {
-    setBusy(true);
-    try {
-      const x = await send<{ created: number }>("/months/generate", { month });
-      await refresh();
-      notify(
-        x.created
-          ? `${x.created} pagos creados para ${month}.`
-          : "Este mes ya está preparado. No se crearon duplicados.",
-      );
-    } catch (e) {
-      notify((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
+  function changeMonth(step: number) {
+    const [year, m] = month.split("-").map(Number);
+    const next = new Date(Date.UTC(year, m - 1 + step, 1))
+      .toISOString()
+      .slice(0, 7);
+    if (next >= "2020-01" && next <= "2099-12") setMonth(next);
   }
   const onNavigate = (id: string) => {
     if (!user || !navigation(user).some((n) => n.id === id)) return;
@@ -219,14 +181,14 @@ export function App() {
   const title =
     page === "summary"
       ? user.role === "owner"
-        ? "Tu gestión, bajo control."
-        : "Tu trabajo de hoy, en orden."
+        ? "Tus deudas del mes"
+        : "Deudas del mes"
       : navigation(user).find((x) => x.id === page)?.label || "Pagos";
   const subtitle: Record<string, string> = {
     summary:
       user.role === "owner"
-        ? "Supervisa los vencimientos, los préstamos y sus comprobantes."
-        : "Una bandeja para avanzar, sin perder de vista los vencimientos.",
+        ? "Revisa tus obligaciones, sus recibos y lo que falta pagar."
+        : "Registra recibos y pagos desde la lista mensual.",
     bills: "Controla cada obligación, desde el pendiente hasta su comprobante.",
     templates: "Una lista que recuerda por ti, todos los meses.",
     suppliers: "Toda la información que necesitas para pagar bien.",
@@ -235,6 +197,7 @@ export function App() {
       user.role === "owner"
         ? "Tu manera de trabajar, tus reglas."
         : "Consulta tu acceso y administra tu contraseña.",
+    cash: "Entregas, pagos y devoluciones con su respaldo.",
     loans:
       "Organiza contratos y cuotas sin modificar los importes registrados.",
     reviews:
@@ -276,6 +239,14 @@ export function App() {
           >
             <RefreshCw size={18} />
           </button>
+          <button
+            className="icon-button month-step"
+            aria-label="Mes anterior"
+            disabled={month === "2020-01"}
+            onClick={() => changeMonth(-1)}
+          >
+            <ChevronLeft size={21} />
+          </button>
           <label className="month-control">
             <CalendarDays size={17} />
             <input
@@ -289,6 +260,14 @@ export function App() {
               }}
             />
           </label>
+          <button
+            className="icon-button month-step"
+            aria-label="Mes siguiente"
+            disabled={month === "2099-12"}
+            onClick={() => changeMonth(1)}
+          >
+            <ChevronRight size={21} />
+          </button>
           <button
             className="bell-button icon-button"
             aria-label={`Notificaciones: ${data?.notifications.length || 0}`}
@@ -343,15 +322,6 @@ export function App() {
           <h1>{title}</h1>
           <p>{subtitle[page]}</p>
         </div>
-        {page === "bills" ? (
-          <button
-            className="button primary new-payment"
-            onClick={() => setEditor({ type: "bill" })}
-          >
-            <Plus size={19} />
-            Nuevo pago
-          </button>
-        ) : null}
       </header>
       {error ? (
         <div className="error-banner" role="alert">
@@ -367,81 +337,59 @@ export function App() {
         <RoleOverview
           data={data}
           user={user}
-          reviews={reviews}
           onSelect={setSelected}
           onNavigate={onNavigate}
-          onPrepare={() => void prepare()}
-          busy={busy}
+          onNew={() => setEditor({ type: "bill" })}
         />
       ) : null}
-      {data && page === "reviews" ? (
-        <Reviews
-          items={reviews}
-          user={user}
-          onChanged={() => void refresh()}
-          onSelect={setSelected}
-          notify={notify}
-        />
-      ) : null}
-      {data && page === "reports" && user.role === "owner" ? (
-        <Reports data={data} />
-      ) : null}
-      {page === "team" && user.role === "owner" ? (
-        <Team user={user} notify={notify} publicDemo={demo} />
-      ) : null}
-      {data && page === "bills" ? (
-        <>
-          <Metrics data={data} />
-          <BillTable bills={data.bills} month={month} onSelect={setSelected} />
-        </>
-      ) : null}
-      {page === "suppliers" ? (
-        <Suppliers
-          items={suppliers}
-          user={user}
-          onNew={() => setEditor({ type: "supplier" })}
-          onEdit={(supplier) => setEditor({ type: "supplier", supplier })}
-          onMethods={(supplier) => setEditor({ type: "method", supplier })}
-        />
+      {page === "cash" ? (
+        <Cash user={user} month={month} refreshKey={snapshot} onChanged={() => void refresh()} />
       ) : null}
       {data && page === "loans" ? (
         <Loans
+          user={user}
           suppliers={suppliers}
           version={data}
           onChanged={() => void refresh()}
           onSelect={setSelected}
         />
       ) : null}
-      {page === "templates" ? (
-        <Templates
-          items={templates}
-          user={user}
-          onNew={() => setEditor({ type: "template" })}
-          busy={busy}
-          onPrepare={() => void prepare()}
-          onToggle={async (t) => {
-            setBusy(true);
-            try {
-              await send(`/templates/${t.id}`, { active: !t.active }, "PATCH");
-              await refresh();
-              notify(t.active ? "Recurrente pausado." : "Recurrente activado.");
-            } catch (e) {
-              notify((e as Error).message);
-            } finally {
-              setBusy(false);
-            }
-          }}
-        />
-      ) : null}
-      {page === "history" ? <HistoryView items={activity} /> : null}
       {page === "settings" && settings ? (
-        <SettingsView
-          settings={settings}
-          user={user}
-          attempts={attempts}
-          onChanged={() => void refresh()}
-          notify={notify}
-        />
+        <>
+          <SettingsView
+            settings={settings}
+            user={user}
+            onChanged={() => void refresh()}
+            notify={notify}
+          />
+          {user.role === "owner" ? (
+            <>
+              <details className="panel settings-disclosure">
+                <summary>Entidades y destinos de pago</summary>
+                <p className="muted">
+                  Configura los destinos que utilizará el asistente. Las
+                  contraseñas y los datos completos de tarjetas se gestionan en
+                  la entidad de pago.
+                </p>
+                <Suppliers
+                  items={suppliers}
+                  user={user}
+                  onNew={() => setEditor({ type: "supplier" })}
+                  onEdit={(supplier) =>
+                    setEditor({ type: "supplier", supplier })
+                  }
+                  onMethods={(supplier) =>
+                    setEditor({ type: "method", supplier })
+                  }
+                />
+              </details>
+              <details className="panel settings-disclosure">
+                <summary>Equipo y accesos</summary>
+                <Team user={user} notify={notify} publicDemo={demo} />
+              </details>
+            </>
+          ) : null}
+        </>
       ) : null}
       <p className="workspace-footer">
         Clara Gestión de Pagos · Montos en soles · Horario de Lima, Perú
@@ -459,7 +407,7 @@ export function App() {
           notify={notify}
         />
       ) : null}
-      {editor?.type === "bill" ? (
+      {editor?.type === "bill" && user.role === "assistant" ? (
         <BillForm
           suppliers={suppliers}
           month={month}
@@ -513,13 +461,6 @@ export function App() {
             </div>
           </div>
         </Modal>
-      ) : null}
-      {editor?.type === "template" ? (
-        <TemplateForm
-          suppliers={suppliers}
-          onClose={() => setEditor(null)}
-          onSaved={saved}
-        />
       ) : null}
       {toast ? (
         <div role="status" className="toast">

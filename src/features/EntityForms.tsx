@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Modal, Field, FormError, Submit, formData } from "../components/ui";
 import { send, solesToCents, localToday } from "../lib/api";
+import { receiptPayload } from "./Reviews";
 import type { Bill, Supplier } from "../types";
 type Props = { onClose: () => void; onSaved: (month?: string) => void };
 export function BillForm({
@@ -13,7 +14,10 @@ export function BillForm({
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   return (
-    <Modal title={bill ? "Editar pago" : "Nuevo pago"} onClose={onClose}>
+    <Modal
+      title={bill ? "Editar vencimiento y notas" : "Registrar recibo"}
+      onClose={onClose}
+    >
       <form
         className="form-body"
         onSubmit={async (e) => {
@@ -25,6 +29,9 @@ export function BillForm({
             await send(
               bill ? `/bills/${bill.id}` : "/bills",
               {
+                ...(!bill
+                  ? { invoice: await receiptPayload(f.get("invoice") as File) }
+                  : {}),
                 title: f.get("title"),
                 supplier_id: Number(f.get("supplier_id")),
                 amount_cents: solesToCents(f.get("amount")),
@@ -108,6 +115,20 @@ export function BillForm({
             />
           </Field>
         </div>
+        {!bill ? (
+          <Field
+            label="Recibo original"
+            hint="Foto o PDF de la obligación que se va a pagar · hasta 3 MB"
+          >
+            <input
+              className="file-input"
+              type="file"
+              name="invoice"
+              accept="application/pdf,image/png,image/jpeg"
+              required
+            />
+          </Field>
+        ) : null}
         <Field label="Notas / procedimiento de pago (opcional)">
           <textarea
             name="notes"
@@ -126,7 +147,9 @@ export function BillForm({
           <button type="button" className="button" onClick={onClose}>
             Cancelar
           </button>
-          <Submit busy={busy}>{bill ? "Guardar cambios" : "Crear pago"}</Submit>
+          <Submit busy={busy}>
+            {bill ? "Guardar cambios" : "Guardar recibo"}
+          </Submit>
         </div>
       </form>
     </Modal>

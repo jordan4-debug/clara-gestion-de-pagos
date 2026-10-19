@@ -10,6 +10,7 @@ export const paymentMethods = [
   "Plin",
   "Ventanilla",
   "Otro",
+  "Efectivo",
 ];
 export const paymentMethod = z.enum(paymentMethods);
 export const billInput = z.object({
@@ -61,6 +62,7 @@ export const paymentInput = z.object({
   method: paymentMethod,
   operation: z.string().trim().min(3).max(100),
   receipt: receiptInput,
+  cash_holder_id: z.number().int().positive().nullable().optional(),
 });
 export function decodeReceipt(receipt) {
   const content = Buffer.from(receipt.base64, "base64");

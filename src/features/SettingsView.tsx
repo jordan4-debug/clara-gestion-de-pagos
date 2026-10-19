@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Bell, KeyRound, AlertCircle } from "lucide-react";
 import { Field, FormError, Submit, formData } from "../components/ui";
 import { send } from "../lib/api";
-import type { Settings, User, Attempt } from "../types";
+import type { Settings, User } from "../types";
 export function SettingsView({
   settings,
   user,
@@ -11,7 +11,6 @@ export function SettingsView({
 }: {
   settings: Settings;
   user: User;
-  attempts: Attempt[];
   onChanged: () => void;
   notify: (s: string) => void;
 }) {

@@ -10,7 +10,7 @@ export function providerPayment(supplier) {
   return {
     gateway,
     url,
-    methods,
+    methods: [...new Set([...methods, "Efectivo"])],
     recipient: supplier.name,
     integrated_enabled: false,
   };

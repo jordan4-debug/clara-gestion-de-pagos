@@ -14,6 +14,7 @@ function memory() {
     .filter((f) => f.endsWith(".sql"))
     .sort())
     sqlite.exec(readFileSync("migrations/" + f, "utf8"));
+  let batches = Promise.resolve();
   const db = {
     prepare(sql) {
       let values = [];
@@ -35,17 +36,22 @@ function memory() {
         },
       };
     },
-    async batch(statements) {
-      sqlite.exec("BEGIN");
-      try {
-        const result = [];
-        for (const s of statements) result.push(await s.run());
-        sqlite.exec("COMMIT");
-        return result;
-      } catch (e) {
-        sqlite.exec("ROLLBACK");
-        throw e;
-      }
+    batch(statements) {
+      const transaction = batches.then(async () => {
+        sqlite.exec("BEGIN");
+        try {
+          const result = [];
+          for (const statement of statements)
+            result.push(await statement.run());
+          sqlite.exec("COMMIT");
+          return result;
+        } catch (error) {
+          sqlite.exec("ROLLBACK");
+          throw error;
+        }
+      });
+      batches = transaction.catch(() => {});
+      return transaction;
     },
   };
   const env = { DB: db, BUCKET: fileStore(db), DEMO_MODE: "true" };
@@ -175,13 +181,14 @@ test("Payment methods are configured per provider and rejected when unavailable"
     data: { id },
   } = await assistant("/bills", "POST", {
     title: "Método por proveedor",
+    invoice: receipt(),
     supplier_id: 1,
     amount_cents: 1000,
     due_date: "2027-02-20",
   });
   assert.deepEqual(
     (await assistant(`/bills/${id}`)).data.provider_payment.methods,
-    ["Yape", "Plin"],
+    ["Yape", "Plin", "Efectivo"],
   );
   const pay = {
     amount_cents: 1000,
@@ -224,6 +231,7 @@ test("Provider changes preserve the destination snapshot and payments do not req
     data: { id },
   } = await assistant("/bills", "POST", {
     title: "Abono parcial y cambio de cuenta",
+    invoice: receipt(),
     supplier_id: 1,
     amount_cents: 90000,
     due_date: "2026-10-28",
@@ -293,6 +301,7 @@ test("Receipt observation, correction and review preserve balances, files and co
   await demo(assistant, "assistant");
   const create = await assistant("/bills", "POST", {
     title: "Constancia para revisar",
+    invoice: receipt(),
     supplier_id: 1,
     amount_cents: 1000,
     due_date: "2026-10-24",
@@ -484,6 +493,7 @@ test("Two simultaneous reviews preserve one decision and reject the stale decisi
     data: { id },
   } = await assistant("/bills", "POST", {
     title: "Revision concurrente",
+    invoice: receipt(),
     supplier_id: 1,
     amount_cents: 1000,
     due_date: "2026-10-25",
@@ -613,7 +623,7 @@ test("Private team management denies demo administration, revokes disabled sessi
   sqlite.close();
 });
 
-test("Created amounts are immutable for both roles while due dates can be corrected without manager approval", async () => {
+test("Only assistants register obligations and correct dates; created amounts stay fixed", async () => {
   const { sqlite, client } = memory(),
     owner = client(),
     assistant = client();
@@ -621,6 +631,7 @@ test("Created amounts are immutable for both roles while due dates can be correc
   await demo(assistant, "assistant");
   const input = {
     title: "Pago de importe fijo",
+    invoice: receipt(),
     supplier_id: 1,
     amount_cents: 90000,
     due_date: "2027-02-27",
@@ -629,12 +640,13 @@ test("Created amounts are immutable for both roles while due dates can be correc
     data: { id },
   } = await assistant("/bills", "POST", input);
   assert.equal((await assistant(`/bills/${id}`)).data.approval, "approved");
-  for (const call of [owner, assistant])
-    assert.equal(
-      (await call(`/bills/${id}`, "PATCH", { ...input, amount_cents: 1000 }))
-        .status,
-      409,
-    );
+  assert.equal((await owner("/bills", "POST", input)).status, 403);
+  assert.equal((await owner(`/bills/${id}`, "PATCH", input)).status, 403);
+  assert.equal(
+    (await assistant(`/bills/${id}`, "PATCH", { ...input, amount_cents: 1000 }))
+      .status,
+    409,
+  );
   assert.equal(
     (
       await assistant(`/bills/${id}`, "PATCH", {
@@ -711,5 +723,208 @@ test("Reports and dashboard agree at the Lima month boundary and count legacy re
     "pending",
   );
   assert.equal((await owner("/reports?month=2026-11")).data.totals.paid, 0);
+  sqlite.close();
+});
+
+test("Original invoices are archived separately from payment vouchers and the owner cannot enter debts or loans", async () => {
+  const { sqlite, db, client } = memory(),
+    owner = client(),
+    assistant = client();
+  await demo(owner, "owner");
+  await demo(assistant, "assistant");
+  const input = {
+    title: "Recibo de agua con evidencia",
+    supplier_id: 2,
+    amount_cents: 18000,
+    due_date: "2027-02-20",
+  };
+  const before = (await readState(db)).state;
+  assert.equal((await assistant("/bills", "POST", input)).status, 400);
+  assert.equal((await readState(db)).state.bills.length, before.bills.length);
+  const created = await assistant("/bills", "POST", {
+    ...input,
+    invoice: receipt(),
+  });
+  assert.equal(created.status, 201);
+  const detail = (await owner(`/bills/${created.data.id}`)).data;
+  assert.ok(detail.invoice_receipt_id);
+  assert.equal(detail.invoice_name, receipt().name);
+  assert.ok(
+    (await owner(`/receipts/${detail.invoice_receipt_id}`)).data.startsWith(
+      "%PDF-",
+    ),
+  );
+  assert.equal(
+    (
+      await assistant(`/bills/${detail.id}/document`, "POST", {
+        receipt: receipt(),
+      })
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await owner(`/bills/${detail.id}/document`, "POST", {
+        receipt: receipt(),
+      })
+    ).status,
+    403,
+  );
+  assert.equal((await owner("/loans", "POST", {})).status, 403);
+  assert.equal(
+    (await owner("/months/generate", "POST", { month: "2027-04" })).status,
+    403,
+  );
+  const voucher = await owner(`/bills/${detail.id}/payments`, "POST", {
+    amount_cents: 18000,
+    method: "Transferencia",
+    operation: "PAGO-PROPIETARIO-EXCEPCIONAL",
+    receipt: receipt(),
+  });
+  assert.equal(voucher.status, 201);
+  const paid = (await owner(`/bills/${detail.id}`)).data;
+  assert.equal(paid.status, "Pagado");
+  assert.notEqual(paid.invoice_receipt_id, paid.payments[0].receipt_id);
+  assert.equal(paid.payments.length, 1);
+  sqlite.close();
+});
+
+test("Cash deliveries, expenses and returns reconcile per assistant and rejected operations leave no partial changes", async () => {
+  const { sqlite, db, client } = memory(),
+    owner = client(),
+    assistant = client();
+  await demo(owner, "owner");
+  await demo(assistant, "assistant");
+  const person = (await owner("/cash")).data.people[0];
+  assert.ok(person);
+  const delivery = {
+    kind: "delivery",
+    holder_id: person.id,
+    amount_cents: 1000,
+    note: "Entrega ficticia para servicios",
+  };
+  assert.equal((await assistant("/cash", "POST", delivery)).status, 403);
+  const created = await assistant("/bills", "POST", {
+    title: "Servicio pagado en efectivo",
+    supplier_id: 2,
+    amount_cents: 600,
+    due_date: "2027-02-20",
+    invoice: receipt(),
+  });
+  assert.equal(created.status, 201);
+  const path = `/bills/${created.data.id}/payments`,
+    payment = {
+      amount_cents: 600,
+      method: "Efectivo",
+      operation: "CAJA-FICTICIA-001",
+      receipt: receipt(),
+    };
+  assert.equal((await assistant(path, "POST", payment)).status, 409);
+  assert.equal((await owner("/cash")).data.balance_cents, 0);
+  assert.equal((await owner("/cash", "POST", delivery)).status, 201);
+  assert.equal(
+    (await assistant(path, "POST", { ...payment, cash_holder_id: 999 })).status,
+    403,
+  );
+  assert.equal((await owner("/cash")).data.balance_cents, 1000);
+  assert.equal((await assistant(path, "POST", payment)).status, 201);
+  assert.equal((await owner("/cash")).data.balance_cents, 400);
+  assert.equal((await assistant(path, "POST", payment)).status, 409);
+  const refund = {
+    kind: "return",
+    holder_id: person.id,
+    amount_cents: 500,
+    note: "Devolución de efectivo no utilizado",
+  };
+  assert.equal((await assistant("/cash", "POST", refund)).status, 409);
+  assert.equal(
+    (await assistant("/cash", "POST", { ...refund, amount_cents: 400 })).status,
+    201,
+  );
+  assert.equal((await owner("/cash")).data.balance_cents, 0);
+  const state = (await readState(db)).state;
+  assert.equal(state.cash_movements.length, 3);
+  assert.equal(state.cash_movements[1].payment_id, state.payments[0].id);
+  assert.equal(
+    state.bills.find((b) => b.id === created.data.id).paid_cents,
+    600,
+  );
+  sqlite.close();
+});
+
+test("Two concurrent cash payments cannot consume the same physical cash", async () => {
+  const { sqlite, client } = memory(),
+    owner = client(),
+    assistant = client();
+  await demo(owner, "owner");
+  await demo(assistant, "assistant");
+  const holder = (await owner("/cash")).data.people[0].id;
+  await owner("/cash", "POST", {
+    kind: "delivery",
+    holder_id: holder,
+    amount_cents: 1000,
+    note: "Entrega de prueba concurrente",
+  });
+  const ids = [];
+  for (const title of ["Primer recibo de prueba", "Segundo recibo de prueba"]) {
+    const result = await assistant("/bills", "POST", {
+      title,
+      supplier_id: 2,
+      amount_cents: 700,
+      due_date: "2027-02-20",
+      invoice: receipt(),
+    });
+    assert.equal(result.status, 201);
+    ids.push(result.data.id);
+  }
+  const results = await Promise.all(
+    ids.map((id, i) =>
+      assistant(`/bills/${id}/payments`, "POST", {
+        amount_cents: 700,
+        method: "Efectivo",
+        operation: `EFECTIVO-CONCURRENTE-${i}`,
+        receipt: receipt(),
+      }),
+    ),
+  );
+  assert.deepEqual(results.map((r) => r.status).sort(), [201, 409]);
+  assert.equal((await owner("/cash")).data.balance_cents, 300);
+  sqlite.close();
+});
+
+test("The monthly summary decreases only the remaining debt and retains totals across payment dates", async () => {
+  const { sqlite, db, client } = memory(),
+    owner = client(),
+    assistant = client();
+  await demo(owner, "owner");
+  await demo(assistant, "assistant");
+  const result = await assistant("/bills", "POST", {
+    title: "Obligación mensual de prueba",
+    supplier_id: 1,
+    amount_cents: 1000,
+    due_date: "2027-05-20",
+    invoice: receipt(),
+  });
+  assert.equal(result.status, 201);
+  let totals = (await owner("/dashboard?month=2027-05")).data.totals;
+  assert.equal(totals.total, 1000);
+  assert.equal(totals.monthPaid, 0);
+  assert.equal(totals.pending, 1000);
+  await owner(`/bills/${result.data.id}/payments`, "POST", {
+    amount_cents: 400,
+    method: "Transferencia",
+    operation: "MES-DIFERENTE-001",
+    receipt: receipt(),
+  });
+  totals = (await owner("/dashboard?month=2027-05")).data.totals;
+  assert.equal(totals.total, 1000);
+  assert.equal(totals.monthPaid, 400);
+  assert.equal(totals.pending, 600);
+  const previous = (await owner("/dashboard?month=2027-04")).data;
+  assert.equal(previous.bills.length, 0);
+  assert.equal(
+    (await readState(db)).state.bills.some((b) => b.id === result.data.id),
+    true,
+  );
   sqlite.close();
 });
