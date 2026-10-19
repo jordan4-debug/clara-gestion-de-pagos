@@ -1316,8 +1316,9 @@ button.role-metric:hover {
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 1100px) {
   .topbar {
+    height: auto;
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
