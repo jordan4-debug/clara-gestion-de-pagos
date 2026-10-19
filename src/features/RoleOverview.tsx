@@ -137,7 +137,7 @@ export function RoleOverview({
         {
           label: "Saldo necesario · 7 días",
           value: money(data.totals.week),
-          hint: `${data.totals.weekUndefined} importes por completar`,
+          hint: `${data.totals.weekUndefined} ${data.totals.weekUndefined === 1 ? "importe" : "importes"} por completar`,
           icon: Wallet,
           page: "bills",
           tone: "green",
