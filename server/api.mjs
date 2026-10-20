@@ -77,6 +77,19 @@ const supplierExists = (state, id) => {
   if (!state.suppliers.some((s) => s.id === id))
     fail("El proveedor no existe.", 400);
 };
+const receiptSupplier = (state, input) => {
+  supplierExists(state, input.supplier_id);
+  const supplier = state.suppliers.find((s) => s.id === input.supplier_id);
+  if (supplier.category === "Préstamos")
+    fail(
+      "Registra el contrato y sus cuotas desde Préstamos para evitar duplicar el cronograma.",
+    );
+  if (input.category !== undefined && input.category !== supplier.category)
+    fail(
+      "La categoría del recibo debe coincidir con la del proveedor o entidad. Vuelve a seleccionarlo para actualizarla.",
+    );
+  return supplier;
+};
 const findBill = (state, id) => {
   const bill = state.bills.find((b) => b.id === id);
   if (!bill) fail("Pago no encontrado.", 404);
@@ -500,19 +513,8 @@ export async function handleRequest(request, env) {
         if (x.amount_cents === null) fail("Ingresa el monto del recibo.");
         const content = decodeReceipt(document);
         const { state } = await readState(env.DB);
-        supplierExists(state, x.supplier_id);
-        if (
-          x.category === "Préstamos" ||
-          state.suppliers.find((s) => s.id === x.supplier_id)?.category ===
-            "Préstamos"
-        )
-          fail(
-            "Registra el contrato y sus cuotas desde Préstamos para evitar duplicar el cronograma.",
-            400,
-          );
+        const destination = receiptSupplier(state, x);
         assertReceipt(state, x, x.invoice_number, x.receipt_format);
-        const destination = state.suppliers.find((s) => s.id === x.supplier_id);
-        x.category ||= destination.category;
         x.service_reference ||= destination.reference || "";
         cap(state.bills, 300);
         cap(state.receipts, 100);
@@ -578,6 +580,7 @@ export async function handleRequest(request, env) {
                 approval: "approved",
               });
             } else {
+              const destination = receiptSupplier(state, x);
               assertReceipt(state, x, x.invoice_number, x.receipt_format);
               cap(state.bills, 300);
               cap(state.receipts, 100);
@@ -595,6 +598,7 @@ export async function handleRequest(request, env) {
                 created_by_id: user.id,
                 id: state.next.bills++,
                 ...x,
+                category: destination.category,
                 paid_cents: 0,
                 month: x.due_date.slice(0, 7),
                 template_id: null,

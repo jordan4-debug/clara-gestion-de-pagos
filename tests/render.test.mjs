@@ -172,6 +172,13 @@ test("Rendered manager and assistant screens expose only administrative actions 
   assert.ok(!form.includes("Formato del número de recibo"));
   assert.ok(!form.includes("Letras y números"));
   assert.ok(form.includes('type="hidden" name="receipt_format"'));
+  const categoryField = form.match(/<input\b[^>]*name="category"[^>]*>/)?.[0];
+  assert.ok(categoryField?.includes('readOnly=""'));
+  assert.ok(categoryField?.includes('value=""'));
+  assert.ok(!/<select[^>]*name="category"/.test(form));
+  assert.ok(
+    form.includes("Se asigna automáticamente según el proveedor o entidad."),
+  );
   const suppliers = seedState().suppliers;
   const selector = m.renderToStaticMarkup(e(m.EntitySelector, { suppliers }));
   for (const name of ["Hidrandina", "Sedalib", "Movistar", "SATT", "SUNAT"])

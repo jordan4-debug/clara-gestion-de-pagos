@@ -3,7 +3,7 @@
 Consultar [alcance administrativo, permisos, reglas de recibo y filtros](ALCANCE-ADMINISTRATIVO.md).
 
 1. Ambos roles ingresan a Deudas del mes, con las cuatro tarjetas de resumen antes de la lista y las acciones correspondientes a su rol.
-2. El asistente selecciona o crea la entidad desde el mismo formulario y registra concepto, categoría y número de recibo, importe, vencimiento y original. Emisión, referencia y notas son opcionales.
+2. El asistente selecciona o crea la entidad desde el mismo formulario y registra concepto, número de recibo, importe, vencimiento y original. La categoría se asigna automáticamente según la entidad y queda de solo lectura: Hidrandina y Sedalib pertenecen a Servicios. El servidor rechaza categorías diferentes, incluso si cambió la configuración mientras se adjuntaba el original. Emisión, referencia y notas son opcionales.
 3. El importe queda fijo. Solo el asistente responsable corrige vencimiento y notas; los recibos compartidos se pueden consultar.
 4. Después de realizar un pago fuera de Clara, gerente o asistente archiva la fecha, medio, identificador y constancia del pago. La aplicación no mueve dinero.
 5. El gerente compara el original con la constancia y la revisa u observa. Las correcciones conservan los archivos anteriores y no duplican el abono.

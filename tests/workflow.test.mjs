@@ -159,6 +159,88 @@ test("Assistant registers a backed receipt and the server rejects incompatible n
   sqlite.close();
 });
 
+test("Receipts inherit their entity category and reject category overrides before uploading", async () => {
+  const { sqlite, db, assistant } = await setup();
+  try {
+    const before = (await readState(db)).state;
+    for (const category of [
+      "Proveedores",
+      "Impuestos",
+      "Alquiler",
+      "Préstamos",
+      "Otros",
+    ]) {
+      const response = await assistant(
+        "/bills",
+        "POST",
+        input("000777", { category }),
+      );
+      assert.equal(response.status, 400, JSON.stringify(response.data));
+      assert.match(response.data.error, /categoría.*proveedor o entidad/);
+    }
+    assert.deepEqual((await readState(db)).state, before);
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM receipt_files").get().n,
+      0,
+    );
+    for (const supplier of before.suppliers.filter(
+      (s) => s.category !== "Préstamos",
+    )) {
+      const id = await make(assistant, "000777", { supplier_id: supplier.id });
+      const saved = (await readState(db)).state.bills.find((b) => b.id === id);
+      assert.equal(saved.category, supplier.category, supplier.name);
+      assert.equal(
+        (await assistant(`/bills/${id}`)).data.category,
+        supplier.category,
+      );
+    }
+    const created = await assistant("/suppliers", "POST", {
+      name: "Entidad nueva de mantenimiento",
+      category: "Otros",
+    });
+    assert.equal(created.status, 200);
+    const id = await make(assistant, "000777", {
+      supplier_id: created.data.id,
+      category: created.data.category,
+    });
+    assert.equal((await assistant(`/bills/${id}`)).data.category, "Otros");
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("A concurrent entity category change is rechecked before committing the receipt and cleans up its upload", async () => {
+  const { sqlite, db, env, assistant, manager } = await setup();
+  try {
+    const before = (await readState(db)).state;
+    const upload = env.BUCKET.put.bind(env.BUCKET);
+    env.BUCKET.put = async (...args) => {
+      await upload(...args);
+      const changed = await manager("/suppliers/2", "PUT", {
+        name: "Sedalib",
+        category: "Otros",
+      });
+      assert.equal(changed.status, 200);
+    };
+    const result = await assistant(
+      "/bills",
+      "POST",
+      input("000888", { category: "Servicios" }),
+    );
+    assert.equal(result.status, 400);
+    assert.match(result.data.error, /categoría.*proveedor o entidad/);
+    const state = (await readState(db)).state;
+    assert.deepEqual(state.bills, before.bills);
+    assert.deepEqual(state.receipts, before.receipts);
+    assert.equal(
+      sqlite.prepare("SELECT COUNT(*) AS n FROM receipt_files").get().n,
+      0,
+    );
+  } finally {
+    sqlite.close();
+  }
+});
+
 test("Receipt uniqueness is per entity, ignores alphabetic case, preserves zeroes and survives concurrent creation", async () => {
   const { sqlite, db, assistant } = await setup();
   await make(assistant, "F001-000123", { receipt_format: "alphanumeric" });

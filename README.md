@@ -68,6 +68,7 @@ Clara permite registrar recibos, consultar gastos y deudas por mes y rendir el e
 - Campos de dinero que bloquean letras, signos y un tercer decimal desde teclado, pegado o arrastre; importes exactos en céntimos y presentación con dos decimales; originales y constancias de hasta 5 MiB.
 - Tres vistas: Deudas del mes al ingresar, Vencidos y Pagados. Deudas del mes reemplaza la etiqueta Pendientes. La primera permite incluir las deudas de los próximos meses; búsqueda, categoría, selector mensual y fechas de emisión, vencimiento y pago.
 - Alta de entidades por gerente y asistente; desde el formulario se guarda y selecciona la entidad nueva sin perder el recibo. La edición de entidades existentes sigue a cargo del gerente.
+- La categoría del recibo se completa al elegir la entidad y no se puede cambiar en el recibo: Hidrandina y Sedalib → Servicios; SATT y SUNAT → Impuestos. El servidor valida la coincidencia al guardar.
 - Descarga directa de un resumen mensual PDF con importes, pagos, pendientes, vencimientos y paginación; exportación CSV de la lista filtrada.
 - Cuatro tarjetas de recibos al inicio para ambos roles: importe, abonado, falta pagar y vencidos. El gerente dispone además de comparación por fecha de pago.
 - Entregas, gastos y devoluciones físicas de efectivo por asistente; entregar no crea un gasto ni un pago. El cuadre muestra saldo inicial + entregas - pagos en efectivo - devoluciones = saldo al cierre del periodo.

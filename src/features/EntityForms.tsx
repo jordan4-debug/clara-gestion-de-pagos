@@ -23,7 +23,7 @@ export function BillForm({
 } & Props) {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
-  const [category, setCategory] = useState(bill?.category || "Servicios"),
+  const [category, setCategory] = useState(bill?.category || ""),
     [reference, setReference] = useState(bill?.service_reference || ""),
     [receiptFormat, setReceiptFormat] = useState("alphanumeric");
   return (
@@ -102,24 +102,14 @@ export function BillForm({
           <>
             <Field
               label="Categoría del gasto"
-              hint="La empresa se elige arriba, en Proveedor o entidad."
+              hint="Se asigna automáticamente según el proveedor o entidad."
             >
-              <select
+              <input
                 name="category"
-                required
+                readOnly
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {[
-                  "Servicios",
-                  "Proveedores",
-                  "Impuestos",
-                  "Alquiler",
-                  "Otros",
-                ].map((x) => (
-                  <option key={x}>{x}</option>
-                ))}
-              </select>
+                placeholder="Selecciona primero el proveedor o entidad"
+              />
             </Field>
             <ReceiptFields format={receiptFormat} />
             <Field label="Código de servicio o referencia (opcional)">
