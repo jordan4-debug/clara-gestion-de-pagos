@@ -100,7 +100,10 @@ export function BillForm({
         />
         {!bill ? (
           <>
-            <Field label="Categoría">
+            <Field
+              label="Categoría del gasto"
+              hint="La empresa se elige arriba, en Proveedor o entidad."
+            >
               <select
                 name="category"
                 required
@@ -118,10 +121,7 @@ export function BillForm({
                 ))}
               </select>
             </Field>
-            <ReceiptFields
-              format={receiptFormat}
-              onFormatChange={setReceiptFormat}
-            />
+            <ReceiptFields format={receiptFormat} />
             <Field label="Código de servicio o referencia (opcional)">
               <input
                 name="service_reference"
@@ -270,15 +270,11 @@ export function SupplierForm({
             ))}
           </select>
         </Field>
-        <Field label="Formato habitual de recibo">
-          <select
-            name="receipt_format"
-            defaultValue={supplier?.receipt_format || "alphanumeric"}
-          >
-            <option value="numeric">Solo números</option>
-            <option value="alphanumeric">Letras y números</option>
-          </select>
-        </Field>
+        <input
+          type="hidden"
+          name="receipt_format"
+          value={supplier?.receipt_format || "alphanumeric"}
+        />
         <Field label="Referencia administrativa (opcional)">
           <input
             name="reference"

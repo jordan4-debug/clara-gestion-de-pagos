@@ -26,7 +26,6 @@ export function EntitySelector({
     [error, setError] = useState(""),
     [name, setName] = useState(""),
     [category, setCategory] = useState(loans ? "Préstamos" : "Servicios"),
-    [format, setFormat] = useState("alphanumeric"),
     [reference, setReference] = useState("");
   const items = [
     ...suppliers,
@@ -46,7 +45,7 @@ export function EntitySelector({
       const supplier = await send<Supplier>("/suppliers", {
         name,
         category,
-        receipt_format: format,
+        receipt_format: "alphanumeric",
         reference,
       });
       setCreated((previous) => [...previous, supplier]);
@@ -82,12 +81,18 @@ export function EntitySelector({
           }}
         >
           <option value="" disabled>
-            Selecciona una entidad
+            Selecciona un proveedor o entidad
           </option>
-          {items.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
+          {[...new Set(items.map((s) => s.category))].map((group) => (
+            <optgroup key={group} label={group}>
+              {items
+                .filter((s) => s.category === group)
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+            </optgroup>
           ))}
           {!disabled ? (
             <option value="new">+ Agregar proveedor o entidad</option>
@@ -134,7 +139,7 @@ export function EntitySelector({
             />
           </Field>
           <div className="form-grid">
-            <Field label="Categoría de la entidad">
+            <Field label="Tipo de entidad">
               <select
                 value={category}
                 disabled={loans}
@@ -152,15 +157,6 @@ export function EntitySelector({
                 ).map((c) => (
                   <option key={c}>{c}</option>
                 ))}
-              </select>
-            </Field>
-            <Field label="Formato habitual de recibo">
-              <select
-                value={format}
-                onChange={(e) => setFormat(e.target.value)}
-              >
-                <option value="numeric">Solo números</option>
-                <option value="alphanumeric">Letras y números</option>
               </select>
             </Field>
           </div>

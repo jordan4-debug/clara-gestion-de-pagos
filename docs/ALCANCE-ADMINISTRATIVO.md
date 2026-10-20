@@ -6,11 +6,11 @@ Esta corrección sustituye el alcance anterior de simulación bancaria. Clara co
 
 - **Gerente** (`owner` en la base, por compatibilidad): consulta el resumen de gastos y los recibos, administra las entidades existentes y los avisos, administra el equipo privado, registra entregas físicas de efectivo y revisa las constancias. Puede completar el original y su número cuando falten y registrar un pago que ya ocurrió, con fecha y evidencia, sin ejecutar movimientos bancarios.
 - **Asistente**: registra recibos, nuevas entidades desde sus formularios, préstamos ya contratados y sus originales; corrige vencimiento y notas de sus propios registros o de registros antiguos sin autor. Consulta el espacio compartido y registra pagos respaldados. Solo utiliza o devuelve efectivo a su cargo.
-- Las acciones se validan en la API. Cambiar el nombre visible a Gerente no cambia IDs, roles internos ni contraseñas existentes. La publicación requiere correo y contraseña de cuentas privadas y mantiene desactivado el acceso por rol de demostración.
+- Las acciones se validan en la API. Cambiar el nombre visible a Gerente no cambia IDs, roles internos ni contraseñas existentes. La publicación requiere correo y contraseña de cuentas privadas. Se eliminaron del código de la pantalla de acceso los botones de demostración.
 
 ## Número del recibo
 
-Se conserva como texto, sin convertir a número, recortar espacios o retirar ceros. El campo permite pegado normal y muestra errores específicos. La entidad define el formato habitual; al crear o adjuntar un original puede seleccionarse el formato real del documento:
+Se conserva como texto, sin convertir a número, recortar espacios o retirar ceros. El campo permite pegado normal y muestra errores específicos. El sistema aplica el formato guardado de la entidad. Los formularios muestran solamente el número del documento, sin un selector de letras o números. Se conservan estas reglas internas de validación:
 
 | Formato      | Regla administrativa ajustable                                                                                             |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------- |
@@ -27,13 +27,13 @@ Se distinguen emisión opcional, vencimiento, fecha del pago realizado y fecha d
 
 ## Filtros independientes
 
-| Vista      | Alcance                                                                                                                                                                                 |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pendientes | Deudas sin liquidar del mes elegido. Es la vista inicial. El control «Incluir deudas de los próximos meses» amplía la lista a las siguientes obligaciones, sin incluir recibos pagados. |
-| Vencidos   | Deudas del mes sin liquidar cuyo día de vencimiento ya terminó en Lima.                                                                                                                 |
-| Pagados    | Recibos del mes completamente liquidados, con acceso a constancias.                                                                                                                     |
+| Vista          | Alcance                                                                                                                                                                                 |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deudas del mes | Deudas sin liquidar del mes elegido. Es la vista inicial. El control «Incluir deudas de los próximos meses» amplía la lista a las siguientes obligaciones, sin incluir recibos pagados. |
+| Vencidos       | Deudas del mes sin liquidar cuyo día de vencimiento ya terminó en Lima.                                                                                                                 |
+| Pagados        | Recibos del mes completamente liquidados, con acceso a constancias.                                                                                                                     |
 
-Pendientes reemplaza la etiqueta de la primera pestaña dentro de Deudas del mes. Se elimina Todos. Las cuatro tarjetas de resumen aparecen primero para ambos roles, antes de la tabla; sus contadores, búsqueda, categoría y exportación CSV usan el mismo filtro.
+Deudas del mes reemplaza a Pendientes como etiqueta de la primera pestaña. Se elimina Todos. Las cuatro tarjetas de resumen aparecen primero para ambos roles, antes de la tabla; sus contadores, búsqueda, categoría y exportación CSV usan el mismo filtro.
 
 ## Entidades y resumen PDF
 
@@ -74,3 +74,7 @@ Aplicación local: `npm run db:local`. Publicación: `npm run deploy`, que ejecu
 Las pruebas cubren formatos y ceros iniciales, duplicados y concurrencia, céntimos exactos, filtros, fechas, permisos directos, registro de pagos, entregas sin gasto, rendición de efectivo, revisión de constancias, archivos de 5 MiB, cronogramas y registro de pagos de préstamos, conservación de contratos anteriores y renderizado de los paneles. Las pruebas HTTP generan datos solo en localhost, iniciando el servidor con `npm run dev -- --demo`. La comprobación publicada toma las credenciales de las variables locales `CLARA_MANAGER_EMAIL`, `CLARA_MANAGER_PASSWORD`, `CLARA_ASSISTANT_EMAIL` y `CLARA_ASSISTANT_PASSWORD`, nunca de claves escritas en el repositorio. La comprobación pública es de lectura y no crea pagos, recibos ni entregas.
 
 No hay una decisión pendiente que impida el control administrativo. Los formatos oficiales particulares pueden ajustarse si el gerente aporta ejemplos. La revisión visual interactiva requiere habilitar el uso del navegador de esta sesión; las pruebas de renderizado no sustituyen esa inspección.
+
+## Actualizaciones de la interfaz
+
+Cada compilación publica un identificador en version.json. La página de entrada se revalida y, si hay una publicación nueva mientras la aplicación está abierta, aparece un aviso con Actualizar. No se recarga automáticamente un formulario en curso.

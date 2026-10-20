@@ -2,10 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildSync } from "esbuild";
 import { createRequire } from "node:module";
+import { seedState } from "../server/cloud-state.mjs";
 test("Rendered manager and assistant screens expose only administrative actions and independent filters", async () => {
   const { outputFiles } = buildSync({
     stdin: {
-      contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import {RoleOverview} from './src/features/RoleOverview'; import {Shell} from './src/components/Shell'; import {BillForm} from './src/features/EntityForms'; import {MoneyInput} from './src/components/MoneyInput'; import {Loans} from './src/features/Loans'; import {Login} from './src/features/Access'; export {React,renderToStaticMarkup,RoleOverview,Shell,BillForm,MoneyInput,Loans,Login};`,
+      contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import {RoleOverview} from './src/features/RoleOverview'; import {Shell} from './src/components/Shell'; import {BillForm} from './src/features/EntityForms'; import {MoneyInput} from './src/components/MoneyInput'; import {Loans} from './src/features/Loans'; import {Login} from './src/features/Access'; import {EntitySelector} from './src/components/EntitySelector'; import {SupplierForm} from './src/features/EntityForms'; export {React,renderToStaticMarkup,RoleOverview,Shell,BillForm,MoneyInput,Loans,Login,EntitySelector,SupplierForm};`,
       resolveDir: process.cwd(),
       loader: "tsx",
     },
@@ -98,7 +99,6 @@ test("Rendered manager and assistant screens expose only administrative actions 
     );
     for (const label of [
       "Deudas del mes",
-      "Pendientes",
       "Vencidos",
       "Pagados",
       "Control de efectivo",
@@ -115,7 +115,12 @@ test("Rendered manager and assistant screens expose only administrative actions 
       assert.ok(!html.includes(label), label);
     assert.equal((html.match(/role="tab"/g) || []).length, 3);
     assert.ok(!html.includes(">Todos<"));
-    assert.ok(html.includes("Pendientes"));
+    assert.deepEqual(
+      [...html.matchAll(/<button[^>]*role="tab"[^>]*>([^<]+)/g)].map(
+        (x) => x[1],
+      ),
+      ["Deudas del mes", "Vencidos", "Pagados"],
+    );
     assert.ok(html.includes("Resumen PDF"));
     assert.ok(html.includes("Incluir deudas de los próximos meses"));
     assert.ok(html.includes("DEUDA-VIGENTE"));
@@ -125,6 +130,12 @@ test("Rendered manager and assistant screens expose only administrative actions 
     assert.ok(
       html.indexOf('class="role-metrics monthly-metrics"') <
         html.indexOf('class="panel payments-panel"'),
+    );
+    const overview = m.renderToStaticMarkup(
+      e(m.RoleOverview, { data, user, onSelect: () => {}, onNew: () => {} }),
+    );
+    assert.ok(
+      overview.startsWith('<div class="role-metrics monthly-metrics">'),
     );
     assert.equal(html.includes("Registrar recibo"), role === "assistant");
     const loans = m.renderToStaticMarkup(
@@ -143,9 +154,7 @@ test("Rendered manager and assistant screens expose only administrative actions 
       assert.ok(html.includes("1,250.75"));
     }
   }
-  const login = m.renderToStaticMarkup(
-    e(m.Login, { demo: false, onLogin: () => {} }),
-  );
+  const login = m.renderToStaticMarkup(e(m.Login, { onLogin: () => {} }));
   assert.ok(login.includes("Iniciar sesión"));
   assert.ok(!login.includes("Como gerente"));
   assert.ok(!login.includes("Como asistente"));
@@ -160,13 +169,30 @@ test("Rendered manager and assistant screens expose only administrative actions 
   );
   assert.ok(form.includes("Agregar proveedor o entidad"));
   assert.ok(form.includes("Número de recibo"));
-  assert.ok(form.includes("Formato del número de recibo"));
+  assert.ok(!form.includes("Formato del número de recibo"));
+  assert.ok(!form.includes("Letras y números"));
+  assert.ok(form.includes('type="hidden" name="receipt_format"'));
+  const suppliers = seedState().suppliers;
+  const selector = m.renderToStaticMarkup(e(m.EntitySelector, { suppliers }));
+  for (const name of ["Hidrandina", "Sedalib", "Movistar", "SATT", "SUNAT"])
+    assert.ok(selector.includes(name), name);
+  assert.ok(selector.includes('<optgroup label="Servicios">'));
+  const lenders = m.renderToStaticMarkup(
+    e(m.EntitySelector, { suppliers, loans: true }),
+  );
+  assert.ok(lenders.includes("Caja Trujillo"));
+  const supplierForm = m.renderToStaticMarkup(
+    e(m.SupplierForm, { onSaved: () => {}, onClose: () => {} }),
+  );
+  assert.ok(!supplierForm.includes("Formato habitual de recibo"));
+  assert.ok(!supplierForm.includes("Letras y números"));
   assert.ok(!form.includes("Préstamos"));
   const amount = m.renderToStaticMarkup(
     e(m.MoneyInput, { name: "amount", cents: 14550 }),
   );
   assert.ok(amount.includes('value="145.50"'));
   assert.ok(amount.includes('inputMode="decimal"'));
+  assert.ok(amount.includes('data-money-input="true"'));
   assert.ok(amount.includes('pattern="[0-9]+(?:\\.[0-9]{1,2})?"'));
   assert.ok(
     amount.includes('title="Solo números y punto decimal. Ejemplo: 100.00"'),

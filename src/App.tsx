@@ -172,7 +172,6 @@ export function App() {
           setLoginNotice("");
           setUser(u);
         }}
-        demo={demo}
         notice={loginNotice}
       />
     );

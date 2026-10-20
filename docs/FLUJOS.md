@@ -3,13 +3,13 @@
 Consultar [alcance administrativo, permisos, reglas de recibo y filtros](ALCANCE-ADMINISTRATIVO.md).
 
 1. Ambos roles ingresan a Deudas del mes, con las cuatro tarjetas de resumen antes de la lista y las acciones correspondientes a su rol.
-2. El asistente selecciona o crea la entidad desde el mismo formulario y registra concepto, categoría, formato y número de recibo, importe, vencimiento y original. Emisión, referencia y notas son opcionales.
+2. El asistente selecciona o crea la entidad desde el mismo formulario y registra concepto, categoría y número de recibo, importe, vencimiento y original. Emisión, referencia y notas son opcionales.
 3. El importe queda fijo. Solo el asistente responsable corrige vencimiento y notas; los recibos compartidos se pueden consultar.
 4. Después de realizar un pago fuera de Clara, gerente o asistente archiva la fecha, medio, identificador y constancia del pago. La aplicación no mueve dinero.
 5. El gerente compara el original con la constancia y la revisa u observa. Las correcciones conservan los archivos anteriores y no duplican el abono.
 6. El gerente registra entregas físicas. Efectivo muestra entregado, utilizado, devuelto y por rendir. Entregar no significa gastar.
 7. En Préstamos, el asistente registra el contrato existente y sus cuotas pendientes. El gerente consulta capital, cronograma, pagado y pendiente. Cada cuota aparece en el mes correspondiente y se registra su pago con original y constancia.
-8. Pendientes, Vencidos y Pagados se consultan en tres vistas; la primera permite incluir los próximos meses, con contadores y totales coherentes.
+8. Deudas del mes, Vencidos y Pagados se consultan en tres vistas; la primera permite incluir los próximos meses, con contadores y totales coherentes.
 
 9. Resumen PDF descarga el periodo completo con totales y detalle, incluidas las obligaciones pagadas. El gerente también puede completar un original faltante y registrar su pago con constancia.
 

@@ -32,7 +32,7 @@ export function Suppliers({
         ) : null}
       </div>
       <p className="section-description">
-        Nombre, categoría y formato administrativo del recibo.
+        Entidades registradas para tus recibos y obligaciones.
       </p>
       <div className="supplier-list">
         {items.map((s) => (
@@ -40,10 +40,8 @@ export function Suppliers({
             <div className="supplier-info">
               <strong>{s.name}</strong>
               <p>
-                {s.category} ·{" "}
-                {s.receipt_format === "numeric"
-                  ? "Recibo numérico"
-                  : "Recibo alfanumérico"}
+                {s.category}
+                {s.reference ? ` · ${s.reference}` : ""}
               </p>
             </div>
             {user.role === "owner" ? (

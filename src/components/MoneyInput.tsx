@@ -6,6 +6,12 @@ import {
   validMoneyDraft,
   moneyInputMessage,
 } from "../../shared/expenses.mjs";
+const acceptsInsertion = (input: HTMLInputElement, text: string) =>
+  validMoneyDraft(
+    input.value.slice(0, input.selectionStart ?? input.value.length) +
+      text +
+      input.value.slice(input.selectionEnd ?? input.value.length),
+  );
 export function MoneyInput({
   name,
   cents = null,
@@ -26,6 +32,7 @@ export function MoneyInput({
         name={name}
         type="text"
         inputMode="decimal"
+        data-money-input="true"
         pattern={moneyPattern}
         title="Solo números y punto decimal. Ejemplo: 100.00"
         autoComplete="off"
@@ -34,6 +41,26 @@ export function MoneyInput({
         required={required}
         value={value}
         placeholder="0.00"
+        onKeyDown={(e) => {
+          if (
+            !readOnly &&
+            !e.ctrlKey &&
+            !e.metaKey &&
+            !e.altKey &&
+            e.key.length === 1 &&
+            !acceptsInsertion(e.currentTarget, e.key)
+          ) {
+            e.preventDefault();
+            setMessage(moneyInputMessage);
+          }
+        }}
+        onBeforeInput={(e) => {
+          const text = (e.nativeEvent as InputEvent).data;
+          if (!readOnly && text && !acceptsInsertion(e.currentTarget, text)) {
+            e.preventDefault();
+            setMessage(moneyInputMessage);
+          }
+        }}
         onChange={(e) => {
           const next = e.target.value;
           if (!validMoneyDraft(next)) {
@@ -47,13 +74,18 @@ export function MoneyInput({
         }}
         onPaste={(e) => {
           if (readOnly) return;
-          const input = e.currentTarget,
-            pasted = e.clipboardData.getData("text"),
-            next =
-              input.value.slice(0, input.selectionStart ?? input.value.length) +
-              pasted +
-              input.value.slice(input.selectionEnd ?? input.value.length);
-          if (!validMoneyDraft(next)) {
+          if (
+            !acceptsInsertion(e.currentTarget, e.clipboardData.getData("text"))
+          ) {
+            e.preventDefault();
+            setMessage(moneyInputMessage);
+          }
+        }}
+        onDrop={(e) => {
+          if (
+            !readOnly &&
+            !acceptsInsertion(e.currentTarget, e.dataTransfer.getData("text"))
+          ) {
             e.preventDefault();
             setMessage(moneyInputMessage);
           }

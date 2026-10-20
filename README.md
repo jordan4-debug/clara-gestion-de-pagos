@@ -14,7 +14,7 @@ Aplicación web en español para consultar deudas mensuales, delegar su registro
 
 **Web publicada:** https://clara-gestion-de-pagos.pages.dev/
 
-El acceso se realiza mediante las cuentas y los permisos definidos en el sistema.
+El acceso se realiza mediante las cuentas y los permisos definidos en el sistema. No hay botones de acceso por rol en la pantalla de inicio. Se avisa cuando hay una versión publicada más reciente, sin recargar ni perder formularios automáticamente.
 
 ## Trabajar en equipo
 
@@ -64,9 +64,9 @@ Después de crear el primer gerente privado, iniciar sesión con él y abrir **C
 
 Clara permite registrar recibos, consultar gastos y deudas por mes y rendir el efectivo entregado al asistente. El gerente supervisa y administra; el asistente registra los recibos y realiza el seguimiento operativo. Ambos pueden archivar un pago ya realizado con constancia. No se procesa dinero mediante la web.
 
-- Número de recibo como texto, formato numérico o alfanumérico configurable, ceros iniciales y protección de duplicados por entidad.
-- Campos de dinero que rechazan letras y más de dos decimales al escribir o pegar; importes exactos en céntimos y presentación con dos decimales; originales y constancias de hasta 5 MiB.
-- Tres vistas: Pendientes al ingresar, Vencidos y Pagados, dentro de Deudas del mes. La primera permite incluir las deudas de los próximos meses; búsqueda, categoría, selector mensual y fechas de emisión, vencimiento y pago.
+- Número de recibo como texto, formato aplicado automáticamente sin selector técnico, ceros iniciales y protección de duplicados por entidad.
+- Campos de dinero que bloquean letras, signos y un tercer decimal desde teclado, pegado o arrastre; importes exactos en céntimos y presentación con dos decimales; originales y constancias de hasta 5 MiB.
+- Tres vistas: Deudas del mes al ingresar, Vencidos y Pagados. Deudas del mes reemplaza la etiqueta Pendientes. La primera permite incluir las deudas de los próximos meses; búsqueda, categoría, selector mensual y fechas de emisión, vencimiento y pago.
 - Alta de entidades por gerente y asistente; desde el formulario se guarda y selecciona la entidad nueva sin perder el recibo. La edición de entidades existentes sigue a cargo del gerente.
 - Descarga directa de un resumen mensual PDF con importes, pagos, pendientes, vencimientos y paginación; exportación CSV de la lista filtrada.
 - Cuatro tarjetas de recibos al inicio para ambos roles: importe, abonado, falta pagar y vencidos. El gerente dispone además de comparación por fecha de pago.

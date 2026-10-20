@@ -1600,6 +1600,30 @@ button.role-metric:hover {
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+.update-notice {
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  width: min(720px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: white;
+  border: 1px solid #b7d3c3;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px #123c2429;
+  font-size: 14px;
+}
+@media (max-width: 600px) {
+  .update-notice {
+    bottom: 88px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
 .mobile-nav {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }

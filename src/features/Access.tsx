@@ -5,11 +5,9 @@ import { send, setCsrf } from "../lib/api";
 import type { User } from "../types";
 export function Login({
   onLogin,
-  demo,
   notice,
 }: {
   onLogin: (user: User) => void;
-  demo: boolean;
   notice?: string;
 }) {
   const [error, setError] = useState(""),
@@ -105,30 +103,6 @@ export function Login({
               <ArrowRight size={19} />
             </button>
           </form>
-          {demo ? (
-            <div className="demo-login">
-              <strong>¿Quieres explorar el sistema?</strong>
-              <p>Prueba los roles con datos de demostración.</p>
-              <div className="button-row">
-                <button
-                  className="button"
-                  disabled={busy}
-                  onClick={() => void login({ role: "owner" }, "/auth/demo")}
-                >
-                  Como gerente
-                </button>
-                <button
-                  className="button"
-                  disabled={busy}
-                  onClick={() =>
-                    void login({ role: "assistant" }, "/auth/demo")
-                  }
-                >
-                  Como asistente
-                </button>
-              </div>
-            </div>
-          ) : null}
           <p className="login-foot">
             Clara Gestión de Pagos · Acceso al equipo de trabajo
           </p>

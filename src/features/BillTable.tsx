@@ -33,7 +33,7 @@ export function BillTable({
     [category, setCategory] = useState("all");
   const available = allBills || bills;
   const tabs = [
-    ["month", "Pendientes"],
+    ["month", "Deudas del mes"],
     ["overdue", "Vencidos"],
     ["paid", "Pagados"],
   ];
@@ -55,7 +55,7 @@ export function BillTable({
             ? "Pagos realizados"
             : tab === "overdue"
               ? "Deudas vencidas"
-              : "Deudas pendientes"}
+              : "Deudas del mes"}
         </h2>
         {!compact ? (
           <div className="button-row report-export-actions">
@@ -277,7 +277,7 @@ export function BillTable({
       ) : null}
       {compact ? (
         <button className="panel-link" onClick={onSeeAll}>
-          Ver pendientes del mes
+          Ver deudas del mes
           <ArrowRight size={15} />
         </button>
       ) : (

@@ -4,15 +4,12 @@ import { receiptFormats, receiptError } from "../../shared/expenses.mjs";
 export function ReceiptFields({
   defaultFormat = "alphanumeric",
   format: selectedFormat,
-  onFormatChange,
 }: {
   defaultFormat?: string;
   format?: string;
-  onFormatChange?: (format: string) => void;
 }) {
-  const [localFormat, setFormat] = useState(defaultFormat),
-    [number, setNumber] = useState("");
-  const format = selectedFormat ?? localFormat;
+  const [number, setNumber] = useState("");
+  const format = selectedFormat ?? defaultFormat;
   const numberRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     numberRef.current?.setCustomValidity("");
@@ -22,25 +19,12 @@ export function ReceiptFields({
     receiptFormats.alphanumeric;
   const error = number ? receiptError(number, format) : "";
   return (
-    <div className="form-grid">
-      <Field label="Formato del número de recibo">
-        <select
-          name="receipt_format"
-          value={format}
-          onChange={(e) => {
-            setFormat(e.target.value);
-            onFormatChange?.(e.target.value);
-            numberRef.current?.setCustomValidity("");
-          }}
-        >
-          {Object.entries(receiptFormats).map(([id, rule]) => (
-            <option key={id} value={id}>
-              {rule.label}
-            </option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Número de recibo" hint={error || rules.hint}>
+    <div className="receipt-number-field">
+      <input type="hidden" name="receipt_format" value={format} />
+      <Field
+        label="Número de recibo"
+        hint={error || "Ingresa el número tal como aparece en el documento."}
+      >
         <input
           ref={numberRef}
           name="invoice_number"
