@@ -130,7 +130,7 @@ export function Login({
             </div>
           ) : null}
           <p className="login-foot">
-            Control administrativo de gastos. Registrar un pago no mueve dinero.
+            Clara Gestión de Pagos · Acceso al equipo de trabajo
           </p>
         </div>
       </section>

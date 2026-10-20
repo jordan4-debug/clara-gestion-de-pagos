@@ -350,7 +350,7 @@ test("An assistant cannot edit another assistant receipt or attach its original 
   sqlite.close();
 });
 
-test("Monthly debts replace Pending and may include future debts without mixing paid receipts", () => {
+test("Pending debts use the selected month and may include future debts without mixing paid receipts", () => {
   const rows = [
     {
       id: 1,

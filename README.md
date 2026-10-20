@@ -44,14 +44,9 @@ La dirección local es `http://127.0.0.1:8788`. El script compila y abre el serv
 
 El formulario valida correo y contraseña en el servidor, guarda hashes PBKDF2 con sal aleatoria y establece una sesión de 12 horas con cookie HttpOnly, SameSite, Secure en HTTPS y protección CSRF. Los intentos fallidos tienen límite por correo y origen de la solicitud. Los permisos de gerente y asistente se comprueban en la API.
 
-Con `DEMO_MODE="true"` hay cuentas públicas para la presentación:
+La publicación utiliza cuentas privadas y `DEMO_MODE="false"`. El responsable entrega las credenciales por un canal privado; no se guardan contraseñas ni hashes de cuentas publicadas en el repositorio. Los accesos por rol de demostración están desactivados en la web.
 
-| Rol       | Correo                 | Contraseña pública de demostración |
-| --------- | ---------------------- | ---------------------------------- |
-| Gerente   | `gerente@demo.local`   | `Propietario2026!`                 |
-| Asistente | `asistente@demo.local` | `Asistente2026!`                   |
-
-También pueden usarse los botones «Como gerente» y «Como asistente». Ambos accesos abren el mismo espacio de datos ficticios compartidos. Las contraseñas de estas cuentas no se cambian para evitar bloquear a otros participantes.
+Para usar únicamente datos ficticios en localhost y ejecutar la prueba HTTP se puede iniciar `npm run dev -- --demo`. Esta opción es explícita y no cambia la configuración de la web publicada.
 
 Para crear una cuenta privada en una terminal interactiva:
 
@@ -71,12 +66,13 @@ Clara permite registrar recibos, consultar gastos y deudas por mes y rendir el e
 
 - Número de recibo como texto, formato numérico o alfanumérico configurable, ceros iniciales y protección de duplicados por entidad.
 - Campos de dinero que rechazan letras y más de dos decimales al escribir o pegar; importes exactos en céntimos y presentación con dos decimales; originales y constancias de hasta 5 MiB.
-- Tres vistas: Deudas del mes al ingresar, Vencidos y Pagados. La primera permite incluir las deudas de los próximos meses; búsqueda, categoría, selector mensual y fechas de emisión, vencimiento y pago.
+- Tres vistas: Pendientes al ingresar, Vencidos y Pagados, dentro de Deudas del mes. La primera permite incluir las deudas de los próximos meses; búsqueda, categoría, selector mensual y fechas de emisión, vencimiento y pago.
 - Alta de entidades por gerente y asistente; desde el formulario se guarda y selecciona la entidad nueva sin perder el recibo. La edición de entidades existentes sigue a cargo del gerente.
 - Descarga directa de un resumen mensual PDF con importes, pagos, pendientes, vencimientos y paginación; exportación CSV de la lista filtrada.
-- Resumen del gerente con gastos del mes, deuda pendiente/vencida, cantidades de recibos y comparación con el periodo anterior cuando hay datos.
-- Entregas, gastos y devoluciones físicas de efectivo por asistente; entregar no crea un gasto ni un pago.
+- Cuatro tarjetas de recibos al inicio para ambos roles: importe, abonado, falta pagar y vencidos. El gerente dispone además de comparación por fecha de pago.
+- Entregas, gastos y devoluciones físicas de efectivo por asistente; entregar no crea un gasto ni un pago. El cuadre muestra saldo inicial + entregas - pagos en efectivo - devoluciones = saldo al cierre del periodo.
 - Permisos de servidor, revisión/corrección documental, contraseñas seguras, CSRF y cuentas privadas del equipo.
+- Retiro reversible de préstamos sin abonos por el gerente, junto con sus cuotas; conserva los pagos y el efectivo existentes.
 - Préstamos ya contratados: entidad, capital, referencia, cuotas mensuales, última cuota distinta, vencimientos, constancias y saldo pendiente. El asistente registra; el gerente supervisa.
 - Los módulos anteriores de simulación bancaria y pasarelas se retiran del flujo y se bloquean por API sin borrar sus registros históricos.
 

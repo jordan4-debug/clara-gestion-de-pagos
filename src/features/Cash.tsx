@@ -105,7 +105,7 @@ export function Cash({
           <div className="role-metrics monthly-metrics">
             {[
               ["Entregado este mes", data.totals.delivered],
-              ["Utilizado este mes", data.totals.spent],
+              ["Pagos en efectivo este mes", data.totals.spent],
               ["Devuelto este mes", data.totals.returned],
               ["Efectivo por rendir", data.balance_cents],
             ].map(([label, n]) => (
@@ -115,6 +115,23 @@ export function Cash({
               </div>
             ))}
           </div>
+          <section className="panel workflow-panel cash-reconciliation">
+            <h2>Cuadre de efectivo del mes</h2>
+            <p>
+              Saldo inicial{" "}
+              <strong>{money(data.reconciliation.opening_cents)}</strong> +
+              entregas <strong>{money(data.totals.delivered)}</strong> − pagos
+              en efectivo <strong>{money(data.totals.spent)}</strong> −
+              devoluciones <strong>{money(data.totals.returned)}</strong> =
+              saldo al cierre{" "}
+              <strong>{money(data.reconciliation.closing_cents)}</strong>.
+            </p>
+            <p className="muted">
+              Las transferencias y los pagos en portales no consumen este
+              efectivo. Una devolución registra dinero devuelto al gerente, no
+              el pago de un recibo.
+            </p>
+          </section>
           {data.people.length ? (
             <section className="panel workflow-panel">
               <h2>Efectivo a cargo</h2>
@@ -188,6 +205,13 @@ export function Cash({
               }
             }}
           >
+            {kind === "return" ? (
+              <p className="notice">
+                Usa esta opción solo si devolviste dinero al gerente. Si pagaste
+                un recibo, abre la deuda y registra el pago con medio Efectivo y
+                su constancia.
+              </p>
+            ) : null}
             <Field label="Asistente a cargo">
               <select
                 name="holder_id"

@@ -86,22 +86,28 @@ export async function cashPeople(db, user) {
 export function cashView(state, selected, user, people) {
   const ids = new Set(people.map((p) => p.id));
   const all = (state.cash_movements || []).filter((m) => ids.has(m.holder_id));
-  const movements = all.filter(
-    (m) =>
-      new Intl.DateTimeFormat("en-CA", {
-        timeZone: "America/Lima",
-        year: "numeric",
-        month: "2-digit",
-      })
-        .format(new Date(m.created_at))
-        .slice(0, 7) === selected,
-  );
+  const movementMonth = (m) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Lima",
+      year: "numeric",
+      month: "2-digit",
+    })
+      .format(new Date(m.created_at))
+      .slice(0, 7);
+  const movements = all.filter((m) => movementMonth(m) === selected);
+  const signed = (m) =>
+    m.kind === "delivery" ? m.amount_cents : -m.amount_cents;
+  const opening = all
+    .filter((m) => movementMonth(m) < selected)
+    .reduce((sum, m) => sum + signed(m), 0);
+  const closing = opening + movements.reduce((sum, m) => sum + signed(m), 0);
   return {
     people: people.map((p) => ({
       ...p,
       balance_cents: cashBalance(state, p.id),
     })),
     balance_cents: people.reduce((n, p) => n + cashBalance(state, p.id), 0),
+    reconciliation: { opening_cents: opening, closing_cents: closing },
     movements: [...movements].reverse(),
     totals: {
       delivered: movements

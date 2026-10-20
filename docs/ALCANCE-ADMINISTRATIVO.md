@@ -6,7 +6,7 @@ Esta corrección sustituye el alcance anterior de simulación bancaria. Clara co
 
 - **Gerente** (`owner` en la base, por compatibilidad): consulta el resumen de gastos y los recibos, administra las entidades existentes y los avisos, administra el equipo privado, registra entregas físicas de efectivo y revisa las constancias. Puede completar el original y su número cuando falten y registrar un pago que ya ocurrió, con fecha y evidencia, sin ejecutar movimientos bancarios.
 - **Asistente**: registra recibos, nuevas entidades desde sus formularios, préstamos ya contratados y sus originales; corrige vencimiento y notas de sus propios registros o de registros antiguos sin autor. Consulta el espacio compartido y registra pagos respaldados. Solo utiliza o devuelve efectivo a su cargo.
-- Las acciones se validan en la API. Cambiar el nombre visible a Gerente no cambia IDs, roles internos ni contraseñas existentes. El acceso público conserva los botones de demostración y usa información ficticia.
+- Las acciones se validan en la API. Cambiar el nombre visible a Gerente no cambia IDs, roles internos ni contraseñas existentes. La publicación requiere correo y contraseña de cuentas privadas y mantiene desactivado el acceso por rol de demostración.
 
 ## Número del recibo
 
@@ -27,13 +27,13 @@ Se distinguen emisión opcional, vencimiento, fecha del pago realizado y fecha d
 
 ## Filtros independientes
 
-| Vista          | Alcance                                                                                                                                                                                 |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Deudas del mes | Deudas sin liquidar del mes elegido. Es la vista inicial. El control «Incluir deudas de los próximos meses» amplía la lista a las siguientes obligaciones, sin incluir recibos pagados. |
-| Vencidos       | Deudas del mes sin liquidar cuyo día de vencimiento ya terminó en Lima.                                                                                                                 |
-| Pagados        | Recibos del mes completamente liquidados, con acceso a constancias.                                                                                                                     |
+| Vista      | Alcance                                                                                                                                                                                 |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pendientes | Deudas sin liquidar del mes elegido. Es la vista inicial. El control «Incluir deudas de los próximos meses» amplía la lista a las siguientes obligaciones, sin incluir recibos pagados. |
+| Vencidos   | Deudas del mes sin liquidar cuyo día de vencimiento ya terminó en Lima.                                                                                                                 |
+| Pagados    | Recibos del mes completamente liquidados, con acceso a constancias.                                                                                                                     |
 
-Deudas del mes reemplaza a Pendientes. Se elimina Todos. La tabla aparece antes del resumen en ambos roles; sus contadores, búsqueda, categoría y exportación CSV usan el mismo filtro.
+Pendientes reemplaza la etiqueta de la primera pestaña dentro de Deudas del mes. Se elimina Todos. Las cuatro tarjetas de resumen aparecen primero para ambos roles, antes de la tabla; sus contadores, búsqueda, categoría y exportación CSV usan el mismo filtro.
 
 ## Entidades y resumen PDF
 
@@ -43,7 +43,7 @@ El botón Resumen PDF descarga un archivo del mes completo: importe registrado, 
 
 ## Efectivo
 
-La entrega física al asistente se registra por separado. No crea pagos ni modifica los gastos del mes. Solo guardar un pago con medio Efectivo consume fondos a cargo, con comprobación de saldo en la misma escritura. Las devoluciones no son gastos. Se muestran entregas, gastos y devoluciones del periodo, y el saldo acumulado por rendir. El historial identifica fecha, asistente y operación relacionada.
+La entrega física al asistente se registra por separado. No crea pagos ni modifica los gastos del mes. Solo guardar un pago con medio Efectivo consume fondos a cargo, con comprobación de saldo en la misma escritura. Las devoluciones no son gastos. Se muestran entregas, gastos y devoluciones del periodo, y el saldo acumulado por rendir. El historial identifica fecha, asistente y operación relacionada. Se muestra el saldo inicial del periodo y el cuadre completo hasta su cierre; el saldo actual por rendir conserva su alcance acumulado. Los pagos por transferencia o portal no consumen efectivo. Las devoluciones de prueba existentes se conservan como fueron registradas.
 
 ## Préstamos y cuotas
 
@@ -52,6 +52,8 @@ La opción **Préstamos** está disponible para ambos roles. El asistente regist
 El sistema genera una obligación por cuota sin exigir autorización previa del gerente. Los importes se conservan, las cuotas comparten los permisos de sus recibos y se incluyen en deudas, filtros y totales mensuales sin sumar nuevamente el capital. Los meses cortos se ajustan al último día y los siguientes recuperan el día original. Se muestra capital, total del cronograma, pagado, pendiente, progreso y próximo vencimiento.
 
 Antes de archivar un pago de cuota, el asistente responsable o el gerente adjunta el documento original con su número. Gerente o asistente puede registrar el pago realizado con constancia. Un pago en efectivo utiliza el saldo entregado al asistente con las mismas validaciones del resto de obligaciones. Los pagos parciales existentes se conservan en el saldo.
+
+El gerente puede retirar un préstamo sin abonos con `POST /api/loans/:id/archive`. Se retiran todas sus cuotas de las consultas, totales y pagos; los datos quedan recuperables con `POST /api/loans/:id/restore`. Los préstamos con pagos no se retiran.
 
 Los préstamos anteriores reaparecen sin recrearlos ni modificar su dinero, cuotas o archivos. Los contratos identificados por entidad y referencia no pueden duplicarse, incluso en solicitudes simultáneas. El límite académico es de 30 préstamos y 300 obligaciones en total. No se solicitan préstamos nuevos a entidades, se calculan intereses ni se desembolsa dinero.
 
@@ -69,6 +71,6 @@ No se solicitan cuentas bancarias ni tarjetas. Las entidades solo exponen nombre
 
 Aplicación local: `npm run db:local`. Publicación: `npm run deploy`, que ejecuta las migraciones pendientes en la base remota antes del despliegue.
 
-Las pruebas cubren formatos y ceros iniciales, duplicados y concurrencia, céntimos exactos, filtros, fechas, permisos directos, registro de pagos, entregas sin gasto, rendición de efectivo, revisión de constancias, archivos de 5 MiB, cronogramas y registro de pagos de préstamos, conservación de contratos anteriores y renderizado de los paneles. Las pruebas HTTP generan datos solo en localhost. La comprobación pública es de lectura y no crea pagos, recibos ni entregas.
+Las pruebas cubren formatos y ceros iniciales, duplicados y concurrencia, céntimos exactos, filtros, fechas, permisos directos, registro de pagos, entregas sin gasto, rendición de efectivo, revisión de constancias, archivos de 5 MiB, cronogramas y registro de pagos de préstamos, conservación de contratos anteriores y renderizado de los paneles. Las pruebas HTTP generan datos solo en localhost, iniciando el servidor con `npm run dev -- --demo`. La comprobación publicada toma las credenciales de las variables locales `CLARA_MANAGER_EMAIL`, `CLARA_MANAGER_PASSWORD`, `CLARA_ASSISTANT_EMAIL` y `CLARA_ASSISTANT_PASSWORD`, nunca de claves escritas en el repositorio. La comprobación pública es de lectura y no crea pagos, recibos ni entregas.
 
 No hay una decisión pendiente que impida el control administrativo. Los formatos oficiales particulares pueden ajustarse si el gerente aporta ejemplos. La revisión visual interactiva requiere habilitar el uso del navegador de esta sesión; las pruebas de renderizado no sustituyen esa inspección.

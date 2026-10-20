@@ -51,6 +51,49 @@ async function make(m, extra = {}) {
   );
 }
 
+test("Manager retires an unpaid loan and all its installments from totals, preserving recoverable history", async () => {
+  const m = await setup(),
+    loan = await make(m);
+  assert.equal(
+    (await m.assistant(`/loans/${loan.id}/archive`, "POST", {})).status,
+    403,
+  );
+  const before = (await readState(m.db)).state;
+  assert.equal(
+    (await m.manager(`/loans/${loan.id}/archive`, "POST", {})).status,
+    200,
+  );
+  assert.ok(!(await m.manager("/loans")).data.some((l) => l.id === loan.id));
+  assert.equal(
+    (await m.manager(`/bills/${loan.installments[0].id}`)).status,
+    404,
+  );
+  const dashboard = (await m.manager("/dashboard?month=2028-01")).data;
+  assert.equal(dashboard.overview.pending_cents, 0);
+  assert.ok(!dashboard.all_bills.some((b) => b.loan_id === loan.id));
+  const after = (await readState(m.db)).state;
+  assert.equal(after.bills.length, before.bills.length);
+  assert.ok(after.loans.find((l) => l.id === loan.id).archived_at);
+  assert.deepEqual(after.cash_movements, before.cash_movements);
+  assert.deepEqual(after.payments, before.payments);
+  assert.equal(
+    (await m.manager(`/loans/${loan.id}/restore`, "POST", {})).status,
+    200,
+  );
+  assert.deepEqual(
+    (await m.manager("/loans")).data.find((l) => l.id === loan.id),
+    loan,
+  );
+  await mutateState(m.db, (s) => {
+    s.bills.find((b) => b.id === loan.installments[0].id).paid_cents = 1;
+  });
+  assert.equal(
+    (await m.manager(`/loans/${loan.id}/archive`, "POST", {})).status,
+    409,
+  );
+  m.sqlite.close();
+});
+
 test("Assistant registers fixed loan installments; manager supervises and month-end schedules recover their original day", async () => {
   const m = await setup();
   assert.equal((await m.client()("/loans")).status, 401);

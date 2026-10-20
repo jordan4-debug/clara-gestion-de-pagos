@@ -177,6 +177,7 @@ export type Attempt = {
 export type CashData = {
   people: { id: number; name: string; active: number; balance_cents: number }[];
   balance_cents: number;
+  reconciliation: { opening_cents: number; closing_cents: number };
   totals: { delivered: number; spent: number; returned: number };
   movements: {
     id: number;

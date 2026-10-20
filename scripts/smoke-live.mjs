@@ -4,13 +4,19 @@ const response = await fetch(base);
 assert.equal(response.status, 200);
 assert.ok((await response.text()).includes("Clara Gestión de Pagos"));
 async function login(role) {
+  const prefix = role === "owner" ? "CLARA_MANAGER" : "CLARA_ASSISTANT";
+  const email = process.env[prefix + "_EMAIL"],
+    password = process.env[prefix + "_PASSWORD"];
+  if (!email || !password)
+    throw new Error(
+      "Configura localmente las credenciales de verificación; no se incluyen en el repositorio.",
+    );
   const r = await fetch(base + "/api/auth/login", {
     method: "POST",
     headers: { Origin: base, "Content-Type": "application/json" },
     body: JSON.stringify({
-      email:
-        role === "owner" ? "propietario@demo.local" : "asistente@demo.local",
-      password: role === "owner" ? "Propietario2026!" : "Asistente2026!",
+      email,
+      password,
     }),
   });
   const data = await r.json();
@@ -48,7 +54,15 @@ for (const [path, method] of [
       .status,
     410,
   );
-assert.equal((await call(owner, "/auth/me")).data.user.name, "Gerente de demo");
+assert.equal((await call(owner, "/auth/me")).data.user.demo, false);
+assert.equal(
+  (await (await fetch(base + "/api/public-config")).json()).demo,
+  false,
+);
+assert.equal(
+  (await call(owner, "/auth/demo", "POST", { role: "owner" })).status,
+  403,
+);
 assert.deepEqual(first.data.bills, second.data.bills);
 assert.equal(
   first.data.totals.total,
@@ -108,8 +122,8 @@ assert.equal((await call(owner, `/reviews?month=${selected}`)).status, 200);
 assert.equal((await call(assistant, `/reviews?month=${selected}`)).status, 200);
 const team = await call(owner, "/team");
 assert.equal(team.status, 200);
-assert.equal(team.data.canManage, false);
-assert.ok(team.data.members.every((m) => m.demo === 1));
+assert.equal(team.data.canManage, true);
+assert.ok(team.data.members.every((m) => m.demo === 0));
 assert.equal((await call(assistant, "/team")).status, 403);
 await call(owner, "/auth/logout", "POST", {});
 await call(assistant, "/auth/logout", "POST", {});

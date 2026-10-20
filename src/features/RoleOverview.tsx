@@ -14,22 +14,22 @@ export function RoleOverview({
   onNew: () => void;
 }) {
   const o = data.overview;
-  const metrics =
-    user.role === "owner"
-      ? [
-          ["Gastos pagados en el mes", money(o.paid_cents), "green"],
-          ["Deudas por pagar", money(o.pending_cents), "amber"],
-          ["Deuda vencida", money(o.overdue_cents), "red"],
-          ["Recibos del mes", String(o.receipts), "blue"],
-        ]
-      : [
-          ["Importe de los recibos", money(data.totals.total), "blue"],
-          ["Abonado a estos recibos", money(data.totals.monthPaid), "green"],
-          ["Falta pagar", money(o.pending_cents), "amber"],
-          ["Recibos vencidos", String(o.overdue_count), "red"],
-        ];
+  const metrics = [
+    ["Importe de los recibos", money(data.totals.total), "blue"],
+    ["Abonado a estos recibos", money(data.totals.monthPaid), "green"],
+    ["Falta pagar", money(o.pending_cents), "amber"],
+    ["Recibos vencidos", String(o.overdue_count), "red"],
+  ];
   return (
     <>
+      <div className="role-metrics monthly-metrics">
+        {metrics.map(([label, value, tone]) => (
+          <div key={label} className={`role-metric ${tone}`}>
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
+        ))}
+      </div>
       <div className="monthly-intro">
         <p>
           {user.role === "owner"
@@ -49,14 +49,6 @@ export function RoleOverview({
         month={data.month}
         onSelect={onSelect}
       />
-      <div className="role-metrics monthly-metrics">
-        {metrics.map(([label, value, tone]) => (
-          <div key={label} className={`role-metric ${tone}`}>
-            <span>{label}</span>
-            <strong>{value}</strong>
-          </div>
-        ))}
-      </div>
       <div className="expense-summary-line">
         <span>
           <b>{o.paid_count}</b> recibos pagados
@@ -68,6 +60,7 @@ export function RoleOverview({
       </div>
       {user.role === "owner" ? (
         <p className="amount-note">
+          Pagos realizados en el mes: {money(o.paid_cents)}.{" "}
           {o.change_cents == null
             ? "Sin datos del mes anterior para comparar gastos registrados."
             : `Comparación con ${o.previous_month}: ${money(o.previous_cents)} registrados; diferencia ${money(o.change_cents)}.`}{" "}

@@ -28,7 +28,7 @@ import {
 } from "./reviews.mjs";
 import { report } from "./reports.mjs";
 import { handleTeam } from "./team.mjs";
-import { loanInput, createLoan, listLoans } from "./loans.mjs";
+import { loanInput, createLoan, listLoans, archiveLoan } from "./loans.mjs";
 
 import {
   cashInput,
@@ -38,6 +38,7 @@ import {
   spendCash,
 } from "./cash.mjs";
 import {
+  activeExpense,
   assertEditable,
   assertReceipt,
   assertOriginal,
@@ -79,6 +80,8 @@ const supplierExists = (state, id) => {
 const findBill = (state, id) => {
   const bill = state.bills.find((b) => b.id === id);
   if (!bill) fail("Pago no encontrado.", 404);
+  if (!activeExpense(state, bill))
+    fail("Esta obligación fue retirada junto con su préstamo.", 404);
   return bill;
 };
 
@@ -231,6 +234,20 @@ export async function handleRequest(request, env) {
       fail("Ruta no encontrada.", 404);
     }
     const input = await body(request);
+    const loanAction = path.match(/^\/loans\/(\d+)\/(archive|restore)$/);
+    if (method === "POST" && loanAction) {
+      owner(session);
+      return json(
+        await mutateState(env.DB, (state) =>
+          archiveLoan(
+            state,
+            Number(loanAction[1]),
+            user,
+            loanAction[2] === "restore",
+          ),
+        ),
+      );
+    }
     if (method === "POST" && path === "/loans") {
       assistant(session);
       const data = loanInput.parse(input);

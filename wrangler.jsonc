@@ -15,6 +15,6 @@
     }
   ],
   "vars": {
-    "DEMO_MODE": "true"
+    "DEMO_MODE": "false"
   }
 }
