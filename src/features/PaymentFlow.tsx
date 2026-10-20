@@ -280,7 +280,7 @@ export function PaymentFlow({
                       }
                     />
                   </Field>
-                  <Field label="Comprobante" hint="PDF, PNG o JPG · hasta 3 MB">
+                  <Field label="Comprobante" hint="PDF, PNG o JPG · hasta 5 MB">
                     <input
                       className="file-input"
                       name="receipt"

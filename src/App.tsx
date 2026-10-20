@@ -181,7 +181,7 @@ export function App() {
   const title =
     page === "summary"
       ? user.role === "owner"
-        ? "Tus deudas del mes"
+        ? "Resumen ejecutivo"
         : "Deudas del mes"
       : navigation(user).find((x) => x.id === page)?.label || "Pagos";
   const subtitle: Record<string, string> = {
@@ -340,10 +340,16 @@ export function App() {
           onSelect={setSelected}
           onNavigate={onNavigate}
           onNew={() => setEditor({ type: "bill" })}
+          onChanged={() => void refresh()}
         />
       ) : null}
       {page === "cash" ? (
-        <Cash user={user} month={month} refreshKey={snapshot} onChanged={() => void refresh()} />
+        <Cash
+          user={user}
+          month={month}
+          refreshKey={snapshot}
+          onChanged={() => void refresh()}
+        />
       ) : null}
       {data && page === "loans" ? (
         <Loans

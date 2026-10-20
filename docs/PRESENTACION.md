@@ -2,7 +2,7 @@
 
 1. Explicar el objetivo: consultar deudas mensuales y delegar al asistente el registro de recibos y pagos.
 2. Ingresar como propietario. Mostrar la lista del mes y los totales: obligación total, abonado, pendiente y vencidos. Cambiar al mes anterior y siguiente desde las flechas.
-3. Mostrar que el propietario no tiene botones para registrar recibos ni préstamos. Puede consultar documentos y pagar una obligación existente excepcionalmente.
+3. Mostrar que el propietario no tiene botones para registrar recibos ni préstamos. Puede consultar documentos; los pagos los ejecuta el asistente.
 4. Cerrar sesión con la confirmación. Entrar como asistente y registrar un recibo ficticio con monto, fecha y archivo original. Las notas son opcionales.
 5. Abrir el recibo creado y mostrar que el monto está bloqueado, pero el asistente puede corregir su vencimiento.
 6. Como propietario, abrir Control de efectivo y registrar una entrega física ficticia de S/20 al asistente. Aclarar que registrar el hecho no mueve dinero.
@@ -14,3 +14,7 @@
 12. Mostrar la adaptación a celular y explicar los pendientes de la pasarela. No afirmar que se ejecutó una transferencia desde Clara.
 
 Usar exclusivamente documentos e información ficticios mientras la demostración pública esté activa. Las transacciones reales requieren afiliación y credenciales de una integración autorizada.
+
+## Demostración del simulador bancario
+
+Configurar como propietario un saldo inicial de prueba suficiente para los egresos del mes, con origen DEMO-CLARA-001. Como asistente registrar un recibo ficticio con número y archivo, abrirlo, pulsar Pagar en prueba y confirmar. Consultar el voucher marcado SIN VALIDEZ BANCARIA y comprobar el descuento en el resumen del propietario. Ensayar saldo insuficiente y comprobar que no se modifica la deuda. No es necesario afiliar un comercio para esta simulación.

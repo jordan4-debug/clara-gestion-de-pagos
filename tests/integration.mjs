@@ -100,6 +100,7 @@ assert.equal(
   (
     await call("/bills", "POST", {
       invoice: receipt,
+      invoice_number: "F001-INTEGRACION",
       title: "Proveedor inválido",
       supplier_id: 999,
       amount_cents: 500,
@@ -110,6 +111,7 @@ assert.equal(
 );
 const created = await call("/bills", "POST", {
   invoice: receipt,
+  invoice_number: "F001-INTEGRACION",
   title: "Prueba local " + Date.now(),
   supplier_id: 1,
   amount_cents: 1000,

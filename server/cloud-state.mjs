@@ -1,3 +1,4 @@
+import { financeView } from "./finance.mjs";
 import { today, monthDate, status, remaining } from "./domain.mjs";
 import { providerPayment } from "./provider-payments.mjs";
 
@@ -74,6 +75,7 @@ export function seedState() {
     suppliers,
     loans: [],
     cash_movements: [],
+    finance_periods: {},
     templates,
     bills,
     payments: [],
@@ -158,7 +160,17 @@ export function decorate(state, bill) {
     provider_payment: providerPayment(supplier),
     approval: "approved",
     status: status(bill),
+    simulated: state.payments.some(
+      (p) => p.bill_id === bill.id && p.kind === "simulated",
+    ),
     remaining_cents: remaining(bill),
+    due_soon:
+      status(bill) !== "Pagado" &&
+      bill.due_date >= today() &&
+      bill.due_date <=
+        new Date(Date.parse(today() + "T12:00:00Z") + 3 * 86400000)
+          .toISOString()
+          .slice(0, 10),
     pending_attempt: null,
     pending_reviews: state.payments.filter(
       (p) =>
@@ -200,6 +212,7 @@ export function dashboard(state, selected, role) {
   return {
     today: date,
     month: selected,
+    finance: financeView(state, selected),
     bills,
     settings: state.settings,
     totals: {

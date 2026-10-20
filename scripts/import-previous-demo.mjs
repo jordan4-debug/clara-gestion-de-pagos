@@ -68,8 +68,8 @@ for (const receipt of backup.state.receipts) {
     );
   const bytes = Buffer.from(await file.arrayBuffer()),
     parts = Math.ceil(bytes.length / 65536);
-  if (bytes.length > 3 * 1024 * 1024)
-    throw new Error("Un archivo supera el límite de 3 MB.");
+  if (bytes.length > 5 * 1024 * 1024)
+    throw new Error("Un archivo supera el límite de 5 MB.");
   statements.push(
     `INSERT INTO receipt_files(key,content_type,parts,size) VALUES(${sql(receipt.key)},${sql(receipt.mime)},${parts},${bytes.length});`,
   );

@@ -36,6 +36,15 @@ import {
   addCash,
   spendCash,
 } from "./cash.mjs";
+import {
+  financeView,
+  configurePeriod,
+  periodInput,
+  simulationInput,
+  simulatePayment,
+  voucherHtml,
+  assertOriginal,
+} from "./finance.mjs";
 import { assertProviderMethod } from "./provider-payments.mjs";
 
 const fail = (message, status = 400) => {
@@ -69,7 +78,7 @@ const owner = (session) => {
 const assistant = (session) => {
   if (session.role !== "assistant")
     fail(
-      "El asistente registra los recibos y préstamos; el propietario supervisa y puede pagar.",
+      "El asistente registra los recibos y préstamos; el propietario supervisa.",
       403,
     );
 };
@@ -88,10 +97,10 @@ const findBill = (state, id) => {
 };
 
 async function body(request) {
-  if (Number(request.headers.get("Content-Length") || 0) > 4500000)
+  if (Number(request.headers.get("Content-Length") || 0) > 7100000)
     fail("El archivo es demasiado grande.", 413);
   const content = await request.text();
-  if (content.length > 4500000) fail("El archivo es demasiado grande.", 413);
+  if (content.length > 7100000) fail("El archivo es demasiado grande.", 413);
   try {
     return JSON.parse(content);
   } catch {
@@ -125,6 +134,30 @@ export async function handleRequest(request, env) {
     }
     if (method === "GET") {
       const { state } = await readState(env.DB);
+      if (path === "/finance")
+        return json(
+          financeView(
+            state,
+            month.parse(url.searchParams.get("month") || today().slice(0, 7)),
+          ),
+        );
+      const voucherMatch = path.match(/^\/payments\/(\d+)\/voucher$/);
+      if (voucherMatch) {
+        const p = state.payments.find(
+          (p) => p.id === Number(voucherMatch[1]) && p.kind === "simulated",
+        );
+        if (!p) fail("Voucher simulado no encontrado.", 404);
+        return new Response(voucherHtml(p), {
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "private, no-store",
+            "Content-Security-Policy":
+              "sandbox; default-src 'none'; style-src 'unsafe-inline'",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": `inline; filename="${p.operation}.html"`,
+          },
+        });
+      }
       if (path === "/cash")
         return json(
           cashView(
@@ -216,6 +249,28 @@ export async function handleRequest(request, env) {
     if (/\/checkout$|^\/attempts\//.test(path))
       fail("Los pagos reales están desactivados en esta demostración.", 503);
     const input = await body(request);
+    const financeMatch = path.match(/^\/finance\/(20\d{2}-(?:0[1-9]|1[0-2]))$/);
+    if (method === "PUT" && financeMatch) {
+      owner(session);
+      const data = periodInput.parse(input);
+      return json(
+        await mutateState(env.DB, (s) =>
+          configurePeriod(s, financeMatch[1], data, user),
+        ),
+      );
+    }
+    const simMatch = path.match(/^\/bills\/(\d+)\/simulate$/);
+    if (method === "POST" && simMatch) {
+      assistant(session);
+      const data = simulationInput.parse(input);
+      return json(
+        await mutateState(env.DB, (s) =>
+          simulatePayment(s, Number(simMatch[1]), data.request_id, user),
+        ),
+        201,
+      );
+    }
+
     if (method === "POST" && path === "/cash") {
       const data = cashInput.parse(input),
         people = await cashPeople(env.DB, user);
@@ -230,9 +285,31 @@ export async function handleRequest(request, env) {
       return json({ ok: true }, 201);
     }
     let documentMatch = path.match(/^\/bills\/(\d+)\/document$/);
+    if (method === "PATCH" && documentMatch) {
+      assistant(session);
+      const number = z
+        .string()
+        .trim()
+        .min(1)
+        .max(100)
+        .parse(input.invoice_number);
+      await mutateState(env.DB, (s) => {
+        const bill = findBill(s, Number(documentMatch[1]));
+        if (!bill.invoice_receipt_id || bill.invoice_number)
+          fail("El recibo no admite este cambio.", 409);
+        bill.invoice_number = number;
+        addAudit(s, actor, "Número de recibo completado", bill.title);
+      });
+      return json({ ok: true });
+    }
     if (method === "POST" && documentMatch) {
       assistant(session);
-      const data = z.object({ receipt: receiptInput }).parse(input),
+      const data = z
+          .object({
+            receipt: receiptInput,
+            invoice_number: z.string().trim().min(1).max(100),
+          })
+          .parse(input),
         id = Number(documentMatch[1]),
         content = decodeReceipt(data.receipt);
       const { state } = await readState(env.DB);
@@ -258,6 +335,7 @@ export async function handleRequest(request, env) {
           });
           bill.invoice_receipt_id = receipt_id;
           bill.invoice_name = data.receipt.name;
+          bill.invoice_number = data.invoice_number;
           addAudit(state, actor, "Recibo original archivado", bill.title);
         });
       } catch (e) {
@@ -453,9 +531,21 @@ export async function handleRequest(request, env) {
         documentKey = null;
       if (!id) {
         document = receiptInput.parse(input.invoice);
+        x.invoice_number = z
+          .string()
+          .trim()
+          .min(1)
+          .max(100)
+          .parse(input.invoice_number);
         const content = decodeReceipt(document);
         const { state } = await readState(env.DB);
         supplierExists(state, x.supplier_id);
+        const destination = state.suppliers.find((s) => s.id === x.supplier_id);
+        x.category ||= destination.category;
+        x.service_reference ||=
+          destination.account ||
+          destination.reference ||
+          `DEMO-DESTINO-${destination.id}`;
         cap(state.bills, 300);
         cap(state.receipts, 100);
         documentKey = `documents/${randomUUID()}`;
@@ -469,6 +559,23 @@ export async function handleRequest(request, env) {
             supplierExists(state, x.supplier_id);
             if (id) {
               const bill = findBill(state, id);
+              if (
+                x.title !== bill.title ||
+                x.supplier_id !== bill.supplier_id ||
+                (x.invoice_number !== undefined &&
+                  x.invoice_number !== bill.invoice_number) ||
+                (x.category !== undefined &&
+                  x.category !==
+                    (bill.category ||
+                      state.suppliers.find((s) => s.id === bill.supplier_id)
+                        .category)) ||
+                (x.service_reference !== undefined &&
+                  x.service_reference !== (bill.service_reference || ""))
+              )
+                fail(
+                  "Solo se editan el vencimiento y las notas. Los datos del recibo se conservan.",
+                  409,
+                );
               if (bill.paid_cents === bill.amount_cents)
                 fail("No se modifica una obligación pagada.", 409);
               if (
@@ -538,12 +645,14 @@ export async function handleRequest(request, env) {
       fail("Los pagos ya no requieren autorización previa del gerente.", 410);
     match = path.match(/^\/bills\/(\d+)\/payments$/);
     if (method === "POST" && match) {
+      assistant(session);
       const x = paymentInput.parse(input),
         content = decodeReceipt(x.receipt),
         id = Number(match[1]);
       // Validate before uploading; validate again inside the optimistic transaction.
       const { state } = await readState(env.DB);
       assertPayable(findBill(state, id), x.amount_cents);
+      assertOriginal(state, findBill(state, id));
       assertProviderMethod(state, findBill(state, id), x.method);
       cap(state.receipts, 100);
       const key = `demo-receipts/${randomUUID()}`;
@@ -555,6 +664,7 @@ export async function handleRequest(request, env) {
           await mutateState(env.DB, (state) => {
             const bill = findBill(state, id);
             assertPayable(bill, x.amount_cents);
+            assertOriginal(state, bill);
             assertProviderMethod(state, bill, x.method);
             cap(state.payments, 300);
             cap(state.receipts, 100);

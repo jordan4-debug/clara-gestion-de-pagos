@@ -43,6 +43,9 @@ export type Bill = {
   };
   invoice_receipt_id?: number;
   invoice_name?: string;
+  invoice_number?: string;
+  due_soon?: boolean;
+  simulated?: boolean;
   created_by?: string;
   loan_id?: number;
   installment_number?: number;
@@ -55,7 +58,20 @@ export type Bill = {
   portal?: string;
   payments?: Payment[];
 };
+export type Finance = {
+  month: string;
+  configured: boolean;
+  revision: number;
+  account: string;
+  initial_cents: number;
+  paid_cents: number;
+  simulated_cents: number;
+  pending_cents: number;
+  available_cents: number;
+  projected_cents: number;
+};
 export type Payment = {
+  kind?: "simulated";
   id: number;
   amount_cents: number;
   method: string;
@@ -71,7 +87,7 @@ export type Payment = {
     account: string;
     reference: string;
   };
-  review_status?: "pending" | "observed" | "verified";
+  review_status?: "pending" | "observed" | "verified" | "simulated";
   review_revision?: number;
   review_note?: string;
   reviewed_by?: string;
@@ -153,6 +169,7 @@ export type Loan = {
   installments: Bill[];
 };
 export type Dashboard = {
+  finance: Finance;
   today: string;
   month: string;
   bills: Bill[];

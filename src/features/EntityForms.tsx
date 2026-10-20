@@ -13,6 +13,8 @@ export function BillForm({
 }: { suppliers: Supplier[]; bill?: Bill; month: string } & Props) {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
+  const [category, setCategory] = useState(bill?.category || "Servicios"),
+    [reference, setReference] = useState(bill?.service_reference || "");
   return (
     <Modal
       title={bill ? "Editar vencimiento y notas" : "Registrar recibo"}
@@ -32,8 +34,12 @@ export function BillForm({
                 ...(!bill
                   ? { invoice: await receiptPayload(f.get("invoice") as File) }
                   : {}),
+                invoice_number: f.get("invoice_number") || bill?.invoice_number,
+                category: f.get("category") || bill?.category,
+                service_reference:
+                  f.get("service_reference") || bill?.service_reference,
                 title: f.get("title"),
-                supplier_id: Number(f.get("supplier_id")),
+                supplier_id: bill?.supplier_id || Number(f.get("supplier_id")),
                 amount_cents: solesToCents(f.get("amount")),
                 due_date: due,
                 notes: f.get("notes"),
@@ -52,6 +58,7 @@ export function BillForm({
           <input
             autoFocus
             name="title"
+            readOnly={!!bill}
             required
             minLength={2}
             maxLength={120}
@@ -62,8 +69,22 @@ export function BillForm({
         <Field label="Proveedor o entidad">
           <select
             name="supplier_id"
+            disabled={!!bill}
             required
             defaultValue={bill?.supplier_id || ""}
+            onChange={(e) => {
+              const supplier = suppliers.find(
+                (s) => s.id === Number(e.target.value),
+              );
+              if (supplier) {
+                setCategory(supplier.category);
+                setReference(
+                  supplier.account ||
+                    supplier.reference ||
+                    `DEMO-DESTINO-${supplier.id}`,
+                );
+              }
+            }}
           >
             <option value="" disabled>
               Selecciona un proveedor
@@ -75,6 +96,47 @@ export function BillForm({
             ))}
           </select>
         </Field>
+        {!bill ? (
+          <>
+            <Field label="Categoría">
+              <select
+                name="category"
+                required
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                {[
+                  "Servicios",
+                  "Proveedores",
+                  "Impuestos",
+                  "Alquiler",
+                  "Préstamos",
+                  "Otros",
+                ].map((x) => (
+                  <option key={x}>{x}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Número del recibo / factura">
+              <input
+                name="invoice_number"
+                required
+                maxLength={100}
+                placeholder="Ej. F001-000123"
+              />
+            </Field>
+            <Field label="Cuenta / código de suministro o tributo">
+              <input
+                name="service_reference"
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                maxLength={160}
+                required
+                placeholder="Referencia que aparece en el recibo"
+              />
+            </Field>
+          </>
+        ) : null}
         <div className="form-grid">
           <Field
             label="Monto en soles"
@@ -118,7 +180,7 @@ export function BillForm({
         {!bill ? (
           <Field
             label="Recibo original"
-            hint="Foto o PDF de la obligación que se va a pagar · hasta 3 MB"
+            hint="Foto o PDF de la obligación que se va a pagar · hasta 5 MB"
           >
             <input
               className="file-input"
@@ -203,11 +265,16 @@ export function SupplierForm({
               name="category"
               defaultValue={supplier?.category || "Servicios"}
             >
-              {["Servicios", "Impuestos", "Alquiler", "Préstamos", "Otros"].map(
-                (x) => (
-                  <option key={x}>{x}</option>
-                ),
-              )}
+              {[
+                "Servicios",
+                "Proveedores",
+                "Impuestos",
+                "Alquiler",
+                "Préstamos",
+                "Otros",
+              ].map((x) => (
+                <option key={x}>{x}</option>
+              ))}
             </select>
           </Field>
           <Field label="Canal de pago">

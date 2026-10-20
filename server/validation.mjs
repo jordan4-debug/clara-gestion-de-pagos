@@ -18,12 +18,25 @@ export const billInput = z.object({
   supplier_id: z.number().int().positive(),
   amount_cents: cents.nullable(),
   due_date: date,
+  category: z
+    .enum([
+      "Servicios",
+      "Proveedores",
+      "Impuestos",
+      "Alquiler",
+      "Préstamos",
+      "Otros",
+    ])
+    .optional(),
+  invoice_number: z.string().trim().max(100).optional(),
+  service_reference: z.string().trim().max(160).optional(),
   notes: z.string().trim().max(2000).default(""),
 });
 export const supplierInput = z.object({
   name: z.string().trim().min(2).max(120),
   category: z.enum([
     "Servicios",
+    "Proveedores",
     "Impuestos",
     "Alquiler",
     "Préstamos",
@@ -55,7 +68,7 @@ export const templateInput = z.object({
 export const receiptInput = z.object({
   name: z.string().min(1).max(160),
   mime: z.enum(["image/png", "image/jpeg", "application/pdf"]),
-  base64: z.string().min(8).max(4200000),
+  base64: z.string().min(8).max(6990600),
 });
 export const paymentInput = z.object({
   amount_cents: cents,
@@ -74,9 +87,9 @@ export function decodeReceipt(receipt) {
     "image/jpeg":
       content[0] === 255 && content[1] === 216 && content[2] === 255,
   };
-  if (content.length > 3 * 1024 * 1024 || !signatures[receipt.mime])
+  if (content.length > 5 * 1024 * 1024 || !signatures[receipt.mime])
     throw Object.assign(
-      new Error("Adjunta un PDF, PNG o JPG válido, de hasta 3 MB."),
+      new Error("Adjunta un PDF, PNG o JPG válido, de hasta 5 MB."),
       {
         status: 400,
       },

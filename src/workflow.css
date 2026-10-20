@@ -1371,3 +1371,143 @@ button.role-metric:hover {
 .provider-information .bank-details {
   margin-top: 16px;
 }
+
+/* Executive budget and the bank simulator remain visually distinct from physical cash. */
+.finance-overview {
+  margin: 4px 0 22px;
+}
+.finance-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.finance-heading p {
+  margin: 0;
+  color: #607b72;
+  font-size: 13px;
+}
+.finance-projection {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #edf7f2;
+  margin: 12px 0 8px;
+}
+.finance-explanation {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.finance-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  background: white;
+  border: 1px solid #dce9e2;
+  padding: 18px;
+  border-radius: 14px;
+  margin-top: 16px;
+}
+.finance-form .form-error {
+  grid-column: 1/-1;
+}
+.obligation-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 14px 0;
+  padding: 14px 0;
+  border-top: 1px solid #e4ece8;
+  border-bottom: 1px solid #e4ece8;
+}
+.obligation-summary .role-metric {
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+  border: 0;
+  flex: 1;
+  min-width: 140px;
+}
+.obligation-summary .role-metric strong {
+  font-size: 20px;
+}
+.obligation-summary .role-metric span {
+  font-size: 12px;
+}
+.quick-payments {
+  margin: 22px 0;
+}
+.quick-payments h2 {
+  font-size: 17px;
+  margin-bottom: 8px;
+}
+.quick-payments p {
+  font-size: 13px;
+}
+.quick-payment-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.quick-payment-buttons .button {
+  min-height: 44px;
+}
+.simulation-panel {
+  background: #edf7f2;
+  padding: 20px;
+  border-radius: 14px;
+}
+.simulation-panel p {
+  line-height: 1.7;
+}
+.simulation-confirm {
+  border-top: 1px solid #c9ddd3;
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.due-soon {
+  color: #97610e;
+  font-weight: 600;
+}
+@media (max-width: 600px) {
+  .finance-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .finance-form {
+    grid-template-columns: 1fr;
+  }
+  .finance-explanation {
+    font-size: 12px;
+  }
+  .quick-payment-buttons {
+    flex-direction: column;
+  }
+  .simulation-panel {
+    padding: 16px;
+  }
+  .obligation-summary {
+    gap: 16px;
+  }
+  .obligation-summary .role-metric {
+    min-width: 125px;
+  }
+  .executive-metrics .role-metric strong {
+    font-size: 22px;
+  }
+}
+
+.external-payment-disclosure {
+  margin: 20px 0;
+  border: 1px solid #dce9e2;
+  padding: 16px;
+  border-radius: 12px;
+}
+.external-payment-disclosure > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #33594b;
+}

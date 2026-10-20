@@ -38,14 +38,40 @@ assert.equal(assistantIdentity.role, "assistant");
 const first = await call(owner, "/dashboard"),
   second = await call(assistant, "/dashboard");
 assert.equal(first.status, 200);
+const finance = await call(owner, `/finance?month=${first.data.month}`);
+assert.equal(finance.status, 200);
+assert.equal(
+  finance.data.available_cents,
+  finance.data.initial_cents - finance.data.paid_cents,
+);
+assert.equal(
+  finance.data.projected_cents,
+  finance.data.available_cents - finance.data.pending_cents,
+);
+assert.deepEqual(finance.data, first.data.finance);
+assert.equal(
+  (await call(owner, `/bills/${first.data.bills[0].id}/simulate`, "POST", {}))
+    .status,
+  403,
+);
+assert.equal(
+  (await call(owner, `/bills/${first.data.bills[0].id}/payments`, "POST", {}))
+    .status,
+  403,
+);
+assert.equal((await fetch(base + "/api/payments/1/voucher")).status, 401);
 assert.deepEqual(first.data.bills, second.data.bills);
-assert.equal(first.data.totals.total, first.data.totals.monthPaid + first.data.totals.pending);
+assert.equal(
+  first.data.totals.total,
+  first.data.totals.monthPaid + first.data.totals.pending,
+);
 for (const session of [owner, assistant]) {
   const cash = await call(session, `/cash?month=${first.data.month}`);
   assert.equal(cash.status, 200);
   assert.ok(Array.isArray(cash.data.movements));
   assert.ok(cash.data.people.every((p) => p.balance_cents >= 0));
-  if (session === assistant) assert.ok(cash.data.people.every((p) => p.id === assistantIdentity.id));
+  if (session === assistant)
+    assert.ok(cash.data.people.every((p) => p.id === assistantIdentity.id));
 }
 assert.equal((await call(owner, "/bills", "POST", {})).status, 403);
 assert.equal((await call(owner, "/loans", "POST", {})).status, 403);

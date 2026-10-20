@@ -5,6 +5,7 @@ import { api, send, money, shortDate } from "../lib/api";
 import type { Bill, User } from "../types";
 import { ReviewCard, receiptPayload } from "./Reviews";
 import { PaymentFlow } from "./PaymentFlow";
+import { SimulatedPayment } from "./SimulatedPayment";
 export function BillDetail({
   id,
   user,
@@ -100,7 +101,11 @@ export function BillDetail({
                   </div>
                   <div>
                     <dt>Referencia</dt>
-                    <dd>{bill.reference || "Sin referencia"}</dd>
+                    <dd>
+                      {bill.service_reference ||
+                        bill.reference ||
+                        "Sin referencia"}
+                    </dd>
                   </div>
                 </dl>
                 {bill.portal ? (
@@ -119,6 +124,11 @@ export function BillDetail({
             </div>
             <section className="detail-section original-document">
               <h3>Recibo original de la deuda</h3>
+              {bill.invoice_number ? (
+                <p>
+                  Número: <strong>{bill.invoice_number}</strong>
+                </p>
+              ) : null}
               {bill.invoice_receipt_id ? (
                 <a
                   className="button outline-green"
@@ -132,7 +142,7 @@ export function BillDetail({
                 <>
                   <p className="muted">
                     {bill.loan_id
-                      ? "Cuota del cronograma de préstamo registrado."
+                      ? "Esta cuota necesita el recibo original de cobro de la entidad antes de pagar."
                       : "Este registro anterior todavía no tiene su recibo original. Permite contrastar proveedor, referencia e importe antes de pagar."}
                   </p>
                   {user.role === "assistant" ? (
@@ -145,6 +155,7 @@ export function BillDetail({
                         setError("");
                         try {
                           await send(`/bills/${bill.id}/document`, {
+                            invoice_number: f.get("invoice_number"),
                             receipt: await receiptPayload(
                               f.get("document") as File,
                             ),
@@ -159,6 +170,10 @@ export function BillDetail({
                         }
                       }}
                     >
+                      <label className="field">
+                        <span>Número del recibo / factura</span>
+                        <input name="invoice_number" required maxLength={100} />
+                      </label>
                       <label className="field">
                         <span>Adjuntar recibo original</span>
                         <input
@@ -175,6 +190,41 @@ export function BillDetail({
                   ) : null}
                 </>
               )}
+              {bill.invoice_receipt_id &&
+              !bill.invoice_number &&
+              user.role === "assistant" ? (
+                <form
+                  className="document-upload"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const f = new FormData(e.currentTarget);
+                    setUploading(true);
+                    setError("");
+                    try {
+                      await send(
+                        `/bills/${bill.id}/document`,
+                        { invoice_number: f.get("invoice_number") },
+                        "PATCH",
+                      );
+                      await load();
+                      onChanged();
+                      notify("Número del recibo archivado.");
+                    } catch (e) {
+                      setError((e as Error).message);
+                    } finally {
+                      setUploading(false);
+                    }
+                  }}
+                >
+                  <label className="field">
+                    <span>Número del recibo original</span>
+                    <input name="invoice_number" required maxLength={100} />
+                  </label>
+                  <button className="button" disabled={uploading}>
+                    Guardar número de recibo
+                  </button>
+                </form>
+              ) : null}
               {bill.created_by ? (
                 <small>Registrado por {bill.created_by}</small>
               ) : null}
@@ -200,16 +250,47 @@ export function BillDetail({
                 )}
               </div>
             ) : null}
-            {bill.status !== "Pagado" && bill.amount_cents !== null ? (
-              <PaymentFlow
+            {bill.status !== "Pagado" &&
+            bill.amount_cents !== null &&
+            user.role === "assistant" &&
+            bill.invoice_receipt_id &&
+            bill.invoice_number ? (
+              <SimulatedPayment
                 bill={bill}
-                user={user}
                 onChanged={() => {
                   void load();
                   onChanged();
                 }}
                 notify={notify}
               />
+            ) : null}
+            {bill.status !== "Pagado" &&
+            (!bill.invoice_receipt_id || !bill.invoice_number) ? (
+              <div className="notice">
+                El recibo original y su número son obligatorios antes de
+                registrar o simular un pago, también para las cuotas de
+                préstamos.
+              </div>
+            ) : null}
+            {bill.status !== "Pagado" &&
+            bill.amount_cents !== null &&
+            bill.invoice_receipt_id &&
+            bill.invoice_number &&
+            user.role === "assistant" ? (
+              <details className="external-payment-disclosure">
+                <summary>
+                  Registrar pago realizado fuera de Clara (opcional)
+                </summary>
+                <PaymentFlow
+                  bill={bill}
+                  user={user}
+                  onChanged={() => {
+                    void load();
+                    onChanged();
+                  }}
+                  notify={notify}
+                />
+              </details>
             ) : null}
             <section className="detail-section">
               <h3>Abonos y comprobantes</h3>

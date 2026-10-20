@@ -5,6 +5,7 @@ import { send, money, dateTime } from "../lib/api";
 import type { User, Payment, Review } from "../types";
 
 export const reviewLabels = {
+  simulated: "Simulado",
   pending: "Por revisar",
   observed: "Observado",
   verified: "Revisado",
@@ -13,10 +14,10 @@ export async function receiptPayload(file: File) {
   if (
     !file ||
     file.size === 0 ||
-    file.size > 3 * 1024 * 1024 ||
+    file.size > 5 * 1024 * 1024 ||
     !["application/pdf", "image/png", "image/jpeg"].includes(file.type)
   )
-    throw new Error("Adjunta un PDF, PNG o JPG válido, de hasta 3 MB.");
+    throw new Error("Adjunta un PDF, PNG o JPG válido, de hasta 5 MB.");
   const base64 = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(",")[1]);
@@ -66,6 +67,29 @@ export function ReviewCard({
       setBusy(false);
     }
   }
+  if (p.kind === "simulated")
+    return (
+      <article className="review-card">
+        <header>
+          <span className="badge amber">
+            Pago simulado · sin validez bancaria
+          </span>
+          <strong>{money(p.amount_cents)}</strong>
+        </header>
+        <p>
+          {p.operation} · {dateTime(p.created_at)}
+        </p>
+        <small>Registrado por {p.actor}</small>
+        <a
+          className="button receipt-link"
+          href={`/api/payments/${p.id}/voucher`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Abrir voucher interno
+        </a>
+      </article>
+    );
   return (
     <article className="review-card">
       <header>
@@ -178,7 +202,7 @@ export function ReviewCard({
         >
           <Field
             label="Comprobante corregido"
-            hint="PDF, PNG o JPG · hasta 3 MB"
+            hint="PDF, PNG o JPG · hasta 5 MB"
           >
             <input
               className="file-input"

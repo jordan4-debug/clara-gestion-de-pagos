@@ -65,18 +65,24 @@ La contraseña se escribe localmente sin mostrarse ni incluirse en argumentos de
 
 Después de crear el primer propietario privado, iniciar sesión con él y abrir **Configuración → Equipo** para crear integrantes con rol de propietario o asistente, activar o desactivar accesos y consultar el historial de cambios del equipo. Desactivar una cuenta cierra sus sesiones y conserva sus operaciones. Las cuentas públicas de demostración solo ven los integrantes ficticios y no pueden administrar cuentas privadas. No se debe colocar información real mientras `DEMO_MODE` siga activo, aunque ya existan cuentas privadas.
 
+## Cobertura del catálogo de requisitos
+
+Consultar [la matriz de HU, RF y RNF](docs/COBERTURA-REQUISITOS.md). Incluye las reglas aplicadas y los objetivos de rendimiento/compatibilidad aún pendientes de certificación.
+
+La cuenta de prueba se configura por mes desde el Resumen ejecutivo. El asistente puede simular el pago con validación de fondos y obtener un voucher interno marcado como simulación sin validez bancaria. Los pagos reales permanecen desactivados.
+
 ## Funciones
 
 - Resumen mensual con total de obligaciones, abonado, pendiente, vencimientos y montos por definir. Los indicadores no representan una billetera ni requieren recargar dinero.
-- Obligaciones y entidades configuradas por el propietario; las plantillas anteriores se conservan por compatibilidad, sin una pantalla adicional de recurrentes.
-- El asistente registra recibos y préstamos. El propietario supervisa; ambos pueden registrar pagos externos sin autorización previa obligatoria.
+- Entidades y destinos configurados por el propietario; las plantillas anteriores se conservan por compatibilidad, sin una pantalla adicional de recurrentes.
+- El asistente registra recibos y préstamos. El propietario supervisa; el asistente puede registrar pagos externos sin autorización previa obligatoria.
 - Métodos configurables por proveedor y flujo dentro del pago creado: elegir medio, consultar el portal oficial o instrucciones y registrar el comprobante del pago externo.
 - Monto fijo al crear la obligación, protegido también por la API. Una obligación recurrente sin monto permite definirlo una sola vez.
 - Edición del vencimiento y notas opcionales mientras exista un importe pendiente. El pago vence después de terminar su fecha en horario de Lima.
 - Préstamos con entidad financiera, contrato opcional y cronograma mensual de cuotas; ajustes para meses cortos y última cuota diferente.
 - Registro de abonos externos con operación y comprobante obligatorio; prevención de duplicados y sobrepagos. La API admite abonos parciales y el formulario propone el pendiente completo sin editar el monto de la obligación.
 - Consulta de meses anteriores, exportación CSV de la lista y respaldo JSON protegido para el propietario desde Configuración.
-- Inicio directo en deudas del mes para ambos roles, con total, abonado, pendiente y navegación entre meses.
+- Inicio en resumen ejecutivo para el propietario y deudas operativas para el asistente, con navegación entre meses.
 - Acciones de registro reservadas al asistente y revisión de constancias para el propietario, en el detalle de cada deuda.
 - Recibo original obligatorio en el alta manual, archivado por separado de la constancia de pago.
 - Control de efectivo por asistente: entregas, gastos y devoluciones, con protección ante gasto simultáneo e importes insuficientes.
@@ -101,6 +107,7 @@ server/reviews.mjs   Revisión, observación y corrección de comprobantes
 server/reports.mjs   Reportes por periodo y categoría
 server/loans.mjs     Contratos y generación del cronograma de cuotas
 server/cash.mjs      Entregas, pagos y devoluciones de efectivo por asistente
+server/finance.mjs   Presupuesto mensual de prueba, pagos simulados y voucher interno
 server/provider-payments.mjs Métodos e instrucciones por proveedor
 server/team.mjs      Administración de cuentas privadas y auditoría
 server/cloud-state.mjs Persistencia compartida y cálculos
@@ -115,7 +122,7 @@ wrangler.jsonc       Proyecto y binding de la base D1
 cloudflare-account.json Identificador público de la cuenta de despliegue
 ```
 
-El espacio académico se guarda como un documento JSON limitado a 512 KB con revisión optimista: cada escritura comprueba la revisión leída y reintenta si otro participante modificó los datos. Los comprobantes se guardan por separado para no aumentar ese documento. El límite de demostración es de 300 obligaciones, 100 proveedores, 100 plantillas y 100 comprobantes, cada archivo de hasta 3 MB. Para ampliar a una operación financiera de producción se necesita normalizar el modelo y revisar límites, respaldo y recuperación.
+El espacio académico se guarda como un documento JSON limitado a 512 KB con revisión optimista: cada escritura comprueba la revisión leída y reintenta si otro participante modificó los datos. Los comprobantes se guardan por separado para no aumentar ese documento. El límite de demostración es de 300 obligaciones, 100 proveedores, 100 plantillas y 100 comprobantes, cada archivo de hasta 5 MiB. Para ampliar a una operación financiera de producción se necesita normalizar el modelo y revisar límites, respaldo y recuperación.
 
 ## Publicar
 
@@ -139,7 +146,7 @@ npm run build
 node tests/integration.mjs
 ```
 
-Las pruebas cubren contraseñas con sal, concurrencia, rechazo sin escrituras parciales, archivos de hasta 3 MB, inicio y cierre de sesión, roles, CSRF/origen, fechas de febrero, idempotencia mensual, abonos, duplicados y sobrepagos. La prueba HTTP genera registros ficticios y se niega a ejecutarse sobre un dominio público.
+Las pruebas cubren contraseñas con sal, concurrencia, rechazo sin escrituras parciales, archivos de hasta 5 MiB, inicio y cierre de sesión, roles, CSRF/origen, fechas de febrero, idempotencia mensual, abonos, duplicados y sobrepagos. La prueba HTTP genera registros ficticios y se niega a ejecutarse sobre un dominio público.
 
 También se prueban observación y corrección sin alterar importes, conservación de constancias anteriores, decisiones simultáneas, registros antiguos sin archivo, permisos de equipo, desactivación de cuentas, monto inmutable, métodos por proveedor, préstamos y vencimientos en horario de Lima. La migración de proveedores conserva importes, comprobantes y datos personalizados. `node scripts/smoke-live.mjs` comprueba el alojamiento publicado mediante lecturas y sesiones transitorias; no genera obligaciones ni abonos en la nube.
 

@@ -95,11 +95,16 @@ export function BillTable({
             onChange={(e) => setCategory(e.target.value)}
           >
             <option value="all">Todas las categorías</option>
-            {["Servicios", "Impuestos", "Alquiler", "Préstamos", "Otros"].map(
-              (x) => (
-                <option key={x}>{x}</option>
-              ),
-            )}
+            {[
+              "Servicios",
+              "Proveedores",
+              "Impuestos",
+              "Alquiler",
+              "Préstamos",
+              "Otros",
+            ].map((x) => (
+              <option key={x}>{x}</option>
+            ))}
           </select>
         </label>
       </div>
@@ -133,7 +138,15 @@ export function BillTable({
                     </span>
                   </button>
                 </td>
-                <td className={b.status === "Vencido" ? "overdue" : ""}>
+                <td
+                  className={
+                    b.status === "Vencido"
+                      ? "overdue"
+                      : b.due_soon
+                        ? "due-soon"
+                        : ""
+                  }
+                >
                   {shortDate(b.due_date)}
                 </td>
                 <td className="number">
@@ -144,9 +157,20 @@ export function BillTable({
                 </td>
                 <td>
                   <Badge status={b.status} />
-                  {!b.invoice_receipt_id && !b.loan_id ? (
+                  {b.simulated ? (
+                    <small className="review-count">Pago simulado</small>
+                  ) : null}
+                  {b.due_soon ? (
+                    <span className="badge amber">Por vencer</span>
+                  ) : null}
+                  {!b.invoice_receipt_id ? (
                     <small className="review-count">
                       Falta recibo original
+                    </small>
+                  ) : null}
+                  {b.invoice_receipt_id && !b.invoice_number ? (
+                    <small className="review-count">
+                      Falta número del recibo
                     </small>
                   ) : null}
                   {b.observed_reviews ? (
