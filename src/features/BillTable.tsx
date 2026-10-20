@@ -1,3 +1,4 @@
+import { selectExpenses } from "../../shared/expenses.mjs";
 import { useState } from "react";
 import {
   Search,
@@ -11,34 +12,39 @@ import { money, shortDate, exportBills } from "../lib/api";
 import type { Bill } from "../types";
 export function BillTable({
   bills,
+  allBills,
   month,
   onSelect,
   onSeeAll,
   compact = false,
 }: {
   bills: Bill[];
+  allBills?: Bill[];
   month: string;
   onSelect: (id: number) => void;
   onSeeAll?: () => void;
   compact?: boolean;
 }) {
-  const [tab, setTab] = useState("all"),
+  const [tab, setTab] = useState("month"),
     [query, setQuery] = useState(""),
     [category, setCategory] = useState("all");
-  const pending = bills.filter((x) => x.status !== "Pagado");
-  const paid = bills.filter((x) => x.status === "Pagado");
-  const filtered = bills.filter(
-    (b) =>
-      (tab === "all" ||
-        (tab === "overdue"
-          ? b.status === "Vencido"
-          : tab === "paid"
-            ? b.status === "Pagado"
-            : b.status !== "Pagado")) &&
-      (category === "all" || b.category === category) &&
-      `${b.title} ${b.supplier}`
-        .toLocaleLowerCase()
-        .includes(query.toLocaleLowerCase()),
+  const available = allBills || bills;
+  const tabs = [
+    ["all", "Todos"],
+    ["month", "Deudas del mes"],
+    ["pending", "Pendientes"],
+    ["overdue", "Vencidos"],
+    ["paid", "Pagados"],
+  ];
+  const scope = { month, category, query };
+  const filtered = selectExpenses(available, { ...scope, tab }) as Bill[];
+  const visibleTotal = filtered.reduce(
+    (sum, b) => sum + (b.amount_cents || 0),
+    0,
+  );
+  const visiblePending = filtered.reduce(
+    (sum, b) => sum + (b.remaining_cents || 0),
+    0,
   );
   return (
     <section className="panel payments-panel">
@@ -55,27 +61,21 @@ export function BillTable({
         ) : null}
       </div>
       <div className="tabs" role="tablist" aria-label="Estado de pagos">
-        {[
-          ["all", "Todos", bills.length],
-          ["pending", "Pendientes", pending.length],
-          ["paid", "Pagados", paid.length],
-          [
-            "overdue",
-            "Vencidos",
-            bills.filter((b) => b.status === "Vencido").length,
-          ],
-        ].map(([id, label, count]) => (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={tab === id}
-            className={tab === id ? "active" : ""}
-            onClick={() => setTab(String(id))}
-          >
-            {label}
-            <span>{count}</span>
-          </button>
-        ))}
+        {tabs.map(([id, label]) => {
+          const count = selectExpenses(available, { ...scope, tab: id }).length;
+          return (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={tab === id}
+              className={tab === id ? "active" : ""}
+              onClick={() => setTab(String(id))}
+            >
+              {label}
+              <span>{count}</span>
+            </button>
+          );
+        })}
       </div>
       <div className="table-filters">
         <label className="search">
@@ -95,16 +95,11 @@ export function BillTable({
             onChange={(e) => setCategory(e.target.value)}
           >
             <option value="all">Todas las categorías</option>
-            {[
-              "Servicios",
-              "Proveedores",
-              "Impuestos",
-              "Alquiler",
-              "Préstamos",
-              "Otros",
-            ].map((x) => (
-              <option key={x}>{x}</option>
-            ))}
+            {["Servicios", "Proveedores", "Impuestos", "Alquiler", "Otros"].map(
+              (x) => (
+                <option key={x}>{x}</option>
+              ),
+            )}
           </select>
         </label>
       </div>
@@ -114,6 +109,7 @@ export function BillTable({
             <tr>
               <th>Concepto</th>
               <th>Vencimiento</th>
+              {!compact ? <th>Fecha de pago</th> : null}
               <th className="number">
                 {compact ? "Monto" : "Monto / pendiente"}
               </th>
@@ -134,7 +130,12 @@ export function BillTable({
                     <BillIcon title={b.title} category={b.category} />
                     <span>
                       <strong>{b.title}</strong>
-                      <small>{b.supplier}</small>
+                      <small>
+                        {b.supplier} · {b.month}
+                      </small>
+                      {b.invoice_number ? (
+                        <small>Recibo {b.invoice_number}</small>
+                      ) : null}
                     </span>
                   </button>
                 </td>
@@ -149,6 +150,13 @@ export function BillTable({
                 >
                   {shortDate(b.due_date)}
                 </td>
+                {!compact ? (
+                  <td>
+                    {b.last_payment_date
+                      ? shortDate(b.last_payment_date)
+                      : "Sin pago registrado"}
+                  </td>
+                ) : null}
                 <td className="number">
                   {money(b.amount_cents)}
                   {!compact && b.paid_cents > 0 ? (
@@ -158,7 +166,9 @@ export function BillTable({
                 <td>
                   <Badge status={b.status} />
                   {b.simulated ? (
-                    <small className="review-count">Pago simulado</small>
+                    <small className="review-count">
+                      Registro histórico de demostración
+                    </small>
                   ) : null}
                   {b.due_soon ? (
                     <span className="badge amber">Por vencer</span>
@@ -197,7 +207,9 @@ export function BillTable({
           </tbody>
         </table>
       </div>
-      {!filtered.length ? <Empty /> : null}
+      {!filtered.length ? (
+        <Empty text="No hay recibos que coincidan con el periodo y los filtros. Cambia el mes o limpia la búsqueda." />
+      ) : null}
       {compact ? (
         <button className="panel-link" onClick={onSeeAll}>
           Ver todos los pagos
@@ -206,7 +218,9 @@ export function BillTable({
       ) : (
         <div className="table-footer">
           {filtered.length} {filtered.length === 1 ? "pago" : "pagos"} · Montos
-          expresados en soles (PEN)
+          expresados en soles (PEN).{" "}
+          {tab === "all" ? "Todos los periodos" : "Periodo " + month}. Importe{" "}
+          {money(visibleTotal)} · Falta pagar {money(visiblePending)}
         </div>
       )}
     </section>

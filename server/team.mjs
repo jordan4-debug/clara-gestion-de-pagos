@@ -7,8 +7,7 @@ const json = (value) =>
   Response.json(value, { headers: { "Cache-Control": "no-store" } });
 const columns = "id,name,email,role,demo,active,created_at";
 export async function handleTeam(request, env, user, path, input) {
-  if (user.role !== "owner")
-    fail("Solo el propietario administra el equipo.", 403);
+  if (user.role !== "owner") fail("Solo el gerente administra el equipo.", 403);
   if (request.method === "GET" && path === "/team") {
     const rows = await env.DB.prepare(
       `SELECT ${columns} FROM accounts WHERE demo=? ORDER BY id`,
@@ -27,7 +26,7 @@ export async function handleTeam(request, env, user, path, input) {
   }
   if (user.demo)
     fail(
-      "Ingresa con una cuenta privada de propietario para administrar integrantes.",
+      "Ingresa con una cuenta privada de gerente para administrar integrantes.",
       403,
     );
   if (request.method === "POST" && path === "/team") {
@@ -82,10 +81,7 @@ export async function handleTeam(request, env, user, path, input) {
       ),
     ]);
     if (!result.meta.changes)
-      fail(
-        "No se pudo cambiar la cuenta. Debe quedar un propietario activo.",
-        409,
-      );
+      fail("No se pudo cambiar la cuenta. Debe quedar un gerente activo.", 409);
     if (!active)
       await env.DB.prepare("DELETE FROM demo_sessions WHERE user_id=?")
         .bind(id)

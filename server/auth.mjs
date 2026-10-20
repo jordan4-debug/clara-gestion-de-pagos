@@ -23,7 +23,8 @@ const tokenOf = (request) =>
     ?.slice(14);
 const publicUser = (account) => ({
   id: account.id,
-  name: account.name,
+  name:
+    account.demo && account.role === "owner" ? "Gerente de demo" : account.name,
   email: account.email,
   role: account.role,
   demo: !!account.demo,
@@ -112,6 +113,8 @@ export async function authenticate(request, env, path) {
         password: z.string().min(1).max(128),
       })
       .parse(input);
+    if (data.email === "gerente@demo.local")
+      data.email = "propietario@demo.local";
     const key = digest(
         `${request.headers.get("CF-Connecting-IP") || "local"}|${data.email}`,
       ),

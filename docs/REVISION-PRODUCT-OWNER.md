@@ -1,5 +1,6 @@
 # Revisión del Product Owner · 19 de octubre de 2026
 
+> Documento histórico: el alcance vigente es [Control administrativo de gastos](ALCANCE-ADMINISTRATIVO.md). Las funciones bancarias y de préstamos descritas aquí están retiradas.
 > Documento histórico de la reunión. El catálogo del 20 de octubre reserva ahora los pagos al asistente y añade simulación bancaria. Ver [cobertura vigente](COBERTURA-REQUISITOS.md).
 
 ## Alcance confirmado

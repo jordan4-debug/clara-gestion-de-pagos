@@ -11,7 +11,6 @@ import { Brand } from "./ui";
 import type { User } from "../types";
 export const nav = [
   { id: "summary", label: "Deudas del mes", icon: House },
-  { id: "loans", label: "Préstamos", icon: Landmark },
   { id: "cash", label: "Control de efectivo", icon: Banknote },
   { id: "settings", label: "Configuración", icon: Settings },
 ];
@@ -19,9 +18,11 @@ export function navigation(user: User) {
   return nav.map((item) => ({
     ...item,
     label:
-      item.id === "settings" && user.role === "assistant"
-        ? "Mi cuenta"
-        : item.label,
+      item.id === "summary" && user.role === "owner"
+        ? "Resumen de gastos"
+        : item.id === "settings" && user.role === "assistant"
+          ? "Mi cuenta"
+          : item.label,
   }));
 }
 export function Shell({
@@ -46,7 +47,7 @@ export function Shell({
       <aside className="sidebar">
         <Brand />
         <div className="mobile-session">
-          <span className="avatar">{user.role === "owner" ? "PR" : "AS"}</span>
+          <span className="avatar">{user.role === "owner" ? "GE" : "AS"}</span>
           <button
             className="icon-button"
             aria-label="Cerrar sesión"
@@ -71,13 +72,11 @@ export function Shell({
         <div className="sidebar-bottom">
           <div className="user-profile">
             <span className="avatar">
-              {user.role === "owner" ? "PR" : "AS"}
+              {user.role === "owner" ? "GE" : "AS"}
             </span>
             <span>
               {user.name}
-              <small>
-                {user.role === "owner" ? "Propietario" : "Asistente"}
-              </small>
+              <small>{user.role === "owner" ? "Gerente" : "Asistente"}</small>
             </span>
             <ChevronRight size={16} />
           </div>

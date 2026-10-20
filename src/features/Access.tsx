@@ -115,7 +115,7 @@ export function Login({
                   disabled={busy}
                   onClick={() => void login({ role: "owner" }, "/auth/demo")}
                 >
-                  Como propietario
+                  Como gerente
                 </button>
                 <button
                   className="button"
@@ -127,27 +127,10 @@ export function Login({
                   Como asistente
                 </button>
               </div>
-              <details className="demo-credentials">
-                <summary>Credenciales para la presentación</summary>
-                <p>
-                  <strong>Propietario</strong>
-                  <br />
-                  <span>propietario@demo.local</span>
-                  <br />
-                  <code>Propietario2026!</code>
-                </p>
-                <p>
-                  <strong>Asistente</strong>
-                  <br />
-                  <span>asistente@demo.local</span>
-                  <br />
-                  <code>Asistente2026!</code>
-                </p>
-              </details>
             </div>
           ) : null}
           <p className="login-foot">
-            Los pagos reales están desactivados durante la presentación.
+            Control administrativo de gastos. Registrar un pago no mueve dinero.
           </p>
         </div>
       </section>

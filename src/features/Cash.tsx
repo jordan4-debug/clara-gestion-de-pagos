@@ -1,3 +1,4 @@
+import { MoneyInput } from "../components/MoneyInput";
 import { useState, useEffect } from "react";
 import { Banknote, Plus, Undo2 } from "lucide-react";
 import {
@@ -13,7 +14,7 @@ import type { User, CashData } from "../types";
 const labels = {
   delivery: "Entrega al asistente",
   expense: "Pago en efectivo",
-  return: "Devolución al propietario",
+  return: "Devolución al gerente",
 };
 export function Cash({
   user,
@@ -206,14 +207,7 @@ export function Cash({
               </select>
             </Field>
             <Field label="Importe en soles">
-              <input
-                name="amount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                max="1000000"
-                required
-              />
+              <MoneyInput name="amount" />
             </Field>
             <Field label="Motivo o referencia">
               <input

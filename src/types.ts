@@ -14,9 +14,9 @@ export type Supplier = {
   reference: string;
   portal: string;
   channel: "external" | "culqi";
-  payment_gateway?: "portal" | "manual" | "izipay";
   payment_url?: string;
   payment_methods?: string[];
+  receipt_format?: string;
 };
 export type Bill = {
   id: number;
@@ -34,19 +34,16 @@ export type Bill = {
   approval: string;
   notes: string;
   pending_attempt: string | null;
-  provider_payment: {
-    gateway: "portal" | "manual" | "izipay";
-    url: string;
-    methods: string[];
-    recipient: string;
-    integrated_enabled: boolean;
-  };
   invoice_receipt_id?: number;
   invoice_name?: string;
   invoice_number?: string;
   due_soon?: boolean;
   simulated?: boolean;
   created_by?: string;
+  created_by_id?: number;
+  receipt_format?: string;
+  issued_date?: string;
+  last_payment_date?: string | null;
   loan_id?: number;
   installment_number?: number;
   service_reference?: string;
@@ -58,20 +55,9 @@ export type Bill = {
   portal?: string;
   payments?: Payment[];
 };
-export type Finance = {
-  month: string;
-  configured: boolean;
-  revision: number;
-  account: string;
-  initial_cents: number;
-  paid_cents: number;
-  simulated_cents: number;
-  pending_cents: number;
-  available_cents: number;
-  projected_cents: number;
-};
 export type Payment = {
-  kind?: "simulated";
+  kind?: "simulated" | "recorded";
+  payment_date?: string;
   id: number;
   amount_cents: number;
   method: string;
@@ -137,39 +123,31 @@ export type Activity = {
   actor: string;
   created_at: string;
 };
-export type PaymentConfig = {
-  mode: string;
-  configured: boolean;
-  enabled: boolean;
-  publicKey: string;
-  merchant: string;
-};
 export type Settings = {
   reminder_days: number;
   recipient: string;
-  payment: PaymentConfig;
-};
-export type Loan = {
-  id: number;
-  title: string;
-  supplier: string;
-  supplier_id: number;
-  principal_cents: number;
-  total_cents: number;
-  paid_cents: number;
-  remaining_cents: number;
-  installment_count: number;
-  installment_cents: number;
-  last_installment_cents: number;
-  paid_installments: number;
-  overdue_installments: number;
-  next_due_date: string | null;
-  reference: string;
-  notes: string;
-  installments: Bill[];
+  mode?: "administrative";
 };
 export type Dashboard = {
-  finance: Finance;
+  all_bills: Bill[];
+  overview: {
+    paid_cents: number;
+    pending_cents: number;
+    overdue_cents: number;
+    receipts: number;
+    paid_count: number;
+    pending_count: number;
+    overdue_count: number;
+    previous_month: string;
+    previous_cents: number | null;
+    change_cents: number | null;
+  };
+  cash_summary: {
+    delivered: number;
+    spent: number;
+    returned: number;
+    balance_cents: number;
+  };
   today: string;
   month: string;
   bills: Bill[];

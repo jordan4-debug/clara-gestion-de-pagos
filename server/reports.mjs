@@ -1,3 +1,4 @@
+import { recordedPayment, recordMonth } from "./expenses.mjs";
 import { dashboard } from "./cloud-state.mjs";
 const limaMonth = (date) =>
   new Intl.DateTimeFormat("en-CA", {
@@ -10,7 +11,7 @@ const limaMonth = (date) =>
 export function report(state, selected) {
   const summary = dashboard(state, selected, "owner");
   const recorded = state.payments.filter(
-    (p) => limaMonth(p.created_at) === selected,
+    (p) => recordedPayment(state, p) && recordMonth(p) === selected,
   );
   const categories = [...new Set(state.suppliers.map((s) => s.category))].map(
     (category) => {
@@ -37,7 +38,7 @@ export function report(state, selected) {
     return {
       month,
       recorded: state.payments
-        .filter((p) => limaMonth(p.created_at) === month)
+        .filter((p) => recordedPayment(state, p) && recordMonth(p) === month)
         .reduce((sum, p) => sum + p.amount_cents, 0),
     };
   });

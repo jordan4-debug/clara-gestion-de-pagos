@@ -21,9 +21,9 @@ export const remaining = (bill) =>
     ? null
     : Math.max(0, bill.amount_cents - bill.paid_cents);
 export function status(bill, date = today()) {
-  if (bill.amount_cents === null) return "Por definir";
-  if (remaining(bill) === 0) return "Pagado";
+  if (bill.amount_cents !== null && remaining(bill) === 0) return "Pagado";
   if (bill.due_date < date) return "Vencido";
+  if (bill.amount_cents === null) return "Por definir";
   if (bill.paid_cents > 0) return "Parcial";
   return "Pendiente";
 }

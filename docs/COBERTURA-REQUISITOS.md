@@ -1,6 +1,7 @@
 # Cobertura de épicas y requisitos · 20 de octubre de 2026
 
-El catálogo entregado se compara con la versión de Clara publicada tras esta revisión. Propietario y gerente designan el mismo rol `owner`; el segundo rol es `assistant`. No hay un rol adicional de cliente.
+> Documento histórico: el alcance vigente es [Control administrativo de gastos](ALCANCE-ADMINISTRATIVO.md). Las funciones bancarias y de préstamos descritas aquí están retiradas.
+> El catálogo entregado se compara con la versión de Clara publicada tras esta revisión. Propietario y gerente designan el mismo rol `owner`; el segundo rol es `assistant`. No hay un rol adicional de cliente.
 
 ## Funcionalidades
 

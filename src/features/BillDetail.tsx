@@ -5,7 +5,7 @@ import { api, send, money, shortDate } from "../lib/api";
 import type { Bill, User } from "../types";
 import { ReviewCard, receiptPayload } from "./Reviews";
 import { PaymentFlow } from "./PaymentFlow";
-import { SimulatedPayment } from "./SimulatedPayment";
+import { ReceiptFields } from "../components/ReceiptFields";
 export function BillDetail({
   id,
   user,
@@ -60,6 +60,7 @@ export function BillDetail({
               <div className="section-head">
                 <h3>Detalle de la deuda</h3>
                 {user.role === "assistant" &&
+                (!bill.created_by_id || bill.created_by_id === user.id) &&
                 bill.status !== "Pagado" &&
                 !bill.pending_attempt ? (
                   <button className="text-button" onClick={() => onEdit(bill)}>
@@ -68,58 +69,16 @@ export function BillDetail({
                   </button>
                 ) : null}
               </div>
-              <details className="provider-information">
-                <summary>Ver datos del destinatario</summary>
-                <dl className="bank-details">
-                  <div>
-                    <dt>Banco</dt>
-                    <dd>{bill.bank || "No registrado"}</dd>
-                  </div>
-                  <div>
-                    <dt>Cuenta / CCI</dt>
-                    <dd>
-                      {bill.account || "No registrada"}
-                      {bill.account ? (
-                        <button
-                          className="icon-button"
-                          aria-label="Copiar cuenta"
-                          onClick={() => {
-                            void navigator.clipboard
-                              .writeText(bill.account!)
-                              .then(() => notify("Cuenta copiada."))
-                              .catch(() =>
-                                notify(
-                                  "No se pudo copiar. Selecciona la cuenta manualmente.",
-                                ),
-                              );
-                          }}
-                        >
-                          <Copy size={14} />
-                        </button>
-                      ) : null}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>Referencia</dt>
-                    <dd>
-                      {bill.service_reference ||
-                        bill.reference ||
-                        "Sin referencia"}
-                    </dd>
-                  </div>
-                </dl>
-                {bill.portal ? (
-                  <a
-                    className="text-button inline-link"
-                    href={bill.portal}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Abrir portal de la entidad
-                    <ExternalLink size={14} />
-                  </a>
-                ) : null}
-              </details>
+              <p className="muted">
+                Periodo: {bill.month} · Emisión:{" "}
+                {bill.issued_date
+                  ? shortDate(bill.issued_date)
+                  : "No registrada"}{" "}
+                · Último pago:{" "}
+                {bill.last_payment_date
+                  ? shortDate(bill.last_payment_date)
+                  : "Sin pago registrado"}
+              </p>
               {bill.notes ? <p className="notes">{bill.notes}</p> : null}
             </div>
             <section className="detail-section original-document">
@@ -145,7 +104,8 @@ export function BillDetail({
                       ? "Esta cuota necesita el recibo original de cobro de la entidad antes de pagar."
                       : "Este registro anterior todavía no tiene su recibo original. Permite contrastar proveedor, referencia e importe antes de pagar."}
                   </p>
-                  {user.role === "assistant" ? (
+                  {user.role === "assistant" &&
+                  (!bill.created_by_id || bill.created_by_id === user.id) ? (
                     <form
                       className="document-upload"
                       onSubmit={async (e) => {
@@ -156,6 +116,7 @@ export function BillDetail({
                         try {
                           await send(`/bills/${bill.id}/document`, {
                             invoice_number: f.get("invoice_number"),
+                            receipt_format: f.get("receipt_format"),
                             receipt: await receiptPayload(
                               f.get("document") as File,
                             ),
@@ -170,10 +131,7 @@ export function BillDetail({
                         }
                       }}
                     >
-                      <label className="field">
-                        <span>Número del recibo / factura</span>
-                        <input name="invoice_number" required maxLength={100} />
-                      </label>
+                      <ReceiptFields defaultFormat={bill.receipt_format} />
                       <label className="field">
                         <span>Adjuntar recibo original</span>
                         <input
@@ -192,7 +150,8 @@ export function BillDetail({
               )}
               {bill.invoice_receipt_id &&
               !bill.invoice_number &&
-              user.role === "assistant" ? (
+              user.role === "assistant" &&
+              (!bill.created_by_id || bill.created_by_id === user.id) ? (
                 <form
                   className="document-upload"
                   onSubmit={async (e) => {
@@ -203,7 +162,10 @@ export function BillDetail({
                     try {
                       await send(
                         `/bills/${bill.id}/document`,
-                        { invoice_number: f.get("invoice_number") },
+                        {
+                          invoice_number: f.get("invoice_number"),
+                          receipt_format: f.get("receipt_format"),
+                        },
                         "PATCH",
                       );
                       await load();
@@ -216,10 +178,7 @@ export function BillDetail({
                     }
                   }}
                 >
-                  <label className="field">
-                    <span>Número del recibo original</span>
-                    <input name="invoice_number" required maxLength={100} />
-                  </label>
+                  <ReceiptFields defaultFormat={bill.receipt_format} />
                   <button className="button" disabled={uploading}>
                     Guardar número de recibo
                   </button>
@@ -236,7 +195,8 @@ export function BillDetail({
                   El gasto ya está en tu lista para que no lo olvides. Actualiza
                   el importe cuando llegue el recibo.
                 </p>
-                {user.role === "assistant" ? (
+                {user.role === "assistant" &&
+                (!bill.created_by_id || bill.created_by_id === user.id) ? (
                   <button
                     className="button outline-green"
                     onClick={() => onEdit(bill)}
@@ -251,36 +211,18 @@ export function BillDetail({
               </div>
             ) : null}
             {bill.status !== "Pagado" &&
-            bill.amount_cents !== null &&
-            user.role === "assistant" &&
-            bill.invoice_receipt_id &&
-            bill.invoice_number ? (
-              <SimulatedPayment
-                bill={bill}
-                onChanged={() => {
-                  void load();
-                  onChanged();
-                }}
-                notify={notify}
-              />
-            ) : null}
-            {bill.status !== "Pagado" &&
             (!bill.invoice_receipt_id || !bill.invoice_number) ? (
               <div className="notice">
                 El recibo original y su número son obligatorios antes de
-                registrar o simular un pago, también para las cuotas de
-                préstamos.
+                registrar el pago realizado.
               </div>
             ) : null}
             {bill.status !== "Pagado" &&
             bill.amount_cents !== null &&
             bill.invoice_receipt_id &&
-            bill.invoice_number &&
-            user.role === "assistant" ? (
+            bill.invoice_number ? (
               <details className="external-payment-disclosure">
-                <summary>
-                  Registrar pago realizado fuera de Clara (opcional)
-                </summary>
+                <summary>Registrar un pago realizado</summary>
                 <PaymentFlow
                   bill={bill}
                   user={user}
@@ -295,8 +237,8 @@ export function BillDetail({
             <section className="detail-section">
               <h3>Abonos y comprobantes</h3>
               <p className="muted">
-                Los abonos son registros declarados. La revisión de una
-                constancia no confirma el movimiento con el banco.
+                El registro del pago y la revisión de su constancia son acciones
+                administrativas independientes.
               </p>
               {bill.payments?.length ? (
                 bill.payments.map((p) => (

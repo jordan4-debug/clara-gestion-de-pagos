@@ -20,7 +20,7 @@ export const cashBalance = (state, holder) =>
     );
 export function addCash(state, input, user) {
   if (input.kind === "delivery" && user.role !== "owner")
-    fail("Solo el propietario registra entregas de efectivo.", 403);
+    fail("Solo el gerente registra entregas de efectivo.", 403);
   if (user.role !== "owner" && input.holder_id !== user.id)
     fail("Solo puedes devolver el efectivo que tienes a cargo.", 403);
   if (

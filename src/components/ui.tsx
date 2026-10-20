@@ -162,13 +162,19 @@ export function Empty({
 }
 export function Submit({
   busy,
+  disabled = false,
   children,
 }: {
   busy: boolean;
+  disabled?: boolean;
   children: ReactNode;
 }) {
   return (
-    <button className="button primary" disabled={busy} type="submit">
+    <button
+      className="button primary"
+      disabled={busy || disabled}
+      type="submit"
+    >
       {busy ? "Guardando…" : children}
     </button>
   );

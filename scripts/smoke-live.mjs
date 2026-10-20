@@ -38,28 +38,18 @@ assert.equal(assistantIdentity.role, "assistant");
 const first = await call(owner, "/dashboard"),
   second = await call(assistant, "/dashboard");
 assert.equal(first.status, 200);
-const finance = await call(owner, `/finance?month=${first.data.month}`);
-assert.equal(finance.status, 200);
-assert.equal(
-  finance.data.available_cents,
-  finance.data.initial_cents - finance.data.paid_cents,
-);
-assert.equal(
-  finance.data.projected_cents,
-  finance.data.available_cents - finance.data.pending_cents,
-);
-assert.deepEqual(finance.data, first.data.finance);
-assert.equal(
-  (await call(owner, `/bills/${first.data.bills[0].id}/simulate`, "POST", {}))
-    .status,
-  403,
-);
-assert.equal(
-  (await call(owner, `/bills/${first.data.bills[0].id}/payments`, "POST", {}))
-    .status,
-  403,
-);
-assert.equal((await fetch(base + "/api/payments/1/voucher")).status, 401);
+for (const [path, method] of [
+  ["/finance", "GET"],
+  ["/loans", "GET"],
+  ["/bills/1/simulate", "POST"],
+  ["/bills/1/checkout", "POST"],
+])
+  assert.equal(
+    (await call(owner, path, method, method === "POST" ? {} : undefined))
+      .status,
+    410,
+  );
+assert.equal((await call(owner, "/auth/me")).data.user.name, "Gerente de demo");
 assert.deepEqual(first.data.bills, second.data.bills);
 assert.equal(
   first.data.totals.total,
@@ -74,19 +64,25 @@ for (const session of [owner, assistant]) {
     assert.ok(cash.data.people.every((p) => p.id === assistantIdentity.id));
 }
 assert.equal((await call(owner, "/bills", "POST", {})).status, 403);
-assert.equal((await call(owner, "/loans", "POST", {})).status, 403);
-assert.ok(first.data.bills.length >= 6);
-const loans = await call(owner, "/loans");
-assert.equal(loans.status, 200);
-assert.ok(Array.isArray(loans.data));
-assert.equal((await call(assistant, "/loans")).status, 200);
 const suppliers = await call(owner, "/suppliers");
 assert.equal(suppliers.status, 200);
-assert.ok(suppliers.data.some((s) => s.name === "Caja Trujillo"));
-assert.ok(first.data.bills.every((b) => b.approval === "approved"));
 assert.ok(
-  first.data.bills.every((b) => Array.isArray(b.provider_payment.methods)),
+  suppliers.data.every(
+    (s) =>
+      s.category !== "Préstamos" &&
+      !("account" in s) &&
+      !("payment_gateway" in s),
+  ),
 );
+assert.equal(
+  first.data.overview.pending_count,
+  first.data.bills.filter((b) => b.status !== "Pagado").length,
+);
+assert.equal(
+  first.data.overview.overdue_count,
+  first.data.bills.filter((b) => b.status === "Vencido").length,
+);
+assert.equal(first.data.overview.paid_cents, first.data.totals.paid);
 const backup = await call(owner, "/export");
 assert.equal(backup.status, 200);
 assert.equal((await call(assistant, "/export")).status, 403);
@@ -99,7 +95,7 @@ assert.equal(
   ).status,
   403,
 );
-assert.equal((await call(owner, "/settings")).data.payment.enabled, false);
+assert.equal((await call(owner, "/settings")).data.mode, "administrative");
 const selected = first.data.month;
 const report = await call(owner, `/reports?month=${selected}`);
 assert.equal(report.status, 200);
@@ -112,13 +108,8 @@ assert.equal(team.status, 200);
 assert.equal(team.data.canManage, false);
 assert.ok(team.data.members.every((m) => m.demo === 1));
 assert.equal((await call(assistant, "/team")).status, 403);
-assert.equal(
-  (await call(owner, `/bills/${first.data.bills[0].id}/checkout`, "POST", {}))
-    .status,
-  503,
-);
 await call(owner, "/auth/logout", "POST", {});
 await call(assistant, "/auth/logout", "POST", {});
 console.log(
-  `PASS: ${base} · acceso, roles, totales mensuales, efectivo por asistente, comprobantes, equipo protegido y ${backup.data.state.bills.length} obligaciones; pagos reales desactivados. No se alteraron obligaciones, efectivo ni comprobantes.`,
+  `PASS: ${base} · acceso, roles, totales mensuales, efectivo por asistente, comprobantes, equipo protegido y ${backup.data.state.bills.length} obligaciones; control administrativo sin procesamiento de dinero. No se alteraron obligaciones, efectivo ni comprobantes.`,
 );

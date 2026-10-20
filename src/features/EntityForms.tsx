@@ -1,3 +1,6 @@
+import { MoneyInput } from "../components/MoneyInput";
+import { ReceiptFields } from "../components/ReceiptFields";
+import { receiptError } from "../../shared/expenses.mjs";
 import { useState } from "react";
 import { Modal, Field, FormError, Submit, formData } from "../components/ui";
 import { send, solesToCents, localToday } from "../lib/api";
@@ -14,7 +17,8 @@ export function BillForm({
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const [category, setCategory] = useState(bill?.category || "Servicios"),
-    [reference, setReference] = useState(bill?.service_reference || "");
+    [reference, setReference] = useState(bill?.service_reference || ""),
+    [receiptFormat, setReceiptFormat] = useState("alphanumeric");
   return (
     <Modal
       title={bill ? "Editar vencimiento y notas" : "Registrar recibo"}
@@ -28,6 +32,13 @@ export function BillForm({
           setError("");
           const due = String(f.get("due_date"));
           try {
+            if (!bill) {
+              const error = receiptError(
+                String(f.get("invoice_number") || ""),
+                String(f.get("receipt_format")),
+              );
+              if (error) throw new Error(error);
+            }
             await send(
               bill ? `/bills/${bill.id}` : "/bills",
               {
@@ -35,6 +46,9 @@ export function BillForm({
                   ? { invoice: await receiptPayload(f.get("invoice") as File) }
                   : {}),
                 invoice_number: f.get("invoice_number") || bill?.invoice_number,
+                receipt_format: f.get("receipt_format") || bill?.receipt_format,
+                issued_date:
+                  f.get("issued_date") || bill?.issued_date || undefined,
                 category: f.get("category") || bill?.category,
                 service_reference:
                   f.get("service_reference") || bill?.service_reference,
@@ -78,11 +92,8 @@ export function BillForm({
               );
               if (supplier) {
                 setCategory(supplier.category);
-                setReference(
-                  supplier.account ||
-                    supplier.reference ||
-                    `DEMO-DESTINO-${supplier.id}`,
-                );
+                setReceiptFormat(supplier.receipt_format || "alphanumeric");
+                setReference(supplier.reference || "");
               }
             }}
           >
@@ -110,28 +121,19 @@ export function BillForm({
                   "Proveedores",
                   "Impuestos",
                   "Alquiler",
-                  "Préstamos",
                   "Otros",
                 ].map((x) => (
                   <option key={x}>{x}</option>
                 ))}
               </select>
             </Field>
-            <Field label="Número del recibo / factura">
-              <input
-                name="invoice_number"
-                required
-                maxLength={100}
-                placeholder="Ej. F001-000123"
-              />
-            </Field>
-            <Field label="Cuenta / código de suministro o tributo">
+            <ReceiptFields key={receiptFormat} defaultFormat={receiptFormat} />
+            <Field label="Código de servicio o referencia (opcional)">
               <input
                 name="service_reference"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
                 maxLength={160}
-                required
                 placeholder="Referencia que aparece en el recibo"
               />
             </Field>
@@ -146,16 +148,10 @@ export function BillForm({
                 : "Define el importe una sola vez."
             }
           >
-            <input
+            <MoneyInput
               name="amount"
-              type="number"
-              required
+              cents={bill?.amount_cents}
               readOnly={bill?.amount_cents != null}
-              min="0.01"
-              max="1000000"
-              step="0.01"
-              defaultValue={bill?.amount_cents ? bill.amount_cents / 100 : ""}
-              placeholder="Por definir"
             />
           </Field>
           <Field label="Vencimiento">
@@ -177,6 +173,11 @@ export function BillForm({
             />
           </Field>
         </div>
+        {!bill ? (
+          <Field label="Fecha de emisión (opcional)">
+            <input name="issued_date" type="date" max={localToday()} />
+          </Field>
+        ) : null}
         {!bill ? (
           <Field
             label="Recibo original"
@@ -222,19 +223,19 @@ export function SupplierForm({
   onClose,
   onSaved,
 }: { supplier?: Supplier } & Props) {
-  const [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
   return (
     <Modal
-      title={supplier ? "Editar proveedor" : "Nuevo proveedor"}
+      title={supplier ? "Editar entidad" : "Nueva entidad"}
       onClose={onClose}
     >
       <form
         className="form-body"
         onSubmit={async (e) => {
           const f = formData(e);
-          setError("");
           setBusy(true);
+          setError("");
           try {
             await send(
               supplier ? `/suppliers/${supplier.id}` : "/suppliers",
@@ -249,75 +250,41 @@ export function SupplierForm({
           }
         }}
       >
-        <Field label="Nombre del proveedor">
+        <Field label="Nombre de la entidad">
           <input
-            autoFocus
             name="name"
-            required
+            defaultValue={supplier?.name}
             minLength={2}
             maxLength={120}
-            defaultValue={supplier?.name}
+            required
           />
         </Field>
-        <div className="form-grid">
-          <Field label="Categoría">
-            <select
-              name="category"
-              defaultValue={supplier?.category || "Servicios"}
-            >
-              {[
-                "Servicios",
-                "Proveedores",
-                "Impuestos",
-                "Alquiler",
-                "Préstamos",
-                "Otros",
-              ].map((x) => (
+        <Field label="Categoría">
+          <select
+            name="category"
+            defaultValue={supplier?.category || "Servicios"}
+          >
+            {["Servicios", "Proveedores", "Impuestos", "Alquiler", "Otros"].map(
+              (x) => (
                 <option key={x}>{x}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Canal de pago">
-            <select
-              name="channel"
-              defaultValue={supplier?.channel || "external"}
-            >
-              <option value="external">Banco o portal de entidad</option>
-            </select>
-          </Field>
-        </div>
-        <p className="info-text">
-          Estos datos ayudan a preparar el pago en el banco o portal de la
-          entidad. El sistema conserva el registro y su comprobante; no ejecuta
-          transferencias.
-        </p>
-        <div className="form-grid">
-          <Field label="Banco">
-            <input name="bank" maxLength={100} defaultValue={supplier?.bank} />
-          </Field>
-          <Field label="Cuenta / CCI">
-            <input
-              name="account"
-              maxLength={50}
-              defaultValue={supplier?.account}
-            />
-          </Field>
-        </div>
-        <Field label="Referencia / suministro">
+              ),
+            )}
+          </select>
+        </Field>
+        <Field label="Formato habitual de recibo">
+          <select
+            name="receipt_format"
+            defaultValue={supplier?.receipt_format || "alphanumeric"}
+          >
+            <option value="numeric">Solo números</option>
+            <option value="alphanumeric">Letras y números</option>
+          </select>
+        </Field>
+        <Field label="Referencia administrativa (opcional)">
           <input
             name="reference"
-            maxLength={160}
             defaultValue={supplier?.reference}
-          />
-        </Field>
-        <Field label="Portal oficial (HTTPS)">
-          <input
-            name="portal"
-            type="url"
-            pattern="https://.*"
-            maxLength={300}
-            defaultValue={supplier?.portal}
-            placeholder="https://…"
+            maxLength={160}
           />
         </Field>
         <FormError message={error} />
@@ -325,7 +292,7 @@ export function SupplierForm({
           <button type="button" className="button" onClick={onClose}>
             Cancelar
           </button>
-          <Submit busy={busy}>Guardar proveedor</Submit>
+          <Submit busy={busy}>Guardar entidad</Submit>
         </div>
       </form>
     </Modal>

@@ -12,8 +12,7 @@ import { Shell, navigation } from "./components/Shell";
 import { Login } from "./features/Access";
 import { RoleOverview } from "./features/RoleOverview";
 import { Cash } from "./features/Cash";
-import { Loans } from "./features/Loans";
-import { PaymentMethodForm } from "./features/PaymentMethodForm";
+
 import { Modal, FormError } from "./components/ui";
 import { Team } from "./features/Team";
 import { BillDetail } from "./features/BillDetail";
@@ -23,9 +22,7 @@ import { SettingsView } from "./features/SettingsView";
 import { api, send, setCsrf, shortDate, ApiError } from "./lib/api";
 import type { User, Dashboard, Supplier, Settings, Bill } from "./types";
 type Editor =
-  | { type: "bill"; bill?: Bill }
-  | { type: "supplier"; supplier?: Supplier }
-  | { type: "method"; supplier: Supplier };
+  { type: "bill"; bill?: Bill } | { type: "supplier"; supplier?: Supplier };
 export function App() {
   const [user, setUser] = useState<User | null>(null),
     [checking, setChecking] = useState(true),
@@ -181,7 +178,7 @@ export function App() {
   const title =
     page === "summary"
       ? user.role === "owner"
-        ? "Resumen ejecutivo"
+        ? "Resumen de gastos"
         : "Deudas del mes"
       : navigation(user).find((x) => x.id === page)?.label || "Pagos";
   const subtitle: Record<string, string> = {
@@ -221,14 +218,12 @@ export function App() {
       <div className="topbar">
         <div className="topbar-left">
           <span className="workspace-role">
-            {user.role === "owner" ? "Propietario" : "Asistente"}
+            {user.role === "owner" ? "Gerente" : "Asistente"}
           </span>
           {demo ? (
-            <span className="demo-label">
-              Demo compartida · Pagos reales desactivados
-            </span>
+            <span className="demo-label">Demostración · Datos ficticios</span>
           ) : (
-            <span className="workspace-label">Mi espacio de trabajo</span>
+            <span className="workspace-label">Control de gastos</span>
           )}
         </div>
         <div className="topbar-right">
@@ -338,9 +333,7 @@ export function App() {
           data={data}
           user={user}
           onSelect={setSelected}
-          onNavigate={onNavigate}
           onNew={() => setEditor({ type: "bill" })}
-          onChanged={() => void refresh()}
         />
       ) : null}
       {page === "cash" ? (
@@ -349,15 +342,6 @@ export function App() {
           month={month}
           refreshKey={snapshot}
           onChanged={() => void refresh()}
-        />
-      ) : null}
-      {data && page === "loans" ? (
-        <Loans
-          user={user}
-          suppliers={suppliers}
-          version={data}
-          onChanged={() => void refresh()}
-          onSelect={setSelected}
         />
       ) : null}
       {page === "settings" && settings ? (
@@ -371,11 +355,10 @@ export function App() {
           {user.role === "owner" ? (
             <>
               <details className="panel settings-disclosure">
-                <summary>Entidades y destinos de pago</summary>
+                <summary>Servicios y proveedores</summary>
                 <p className="muted">
-                  Configura los destinos que utilizará el asistente. Las
-                  contraseñas y los datos completos de tarjetas se gestionan en
-                  la entidad de pago.
+                  Administra las entidades y el formato de sus recibos. No se
+                  solicitan datos bancarios.
                 </p>
                 <Suppliers
                   items={suppliers}
@@ -383,9 +366,6 @@ export function App() {
                   onNew={() => setEditor({ type: "supplier" })}
                   onEdit={(supplier) =>
                     setEditor({ type: "supplier", supplier })
-                  }
-                  onMethods={(supplier) =>
-                    setEditor({ type: "method", supplier })
                   }
                 />
               </details>
@@ -429,13 +409,7 @@ export function App() {
           onSaved={saved}
         />
       ) : null}
-      {editor?.type === "method" ? (
-        <PaymentMethodForm
-          supplier={editor.supplier}
-          onClose={() => setEditor(null)}
-          onSaved={() => saved()}
-        />
-      ) : null}
+
       {logoutPrompt ? (
         <Modal
           title="¿Cerrar sesión?"

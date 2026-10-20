@@ -15,72 +15,48 @@ export function Suppliers({
   user,
   onNew,
   onEdit,
-  onMethods,
 }: {
   items: Supplier[];
   user: User;
   onNew: () => void;
-  onEdit: (s: Supplier) => void;
-  onMethods: (s: Supplier) => void;
+  onEdit: (supplier: Supplier) => void;
 }) {
   return (
     <section className="panel">
       <div className="panel-title">
-        <h2>Tus proveedores y entidades</h2>
+        <h2>Servicios y proveedores</h2>
         {user.role === "owner" ? (
           <button className="button primary" onClick={onNew}>
-            <Plus size={16} />
-            Nuevo proveedor
+            Nueva entidad
           </button>
         ) : null}
       </div>
       <p className="section-description">
-        Datos bancarios, referencias y portales para tener todo a mano.
+        Nombre, categoría y formato administrativo del recibo.
       </p>
       <div className="supplier-list">
         {items.map((s) => (
           <article className="supplier-row" key={s.id}>
-            <span className="supplier-icon">
-              <Landmark size={23} />
-            </span>
             <div className="supplier-info">
               <strong>{s.name}</strong>
               <p>
-                {s.category} · {"Pago externo"}
+                {s.category} ·{" "}
+                {s.receipt_format === "numeric"
+                  ? "Recibo numérico"
+                  : "Recibo alfanumérico"}
               </p>
-              <small>
-                {s.bank || "Banco por registrar"}
-                {s.account ? ` · ${s.account}` : ""}
-              </small>
             </div>
-            <div className="button-row">
-              {s.portal ? (
-                <a
-                  href={s.portal}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="icon-button"
-                  aria-label={`Abrir portal de ${s.name}`}
-                >
-                  <ExternalLink size={17} />
-                </a>
-              ) : null}
-              {user.role === "owner" ? (
-                <button className="button" onClick={() => onMethods(s)}>
-                  Métodos de pago
-                </button>
-              ) : null}
-              {user.role === "owner" ? (
-                <button className="button" onClick={() => onEdit(s)}>
-                  <Pencil size={14} />
-                  Editar
-                </button>
-              ) : null}
-            </div>
+            {user.role === "owner" ? (
+              <button className="button" onClick={() => onEdit(s)}>
+                Editar entidad
+              </button>
+            ) : null}
           </article>
         ))}
       </div>
-      {!items.length ? <Empty text="Aún no hay proveedores." /> : null}
+      {!items.length ? (
+        <Empty text="Aún no hay entidades registradas." />
+      ) : null}
     </section>
   );
 }

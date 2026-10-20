@@ -1,5 +1,4 @@
-import { FinanceOverview } from "./FinanceOverview";
-import { Plus, Landmark, FileCheck2 } from "lucide-react";
+import { Plus, Banknote } from "lucide-react";
 import { money } from "../lib/api";
 import { BillTable } from "./BillTable";
 import type { Dashboard, User } from "../types";
@@ -7,116 +6,105 @@ export function RoleOverview({
   data,
   user,
   onSelect,
-  onNavigate,
   onNew,
-  onChanged,
 }: {
   data: Dashboard;
   user: User;
   onSelect: (id: number) => void;
-  onNavigate: (id: string) => void;
   onNew: () => void;
-  onChanged: () => void;
 }) {
-  const count = data.bills.filter((b) => b.status === "Vencido").length;
-  const metrics = [
-    {
-      label: "Total de obligaciones del mes",
-      value: money(data.totals.total),
-      tone: "blue",
-    },
-    {
-      label: "Pagado de estas obligaciones",
-      value: money(data.totals.monthPaid),
-      tone: "green",
-    },
-    {
-      label: "Pendiente del mes",
-      value: money(data.totals.pending),
-      tone: "amber",
-    },
-    { label: "Deudas vencidas", value: String(count), tone: "gray" },
-  ];
+  const o = data.overview;
+  const metrics =
+    user.role === "owner"
+      ? [
+          ["Gastos pagados en el mes", money(o.paid_cents), "green"],
+          ["Deudas por pagar", money(o.pending_cents), "amber"],
+          ["Deuda vencida", money(o.overdue_cents), "red"],
+          ["Recibos del mes", String(o.receipts), "blue"],
+        ]
+      : [
+          ["Importe de los recibos", money(data.totals.total), "blue"],
+          ["Abonado a estos recibos", money(data.totals.monthPaid), "green"],
+          ["Falta pagar", money(o.pending_cents), "amber"],
+          ["Recibos vencidos", String(o.overdue_count), "red"],
+        ];
   return (
     <>
-      {user.role === "owner" ? (
-        <FinanceOverview finance={data.finance} onChanged={onChanged} />
-      ) : null}
       <div className="monthly-intro">
         <p>
           {user.role === "owner"
-            ? "Consulta tus deudas, compara el recibo con su constancia y sigue lo que falta pagar."
-            : "Registra los recibos, revisa sus vencimientos y guarda la constancia de cada pago."}
+            ? "Supervisa los gastos registrados, los vencimientos y el efectivo entregado al asistente."
+            : "Registra recibos, consulta tus pendientes y archiva la constancia del pago realizado."}
         </p>
         {user.role === "assistant" ? (
-          <div className="button-row">
-            <button className="button primary" onClick={onNew}>
-              <Plus size={19} />
-              Registrar recibo
-            </button>
-            <button className="button" onClick={() => onNavigate("loans")}>
-              <Landmark size={18} />
-              Ver préstamos
-            </button>
-          </div>
+          <button className="button primary" onClick={onNew}>
+            <Plus size={19} />
+            Registrar recibo
+          </button>
         ) : null}
       </div>
-      <div
-        className={
-          user.role === "owner"
-            ? "obligation-summary"
-            : "role-metrics monthly-metrics"
-        }
-      >
-        {metrics.map((m) => (
-          <div key={m.label} className={`role-metric ${m.tone}`}>
-            <span>{m.label}</span>
-            <strong>{m.value}</strong>
+      <div className="role-metrics monthly-metrics">
+        {metrics.map(([label, value, tone]) => (
+          <div key={label} className={`role-metric ${tone}`}>
+            <span>{label}</span>
+            <strong>{value}</strong>
           </div>
         ))}
       </div>
-      {data.totals.undefined ? (
+      <div className="expense-summary-line">
+        <span>
+          <b>{o.paid_count}</b> recibos pagados
+        </span>
+        <span>
+          <b>{o.pending_count}</b> por pagar, incluidos <b>{o.overdue_count}</b>{" "}
+          vencidos
+        </span>
+      </div>
+      {user.role === "owner" ? (
         <p className="amount-note">
-          Hay {data.totals.undefined} importes por definir; todavía no se
-          incluyen en los totales.
+          {o.change_cents == null
+            ? "Sin datos del mes anterior para comparar gastos registrados."
+            : `Comparación con ${o.previous_month}: ${money(o.previous_cents)} registrados; diferencia ${money(o.change_cents)}.`}{" "}
+          Los gastos del mes se calculan por fecha de pago; las deudas, por su
+          periodo.
         </p>
       ) : null}
-      {user.role === "assistant" ? (
-        <section className="quick-payments" aria-label="Pagos rápidos">
-          <h2>Pagos rápidos del mes</h2>
-          <p className="muted">
-            Datos del destinatario precargados. Abre la deuda, revisa su recibo
-            y confirma el importe fijo.
-          </p>
-          <div className="quick-payment-buttons">
-            {data.bills
-              .filter(
-                (b) =>
-                  b.status !== "Pagado" &&
-                  ["Servicios", "Impuestos"].includes(b.category),
-              )
-              .filter(
-                (b, i, all) =>
-                  all.findIndex((x) => x.supplier_id === b.supplier_id) === i,
-              )
-              .slice(0, 4)
-              .map((b) => (
-                <button
-                  className="button"
-                  key={b.id}
-                  onClick={() => onSelect(b.id)}
-                >
-                  {b.title} · {b.supplier}
-                </button>
-              ))}
-          </div>
-        </section>
+      {data.totals.undefined ? (
+        <p className="amount-note">
+          Hay {data.totals.undefined} importes por definir que todavía no se
+          suman.
+        </p>
       ) : null}
-      <BillTable bills={data.bills} month={data.month} onSelect={onSelect} />
+      <div className="cash-summary-inline">
+        <Banknote size={22} />
+        <p>
+          <strong>
+            Efectivo físico ·{" "}
+            {user.role === "owner"
+              ? "Entregado al asistente"
+              : "Recibido del gerente"}
+            : {money(data.cash_summary.delivered)}
+          </strong>
+          <span>
+            Utilizado {money(data.cash_summary.spent)} · Devuelto{" "}
+            {money(data.cash_summary.returned)} · Por rendir{" "}
+            {money(data.cash_summary.balance_cents)}
+          </span>
+          <small>
+            Una entrega de efectivo no es un gasto ni marca recibos como
+            pagados. El importe por rendir incluye periodos anteriores.
+          </small>
+        </p>
+      </div>
+      <BillTable
+        bills={data.bills}
+        allBills={data.all_bills}
+        month={data.month}
+        onSelect={onSelect}
+      />
       <p className="amount-note">
-        <FileCheck2 size={16} />
-        Abre una deuda para ver su recibo original y sus comprobantes. Los pagos
-        registrados aquí son declarados; la conexión bancaria está pendiente.
+        Los pagos se registran con su constancia. Revisar un documento confirma
+        la revisión administrativa, sin verificar movimientos bancarios.
       </p>
     </>
   );

@@ -1,6 +1,6 @@
 # Clara · Gestión de pagos
 
-Aplicación web en español para consultar deudas mensuales, delegar su registro y pago a un asistente, controlar préstamos, documentos y efectivo. Interfaz blanca con acentos verdes, acceso mediante correo y contraseña, panel adaptable a computadora y celular. Montos en soles y horario de Lima.
+Aplicación web en español para consultar deudas mensuales, delegar su registro y pago a un asistente, controlar documentos y efectivo. Interfaz blanca con acentos verdes, acceso mediante correo y contraseña, panel adaptable a computadora y celular. Montos en soles y horario de Lima.
 
 ## Tecnologías
 
@@ -42,16 +42,16 @@ La dirección local es `http://127.0.0.1:8788`. El script compila y abre el serv
 
 ## Acceso
 
-El formulario valida correo y contraseña en el servidor, guarda hashes PBKDF2 con sal aleatoria y establece una sesión de 12 horas con cookie HttpOnly, SameSite, Secure en HTTPS y protección CSRF. Los intentos fallidos tienen límite por correo y origen de la solicitud. Los permisos de propietario y asistente se comprueban en la API.
+El formulario valida correo y contraseña en el servidor, guarda hashes PBKDF2 con sal aleatoria y establece una sesión de 12 horas con cookie HttpOnly, SameSite, Secure en HTTPS y protección CSRF. Los intentos fallidos tienen límite por correo y origen de la solicitud. Los permisos de gerente y asistente se comprueban en la API.
 
 Con `DEMO_MODE="true"` hay cuentas públicas para la presentación:
 
-| Rol         | Correo                   | Contraseña pública de demostración |
-| ----------- | ------------------------ | ---------------------------------- |
-| Propietario | `propietario@demo.local` | `Propietario2026!`                 |
-| Asistente   | `asistente@demo.local`   | `Asistente2026!`                   |
+| Rol       | Correo                 | Contraseña pública de demostración |
+| --------- | ---------------------- | ---------------------------------- |
+| Gerente   | `gerente@demo.local`   | `Propietario2026!`                 |
+| Asistente | `asistente@demo.local` | `Asistente2026!`                   |
 
-También pueden usarse los botones «Como propietario» y «Como asistente». Ambos accesos abren el mismo espacio de datos ficticios compartidos. Las contraseñas de estas cuentas no se cambian para evitar bloquear a otros participantes.
+También pueden usarse los botones «Como gerente» y «Como asistente». Ambos accesos abren el mismo espacio de datos ficticios compartidos. Las contraseñas de estas cuentas no se cambian para evitar bloquear a otros participantes.
 
 Para crear una cuenta privada en una terminal interactiva:
 
@@ -61,40 +61,23 @@ npm run user:create -- --local
 npm run user:create -- --remote
 ```
 
-La contraseña se escribe localmente sin mostrarse ni incluirse en argumentos del proceso. No se publica una función de registro que permita a visitantes asignarse permisos de propietario. Para trabajar con cuentas privadas y datos de una empresa, crear las cuentas, cambiar `DEMO_MODE` a `"false"` y volver a publicar. El acceso público de demostración permite explorar todos sus registros; usar solo datos ficticios mientras esté activo.
+La contraseña se escribe localmente sin mostrarse ni incluirse en argumentos del proceso. No se publica una función de registro que permita a visitantes asignarse permisos de gerente. Para trabajar con cuentas privadas y datos de una empresa, crear las cuentas, cambiar `DEMO_MODE` a `"false"` y volver a publicar. El acceso público de demostración permite explorar todos sus registros; usar solo datos ficticios mientras esté activo.
 
-Después de crear el primer propietario privado, iniciar sesión con él y abrir **Configuración → Equipo** para crear integrantes con rol de propietario o asistente, activar o desactivar accesos y consultar el historial de cambios del equipo. Desactivar una cuenta cierra sus sesiones y conserva sus operaciones. Las cuentas públicas de demostración solo ven los integrantes ficticios y no pueden administrar cuentas privadas. No se debe colocar información real mientras `DEMO_MODE` siga activo, aunque ya existan cuentas privadas.
+Después de crear el primer gerente privado, iniciar sesión con él y abrir **Configuración → Equipo** para crear integrantes con rol de gerente o asistente, activar o desactivar accesos y consultar el historial de cambios del equipo. Desactivar una cuenta cierra sus sesiones y conserva sus operaciones. Las cuentas públicas de demostración solo ven los integrantes ficticios y no pueden administrar cuentas privadas. No se debe colocar información real mientras `DEMO_MODE` siga activo, aunque ya existan cuentas privadas.
 
-## Cobertura del catálogo de requisitos
+## Alcance vigente: control administrativo
 
-Consultar [la matriz de HU, RF y RNF](docs/COBERTURA-REQUISITOS.md). Incluye las reglas aplicadas y los objetivos de rendimiento/compatibilidad aún pendientes de certificación.
+Clara permite registrar recibos, consultar gastos y deudas por mes y rendir el efectivo entregado al asistente. El gerente supervisa y administra; el asistente registra los recibos y realiza el seguimiento operativo. Ambos pueden archivar un pago ya realizado con constancia. No se procesa dinero mediante la web.
 
-La cuenta de prueba se configura por mes desde el Resumen ejecutivo. El asistente puede simular el pago con validación de fondos y obtener un voucher interno marcado como simulación sin validez bancaria. Los pagos reales permanecen desactivados.
+- Número de recibo como texto, formato numérico o alfanumérico configurable, ceros iniciales y protección de duplicados por entidad.
+- Importes exactos en céntimos y presentación con dos decimales; originales y constancias de hasta 5 MiB.
+- Cinco filtros independientes, búsqueda, categoría, selector mensual y fechas de emisión, vencimiento y pago.
+- Resumen del gerente con gastos del mes, deuda pendiente/vencida, cantidades de recibos y comparación con el periodo anterior cuando hay datos.
+- Entregas, gastos y devoluciones físicas de efectivo por asistente; entregar no crea un gasto ni un pago.
+- Permisos de servidor, revisión/corrección documental, contraseñas seguras, CSRF y cuentas privadas del equipo.
+- Los módulos anteriores de simulación bancaria, créditos y pasarelas se retiran del flujo y se bloquean por API sin borrar sus registros históricos.
 
-## Funciones
-
-- Resumen mensual con total de obligaciones, abonado, pendiente, vencimientos y montos por definir. Los indicadores no representan una billetera ni requieren recargar dinero.
-- Entidades y destinos configurados por el propietario; las plantillas anteriores se conservan por compatibilidad, sin una pantalla adicional de recurrentes.
-- El asistente registra recibos y préstamos. El propietario supervisa; el asistente puede registrar pagos externos sin autorización previa obligatoria.
-- Métodos configurables por proveedor y flujo dentro del pago creado: elegir medio, consultar el portal oficial o instrucciones y registrar el comprobante del pago externo.
-- Monto fijo al crear la obligación, protegido también por la API. Una obligación recurrente sin monto permite definirlo una sola vez.
-- Edición del vencimiento y notas opcionales mientras exista un importe pendiente. El pago vence después de terminar su fecha en horario de Lima.
-- Préstamos con entidad financiera, contrato opcional y cronograma mensual de cuotas; ajustes para meses cortos y última cuota diferente.
-- Registro de abonos externos con operación y comprobante obligatorio; prevención de duplicados y sobrepagos. La API admite abonos parciales y el formulario propone el pendiente completo sin editar el monto de la obligación.
-- Consulta de meses anteriores, exportación CSV de la lista y respaldo JSON protegido para el propietario desde Configuración.
-- Inicio en resumen ejecutivo para el propietario y deudas operativas para el asistente, con navegación entre meses.
-- Acciones de registro reservadas al asistente y revisión de constancias para el propietario, en el detalle de cada deuda.
-- Recibo original obligatorio en el alta manual, archivado por separado de la constancia de pago.
-- Control de efectivo por asistente: entregas, gastos y devoluciones, con protección ante gasto simultáneo e importes insuficientes.
-- Navegación reducida: deudas, préstamos, efectivo y configuración. Los menús independientes de historial y recurrentes se retiraron; se conservan sus datos anteriores.
-- Confirmación antes de cerrar sesión y aviso al finalizar.
-- Revisión de comprobantes con comentario, corrección del archivo, historial y control de revisiones concurrentes. Corregir una constancia no modifica ni duplica el importe abonado.
-- Reportes por categoría y tendencia de seis meses, con fechas de registro en horario de Lima.
-- Gestión de integrantes privados y revocación de sesiones, protegida en el servidor.
-
-Ver [responsabilidades y flujo completo](docs/FLUJOS.md) y [decisiones de la revisión del Product Owner](docs/REVISION-PRODUCT-OWNER.md). La revisión de una constancia documenta la verificación del propietario; no confirma una transferencia con el banco.
-
-**Los pagos reales están desactivados.** Registrar un pago externo no mueve dinero ni confirma una transferencia con el banco. Izipay es una etapa posterior que requiere un comercio habilitado y una integración verificada.
+Ver [alcance y reglas actuales](docs/ALCANCE-ADMINISTRATIVO.md), [flujo](docs/FLUJOS.md) y [recorrido de presentación](docs/PRESENTACION.md). Los documentos de revisiones anteriores son históricos y quedan sustituidos por este alcance.
 
 ## Organización
 
@@ -105,10 +88,9 @@ server/auth.mjs      Cuentas, sesiones, permisos e inicio de sesión
 server/passwords.mjs Hash y verificación de contraseñas
 server/reviews.mjs   Revisión, observación y corrección de comprobantes
 server/reports.mjs   Reportes por periodo y categoría
-server/loans.mjs     Contratos y generación del cronograma de cuotas
 server/cash.mjs      Entregas, pagos y devoluciones de efectivo por asistente
-server/finance.mjs   Presupuesto mensual de prueba, pagos simulados y voucher interno
-server/provider-payments.mjs Métodos e instrucciones por proveedor
+server/expenses.mjs  Formatos, recibos únicos y permisos administrativos
+shared/expenses.mjs  Dinero exacto y filtros compartidos
 server/team.mjs      Administración de cuentas privadas y auditoría
 server/cloud-state.mjs Persistencia compartida y cálculos
 server/storage.mjs   Archivos divididos en bloques en D1
@@ -148,14 +130,11 @@ node tests/integration.mjs
 
 Las pruebas cubren contraseñas con sal, concurrencia, rechazo sin escrituras parciales, archivos de hasta 5 MiB, inicio y cierre de sesión, roles, CSRF/origen, fechas de febrero, idempotencia mensual, abonos, duplicados y sobrepagos. La prueba HTTP genera registros ficticios y se niega a ejecutarse sobre un dominio público.
 
-También se prueban observación y corrección sin alterar importes, conservación de constancias anteriores, decisiones simultáneas, registros antiguos sin archivo, permisos de equipo, desactivación de cuentas, monto inmutable, métodos por proveedor, préstamos y vencimientos en horario de Lima. La migración de proveedores conserva importes, comprobantes y datos personalizados. `node scripts/smoke-live.mjs` comprueba el alojamiento publicado mediante lecturas y sesiones transitorias; no genera obligaciones ni abonos en la nube.
+También se prueban los formatos de recibo, ceros iniciales, duplicados concurrentes, filtros independientes, permisos sobre registros propios, entregas sin gasto, revisión y corrección de constancias, y renderizado de los paneles. Los antiguos módulos bancarios y créditos no tienen rutas operativas. `node scripts/smoke-live.mjs` valida el despliegue sin crear obligaciones, pagos ni entregas.
 
-## Etapas pendientes
+## Antes de usar datos privados
 
-- Conectar Izipay y conciliar cobros reales al final de la implementación.
-- Configurar el primer propietario privado y desactivar la demostración para usar datos reales.
-- Recuperación de contraseña mediante un canal verificado y notificaciones por correo o WhatsApp.
-- Separar los datos de negocio del documento JSON en tablas relacionadas, automatizar respaldos y ensayar recuperación antes de ampliar el volumen de uso.
+Crear cuentas privadas y desactivar la demostración. Ampliar el modelo de almacenamiento y probar respaldo y recuperación antes de aumentar el volumen. No se necesita ni se prevé una pasarela de pago para este alcance administrativo.
 
 ## Traslado y respaldos
 

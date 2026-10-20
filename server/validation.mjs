@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { validDate } from "./domain.mjs";
+import { receiptError } from "../shared/expenses.mjs";
+import { today, validDate } from "./domain.mjs";
 export const cents = z.number().int().positive().max(100000000);
 export const date = z.string().refine(validDate, "Fecha inválida.");
 export const month = z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/);
 export const paymentMethods = [
-  "Portal de entidad",
   "Transferencia",
   "Yape",
   "Plin",
@@ -12,6 +12,20 @@ export const paymentMethods = [
   "Otro",
   "Efectivo",
 ];
+export const receiptIdentity = z
+  .object({
+    invoice_number: z.string().min(1).max(60),
+    receipt_format: z.enum(["numeric", "alphanumeric"]).default("alphanumeric"),
+  })
+  .superRefine((x, ctx) => {
+    const error = receiptError(x.invoice_number, x.receipt_format);
+    if (error)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["invoice_number"],
+        message: error,
+      });
+  });
 export const paymentMethod = z.enum(paymentMethods);
 export const billInput = z.object({
   title: z.string().trim().min(2).max(120),
@@ -19,16 +33,11 @@ export const billInput = z.object({
   amount_cents: cents.nullable(),
   due_date: date,
   category: z
-    .enum([
-      "Servicios",
-      "Proveedores",
-      "Impuestos",
-      "Alquiler",
-      "Préstamos",
-      "Otros",
-    ])
+    .enum(["Servicios", "Proveedores", "Impuestos", "Alquiler", "Otros"])
     .optional(),
-  invoice_number: z.string().trim().max(100).optional(),
+  invoice_number: z.string().max(60).optional(),
+  receipt_format: z.enum(["numeric", "alphanumeric"]).optional(),
+  issued_date: date.optional(),
   service_reference: z.string().trim().max(160).optional(),
   notes: z.string().trim().max(2000).default(""),
 });
@@ -39,25 +48,10 @@ export const supplierInput = z.object({
     "Proveedores",
     "Impuestos",
     "Alquiler",
-    "Préstamos",
     "Otros",
   ]),
-  bank: z.string().trim().max(100).default(""),
-  account: z.string().trim().max(50).default(""),
   reference: z.string().trim().max(160).default(""),
-  portal: z
-    .string()
-    .max(300)
-    .refine((x) => !x || /^https:\/\//i.test(x), "El portal debe usar HTTPS.")
-    .default(""),
-  channel: z.enum(["external", "culqi"]).default("external"),
-  payment_gateway: z.enum(["portal", "manual", "izipay"]).optional(),
-  payment_url: z
-    .string()
-    .max(300)
-    .refine((x) => !x || /^https:\/\//i.test(x), "La pasarela debe usar HTTPS.")
-    .optional(),
-  payment_methods: z.array(paymentMethod).min(1).max(6).optional(),
+  receipt_format: z.enum(["numeric", "alphanumeric"]).default("alphanumeric"),
 });
 export const templateInput = z.object({
   title: z.string().trim().min(2).max(120),
@@ -72,6 +66,7 @@ export const receiptInput = z.object({
 });
 export const paymentInput = z.object({
   amount_cents: cents,
+  payment_date: date.default(() => today()),
   method: paymentMethod,
   operation: z.string().trim().min(3).max(100),
   receipt: receiptInput,

@@ -66,7 +66,7 @@ export function SettingsView({
                 <Field label="Quién recibe el aviso">
                   <select name="recipient" defaultValue={settings.recipient}>
                     <option value="both">Ambos</option>
-                    <option value="owner">Propietario</option>
+                    <option value="owner">Gerente</option>
                     <option value="assistant">Asistente</option>
                   </select>
                 </Field>
@@ -80,7 +80,7 @@ export function SettingsView({
                 <Submit busy={busy}>Guardar avisos</Submit>
               ) : (
                 <p className="muted">
-                  Solo el propietario puede cambiar los avisos.
+                  Solo el gerente puede cambiar los avisos.
                 </p>
               )}
             </fieldset>
@@ -89,26 +89,11 @@ export function SettingsView({
         </section>
       ) : null}
       <section className="panel settings-panel">
-        <h2>
-          <KeyRound size={21} />
-          Pagos reales
-        </h2>
-        <span className="gateway-state">
-          <AlertCircle size={18} />
-          Desactivados en esta demostración
-        </span>
+        <h2>Control administrativo</h2>
         <p className="muted">
-          La integración con Izipay se realizará en la siguiente etapa, cuando
-          el comercio esté habilitado.
+          Se registran recibos, pagos declarados y entregas físicas de efectivo.
+          Guardar o revisar una constancia no ejecuta una transacción bancaria.
         </p>
-        <div className="notice">
-          <strong>Registro de pagos externos</strong>
-          <p>
-            Puedes ensayar un abono y adjuntar un comprobante ficticio.
-            Registrar un pago aquí no mueve dinero ni verifica una transferencia
-            bancaria.
-          </p>
-        </div>
       </section>
       <section className="panel settings-panel full-span">
         <h2>
@@ -118,7 +103,7 @@ export function SettingsView({
           <p className="muted">
             Esta cuenta pública permite explorar el rol con información ficticia
             compartida. Para identificar a cada integrante, usa cuentas
-            privadas. El propietario administra los accesos desde Equipo; las
+            privadas. El gerente administra los accesos desde Equipo; las
             cuentas de demostración no administran usuarios privados.
           </p>
         ) : (

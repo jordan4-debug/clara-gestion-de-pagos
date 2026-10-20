@@ -1,16 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { authenticate } from "./auth.mjs";
 import { z, ZodError } from "zod";
-import { today, monthDate, assertPayable } from "./domain.mjs";
+import { today, assertPayable } from "./domain.mjs";
 import {
   billInput,
   supplierInput,
-  templateInput,
   paymentInput,
   decodeReceipt,
   cents,
   month,
   receiptInput,
+  receiptIdentity,
 } from "./validation.mjs";
 import {
   readState,
@@ -28,7 +28,7 @@ import {
 } from "./reviews.mjs";
 import { report } from "./reports.mjs";
 import { handleTeam } from "./team.mjs";
-import { loanInput, createLoan, listLoans } from "./loans.mjs";
+
 import {
   cashInput,
   cashPeople,
@@ -37,15 +37,12 @@ import {
   spendCash,
 } from "./cash.mjs";
 import {
-  financeView,
-  configurePeriod,
-  periodInput,
-  simulationInput,
-  simulatePayment,
-  voucherHtml,
+  activeExpense,
+  assertEditable,
+  assertReceipt,
   assertOriginal,
-} from "./finance.mjs";
-import { assertProviderMethod } from "./provider-payments.mjs";
+  publicSupplier,
+} from "./expenses.mjs";
 
 const fail = (message, status = 400) => {
   throw Object.assign(new Error(message), { status });
@@ -64,23 +61,12 @@ const settingsSchema = z.object({
   reminder_days: z.number().int().min(0).max(30),
   recipient: z.enum(["owner", "assistant", "both"]),
 });
-const paymentConfig = {
-  mode: "disabled",
-  configured: false,
-  enabled: false,
-  publicKey: "",
-  merchant: "Demostración compartida · sin cobros",
-};
 const owner = (session) => {
-  if (session.role !== "owner")
-    fail("Solo el propietario puede hacer esto.", 403);
+  if (session.role !== "owner") fail("Solo el gerente puede hacer esto.", 403);
 };
 const assistant = (session) => {
   if (session.role !== "assistant")
-    fail(
-      "El asistente registra los recibos y préstamos; el propietario supervisa.",
-      403,
-    );
+    fail("El asistente registra los recibos; el gerente supervisa.", 403);
 };
 const cap = (items, max) => {
   if (items.length >= max)
@@ -93,6 +79,11 @@ const supplierExists = (state, id) => {
 const findBill = (state, id) => {
   const bill = state.bills.find((b) => b.id === id);
   if (!bill) fail("Pago no encontrado.", 404);
+  if (!activeExpense(state, bill))
+    fail(
+      "Los préstamos están archivados y no forman parte del control de servicios.",
+      410,
+    );
   return bill;
 };
 
@@ -122,6 +113,15 @@ export async function handleRequest(request, env) {
     if (auth.response) return auth.response;
     const { session, user } = auth;
     const actor = user.name;
+    if (
+      /^\/(?:finance|loans|templates|attempts)(?:\/|$)/.test(path) ||
+      path === "/months/generate" ||
+      /\/(?:simulate|checkout|voucher)$/.test(path)
+    )
+      fail(
+        "Esta función está retirada. Clara registra gastos y pagos; no procesa dinero ni créditos.",
+        410,
+      );
     if (path === "/team" || /^\/team\/\d+$/.test(path)) {
       owner(session);
       return await handleTeam(
@@ -134,30 +134,6 @@ export async function handleRequest(request, env) {
     }
     if (method === "GET") {
       const { state } = await readState(env.DB);
-      if (path === "/finance")
-        return json(
-          financeView(
-            state,
-            month.parse(url.searchParams.get("month") || today().slice(0, 7)),
-          ),
-        );
-      const voucherMatch = path.match(/^\/payments\/(\d+)\/voucher$/);
-      if (voucherMatch) {
-        const p = state.payments.find(
-          (p) => p.id === Number(voucherMatch[1]) && p.kind === "simulated",
-        );
-        if (!p) fail("Voucher simulado no encontrado.", 404);
-        return new Response(voucherHtml(p), {
-          headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            "Cache-Control": "private, no-store",
-            "Content-Security-Policy":
-              "sandbox; default-src 'none'; style-src 'unsafe-inline'",
-            "X-Content-Type-Options": "nosniff",
-            "Content-Disposition": `inline; filename="${p.operation}.html"`,
-          },
-        });
-      }
       if (path === "/cash")
         return json(
           cashView(
@@ -167,7 +143,7 @@ export async function handleRequest(request, env) {
             await cashPeople(env.DB, user),
           ),
         );
-      if (path === "/loans") return json(listLoans(state));
+
       if (path === "/reviews") {
         const queue = reviewQueue(
           state,
@@ -192,28 +168,32 @@ export async function handleRequest(request, env) {
         owner(session);
         return json({ schema_version: 1, state });
       }
-      if (path === "/dashboard")
-        return json(
-          dashboard(
-            state,
-            month.parse(url.searchParams.get("month") || today().slice(0, 7)),
-            session.role,
-          ),
+      if (path === "/dashboard") {
+        const selected = month.parse(
+          url.searchParams.get("month") || today().slice(0, 7),
         );
+        const data = dashboard(state, selected, session.role);
+        const cash = cashView(
+          state,
+          selected,
+          user,
+          await cashPeople(env.DB, user),
+        );
+        return json({
+          ...data,
+          cash_summary: { ...cash.totals, balance_cents: cash.balance_cents },
+        });
+      }
       if (path === "/suppliers")
         return json(
-          [...state.suppliers].sort((a, b) => a.name.localeCompare(b.name)),
-        );
-      if (path === "/templates")
-        return json(
-          state.templates.map((t) => ({
-            ...t,
-            supplier: state.suppliers.find((s) => s.id === t.supplier_id).name,
-          })),
+          state.suppliers
+            .filter((s) => s.category !== "Préstamos")
+            .map(publicSupplier)
+            .sort((a, b) => a.name.localeCompare(b.name)),
         );
       if (path === "/activity") return json(state.activity.slice(0, 300));
       if (path === "/settings")
-        return json({ ...state.settings, payment: paymentConfig });
+        return json({ ...state.settings, mode: "administrative" });
       if (path === "/attempts") {
         owner(session);
         return json([]);
@@ -224,6 +204,15 @@ export async function handleRequest(request, env) {
         return json({
           ...decorate(state, bill),
           payments: state.payments
+            .map((p) => ({
+              ...p,
+              destination: p.destination
+                ? {
+                    supplier: p.destination.supplier,
+                    reference: p.destination.reference,
+                  }
+                : undefined,
+            }))
             .filter((p) => p.bill_id === bill.id)
             .sort((a, b) => b.id - a.id),
         });
@@ -246,31 +235,7 @@ export async function handleRequest(request, env) {
       }
       fail("Ruta no encontrada.", 404);
     }
-    if (/\/checkout$|^\/attempts\//.test(path))
-      fail("Los pagos reales están desactivados en esta demostración.", 503);
     const input = await body(request);
-    const financeMatch = path.match(/^\/finance\/(20\d{2}-(?:0[1-9]|1[0-2]))$/);
-    if (method === "PUT" && financeMatch) {
-      owner(session);
-      const data = periodInput.parse(input);
-      return json(
-        await mutateState(env.DB, (s) =>
-          configurePeriod(s, financeMatch[1], data, user),
-        ),
-      );
-    }
-    const simMatch = path.match(/^\/bills\/(\d+)\/simulate$/);
-    if (method === "POST" && simMatch) {
-      assistant(session);
-      const data = simulationInput.parse(input);
-      return json(
-        await mutateState(env.DB, (s) =>
-          simulatePayment(s, Number(simMatch[1]), data.request_id, user),
-        ),
-        201,
-      );
-    }
-
     if (method === "POST" && path === "/cash") {
       const data = cashInput.parse(input),
         people = await cashPeople(env.DB, user);
@@ -287,17 +252,19 @@ export async function handleRequest(request, env) {
     let documentMatch = path.match(/^\/bills\/(\d+)\/document$/);
     if (method === "PATCH" && documentMatch) {
       assistant(session);
-      const number = z
-        .string()
-        .trim()
-        .min(1)
-        .max(100)
-        .parse(input.invoice_number);
+      const identity = receiptIdentity.parse(input);
       await mutateState(env.DB, (s) => {
         const bill = findBill(s, Number(documentMatch[1]));
         if (!bill.invoice_receipt_id || bill.invoice_number)
           fail("El recibo no admite este cambio.", 409);
-        bill.invoice_number = number;
+        assertEditable(bill, user);
+        assertReceipt(
+          s,
+          bill,
+          identity.invoice_number,
+          identity.receipt_format,
+        );
+        Object.assign(bill, identity);
         addAudit(s, actor, "Número de recibo completado", bill.title);
       });
       return json({ ok: true });
@@ -307,12 +274,22 @@ export async function handleRequest(request, env) {
       const data = z
           .object({
             receipt: receiptInput,
-            invoice_number: z.string().trim().min(1).max(100),
+            invoice_number: z.string().min(1).max(60),
+            receipt_format: z
+              .enum(["numeric", "alphanumeric"])
+              .default("alphanumeric"),
           })
           .parse(input),
         id = Number(documentMatch[1]),
         content = decodeReceipt(data.receipt);
       const { state } = await readState(env.DB);
+      assertEditable(findBill(state, id), user);
+      assertReceipt(
+        state,
+        findBill(state, id),
+        data.invoice_number,
+        data.receipt_format,
+      );
       if (findBill(state, id).invoice_receipt_id)
         fail("El recibo original ya está archivado y no se reemplaza.", 409);
       cap(state.receipts, 100);
@@ -323,6 +300,8 @@ export async function handleRequest(request, env) {
       try {
         await mutateState(env.DB, (state) => {
           const bill = findBill(state, id);
+          assertEditable(bill, user);
+          assertReceipt(state, bill, data.invoice_number, data.receipt_format);
           if (bill.invoice_receipt_id)
             fail("El recibo original ya está archivado.", 409);
           cap(state.receipts, 100);
@@ -336,6 +315,8 @@ export async function handleRequest(request, env) {
           bill.invoice_receipt_id = receipt_id;
           bill.invoice_name = data.receipt.name;
           bill.invoice_number = data.invoice_number;
+          bill.receipt_format = data.receipt_format;
+          bill.created_by_id ||= user.id;
           addAudit(state, actor, "Recibo original archivado", bill.title);
         });
       } catch (e) {
@@ -344,15 +325,6 @@ export async function handleRequest(request, env) {
       }
       return json({ ok: true }, 201);
     }
-    if (method === "POST" && path === "/loans") {
-      assistant(session);
-      const data = loanInput.parse(input);
-      return json(
-        await mutateState(env.DB, (s) => createLoan(s, data, user)),
-        201,
-      );
-    }
-
     let reviewMatch = path.match(/^\/payments\/(\d+)\/review$/);
     if (method === "POST" && reviewMatch) {
       owner(session);
@@ -425,8 +397,21 @@ export async function handleRequest(request, env) {
     if (path === "/suppliers" || /^\/suppliers\/\d+$/.test(path)) {
       owner(session);
       const x = supplierInput.parse(input);
-      if (x.channel !== "external")
-        fail("En esta etapa solo se registran pagos externos.", 409);
+      if (
+        [
+          "bank",
+          "account",
+          "portal",
+          "payment_gateway",
+          "payment_url",
+          "channel",
+          "payment_methods",
+        ].some((key) => input[key])
+      )
+        fail(
+          "Solo se configura la entidad y el formato del recibo. No se solicitan datos bancarios ni pasarelas.",
+          400,
+        );
       if (!["POST", "PUT"].includes(method)) fail("Método no permitido.", 405);
       const id = Number(path.split("/")[2]);
       return json(
@@ -444,79 +429,7 @@ export async function handleRequest(request, env) {
         }),
       );
     }
-    if (method === "POST" && path === "/templates") {
-      owner(session);
-      const x = templateInput.parse(input);
-      return json(
-        await mutateState(env.DB, (state) => {
-          supplierExists(state, x.supplier_id);
-          cap(state.templates, 100);
-          state.templates.push({ id: state.next.templates++, active: 1, ...x });
-          addAudit(state, actor, "Recurrente creado", x.title);
-          return { ok: true };
-        }),
-        201,
-      );
-    }
-    let match = path.match(/^\/templates\/(\d+)$/);
-    if (method === "PATCH" && match) {
-      owner(session);
-      const x = z.object({ active: z.boolean() }).parse(input),
-        id = Number(match[1]);
-      return json(
-        await mutateState(env.DB, (state) => {
-          const t = state.templates.find((t) => t.id === id);
-          if (!t) fail("Recurrente no encontrado.", 404);
-          t.active = Number(x.active);
-          addAudit(
-            state,
-            actor,
-            "Recurrente actualizado",
-            `${t.title}: ${x.active ? "activo" : "pausado"}`,
-          );
-          return { ok: true };
-        }),
-      );
-    }
-    if (method === "POST" && path === "/months/generate") {
-      assistant(session);
-      const selected = month.parse(input.month);
-      return json(
-        await mutateState(env.DB, (state) => {
-          let created = 0;
-          for (const t of state.templates.filter((t) => t.active)) {
-            if (
-              state.bills.some(
-                (b) => b.month === selected && b.template_id === t.id,
-              )
-            )
-              continue;
-            cap(state.bills, 300);
-            state.bills.push({
-              id: state.next.bills++,
-              title: t.title,
-              supplier_id: t.supplier_id,
-              amount_cents: t.amount_cents,
-              paid_cents: 0,
-              due_date: monthDate(selected, t.day),
-              month: selected,
-              template_id: t.id,
-              notes: "",
-              approval: "approved",
-            });
-            created++;
-          }
-          if (created)
-            addAudit(
-              state,
-              actor,
-              "Mes preparado",
-              `${selected}: ${created} pagos creados sin duplicar.`,
-            );
-          return { created };
-        }),
-      );
-    }
+    let match;
     match = path.match(/^\/bills\/(\d+)$/);
     if (
       (method === "POST" && path === "/bills") ||
@@ -525,27 +438,33 @@ export async function handleRequest(request, env) {
       assistant(session);
       const x = billInput.parse(input),
         id = match ? Number(match[1]) : null;
+      if (
+        x.issued_date &&
+        (x.issued_date > today() || x.issued_date > x.due_date)
+      )
+        fail(
+          "La fecha de emisión no puede ser futura ni posterior al vencimiento.",
+        );
       if (!id && x.due_date < today())
         fail("El vencimiento del nuevo pago no puede ser anterior a hoy.");
       let document = null,
         documentKey = null;
       if (!id) {
         document = receiptInput.parse(input.invoice);
-        x.invoice_number = z
-          .string()
-          .trim()
-          .min(1)
-          .max(100)
-          .parse(input.invoice_number);
+        Object.assign(x, receiptIdentity.parse(input));
+        if (x.amount_cents === null) fail("Ingresa el monto del recibo.");
         const content = decodeReceipt(document);
         const { state } = await readState(env.DB);
         supplierExists(state, x.supplier_id);
+        if (!activeExpense(state, x))
+          fail(
+            "Registra servicios o gastos; los préstamos están fuera del alcance.",
+            400,
+          );
+        assertReceipt(state, x, x.invoice_number, x.receipt_format);
         const destination = state.suppliers.find((s) => s.id === x.supplier_id);
         x.category ||= destination.category;
-        x.service_reference ||=
-          destination.account ||
-          destination.reference ||
-          `DEMO-DESTINO-${destination.id}`;
+        x.service_reference ||= destination.reference || "";
         cap(state.bills, 300);
         cap(state.receipts, 100);
         documentKey = `documents/${randomUUID()}`;
@@ -559,8 +478,13 @@ export async function handleRequest(request, env) {
             supplierExists(state, x.supplier_id);
             if (id) {
               const bill = findBill(state, id);
+              assertEditable(bill, user);
               if (
                 x.title !== bill.title ||
+                (x.receipt_format !== undefined &&
+                  x.receipt_format !== bill.receipt_format) ||
+                (x.issued_date !== undefined &&
+                  x.issued_date !== bill.issued_date) ||
                 x.supplier_id !== bill.supplier_id ||
                 (x.invoice_number !== undefined &&
                   x.invoice_number !== bill.invoice_number) ||
@@ -600,10 +524,12 @@ export async function handleRequest(request, env) {
               if (x.due_date !== bill.due_date && x.due_date < today())
                 fail("El nuevo vencimiento no puede ser anterior a hoy.");
               Object.assign(bill, x, {
+                created_by_id: bill.created_by_id || user.id,
                 month: x.due_date.slice(0, 7),
                 approval: "approved",
               });
             } else {
+              assertReceipt(state, x, x.invoice_number, x.receipt_format);
               cap(state.bills, 300);
               cap(state.receipts, 100);
               const documentId = state.next.receipts++;
@@ -645,7 +571,6 @@ export async function handleRequest(request, env) {
       fail("Los pagos ya no requieren autorización previa del gerente.", 410);
     match = path.match(/^\/bills\/(\d+)\/payments$/);
     if (method === "POST" && match) {
-      assistant(session);
       const x = paymentInput.parse(input),
         content = decodeReceipt(x.receipt),
         id = Number(match[1]);
@@ -653,7 +578,16 @@ export async function handleRequest(request, env) {
       const { state } = await readState(env.DB);
       assertPayable(findBill(state, id), x.amount_cents);
       assertOriginal(state, findBill(state, id));
-      assertProviderMethod(state, findBill(state, id), x.method);
+
+      if (x.payment_date > today())
+        fail("La fecha de pago no puede estar en el futuro.");
+      if (
+        x.method === "Efectivo" &&
+        user.role === "owner" &&
+        x.cash_holder_id != null &&
+        !(await cashPeople(env.DB, user)).some((p) => p.id === x.cash_holder_id)
+      )
+        fail("Asistente de efectivo no válido.", 403);
       cap(state.receipts, 100);
       const key = `demo-receipts/${randomUUID()}`;
       await env.BUCKET.put(key, content, {
@@ -665,7 +599,7 @@ export async function handleRequest(request, env) {
             const bill = findBill(state, id);
             assertPayable(bill, x.amount_cents);
             assertOriginal(state, bill);
-            assertProviderMethod(state, bill, x.method);
+
             cap(state.payments, 300);
             cap(state.receipts, 100);
             if (
@@ -698,6 +632,8 @@ export async function handleRequest(request, env) {
               bill_id: id,
               amount_cents: x.amount_cents,
               method: x.method,
+              kind: "recorded",
+              payment_date: x.payment_date,
               operation: x.operation,
               cash_holder_id:
                 x.method === "Efectivo"
@@ -715,9 +651,8 @@ export async function handleRequest(request, env) {
                 );
                 return {
                   supplier: supplier.name,
-                  bank: supplier.bank,
-                  account: supplier.account,
-                  reference: supplier.reference,
+
+                  reference: bill.service_reference || supplier.reference,
                 };
               })(),
               review_status: "pending",

@@ -1,6 +1,10 @@
-import { financeView } from "./finance.mjs";
+import {
+  activeExpense,
+  publicSupplier,
+  recordMonth,
+  recordedPayment,
+} from "./expenses.mjs";
 import { today, monthDate, status, remaining } from "./domain.mjs";
-import { providerPayment } from "./provider-payments.mjs";
 
 export function seedState() {
   const selected = today().slice(0, 7);
@@ -154,10 +158,10 @@ export async function mutateState(db, mutate) {
 export function decorate(state, bill) {
   const supplier = state.suppliers.find((s) => s.id === bill.supplier_id);
   return {
-    ...supplier,
+    ...publicSupplier(supplier),
     ...bill,
     supplier: supplier.name,
-    provider_payment: providerPayment(supplier),
+
     approval: "approved",
     status: status(bill),
     simulated: state.payments.some(
@@ -172,6 +176,21 @@ export function decorate(state, bill) {
           .toISOString()
           .slice(0, 10),
     pending_attempt: null,
+    last_payment_date:
+      state.payments
+        .filter((p) => p.bill_id === bill.id && p.kind !== "simulated")
+        .map(
+          (p) =>
+            p.payment_date ||
+            new Intl.DateTimeFormat("en-CA", {
+              timeZone: "America/Lima",
+              year: "numeric",
+              month: "2-digit",
+              day: "2-digit",
+            }).format(new Date(p.created_at)),
+        )
+        .sort()
+        .at(-1) || null,
     pending_reviews: state.payments.filter(
       (p) =>
         p.bill_id === bill.id &&
@@ -201,6 +220,7 @@ export function dashboard(state, selected, role) {
       .toISOString()
       .slice(0, 10);
   const all = state.bills
+    .filter((b) => activeExpense(state, b))
     .map((b) => decorate(state, b))
     .sort((a, b) => a.due_date.localeCompare(b.due_date) || a.id - b.id);
   const bills = all.filter((b) => b.month === selected);
@@ -212,7 +232,8 @@ export function dashboard(state, selected, role) {
   return {
     today: date,
     month: selected,
-    finance: financeView(state, selected),
+    all_bills: all,
+    overview: expenseOverview(state, selected, bills),
     bills,
     settings: state.settings,
     totals: {
@@ -221,17 +242,8 @@ export function dashboard(state, selected, role) {
       pending: bills.reduce((s, b) => s + (b.remaining_cents || 0), 0),
       week: week.reduce((s, b) => s + (b.remaining_cents || 0), 0),
       paid: state.payments
-        .filter(
-          (p) =>
-            new Intl.DateTimeFormat("en-CA", {
-              timeZone: "America/Lima",
-              year: "numeric",
-              month: "2-digit",
-            })
-              .format(new Date(p.created_at))
-              .slice(0, 7) === selected,
-        )
-        .reduce((s, p) => s + p.amount_cents, 0),
+        .filter((p) => recordedPayment(state, p) && recordMonth(p) === selected)
+        .reduce((n, p) => n + p.amount_cents, 0),
       undefined: bills.filter((b) => b.amount_cents === null).length,
       weekUndefined: week.filter((b) => b.amount_cents === null).length,
     },
@@ -244,5 +256,34 @@ export function dashboard(state, selected, role) {
         )
       : [],
     activity: state.activity.slice(0, 8),
+  };
+}
+
+export function expenseOverview(state, selected, bills) {
+  const recorded = state.payments.filter((p) => recordedPayment(state, p));
+  const monthPaid = recorded
+    .filter((p) => recordMonth(p) === selected)
+    .reduce((n, p) => n + p.amount_cents, 0);
+  const previous = new Date(selected + "-01T12:00:00Z");
+  previous.setUTCMonth(previous.getUTCMonth() - 1);
+  const prev = previous.toISOString().slice(0, 7);
+  const prevPayments = recorded.filter((p) => recordMonth(p) === prev);
+  const prevTotal = prevPayments.reduce((n, p) => n + p.amount_cents, 0);
+  const previousExists =
+    prevPayments.length > 0 ||
+    state.bills.some((b) => b.month === prev && activeExpense(state, b));
+  return {
+    paid_cents: monthPaid,
+    pending_cents: bills.reduce((n, b) => n + (b.remaining_cents || 0), 0),
+    overdue_cents: bills
+      .filter((b) => b.status === "Vencido")
+      .reduce((n, b) => n + (b.remaining_cents || 0), 0),
+    receipts: bills.length,
+    paid_count: bills.filter((b) => b.status === "Pagado").length,
+    pending_count: bills.filter((b) => b.status !== "Pagado").length,
+    overdue_count: bills.filter((b) => b.status === "Vencido").length,
+    previous_month: prev,
+    previous_cents: previousExists ? prevTotal : null,
+    change_cents: previousExists ? monthPaid - prevTotal : null,
   };
 }

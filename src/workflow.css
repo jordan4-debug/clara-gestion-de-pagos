@@ -1511,3 +1511,75 @@ button.role-metric:hover {
   font-weight: 600;
   color: #33594b;
 }
+
+/* Administrative expense control: readable summaries, three primary routes. */
+.expense-summary-line {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+  color: #526f64;
+  font-size: 14px;
+}
+.cash-summary-inline {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  background: #f0f8f4;
+  border: 1px solid #d8e9df;
+  padding: 18px;
+  border-radius: 14px;
+  margin: 20px 0 26px;
+}
+.cash-summary-inline > svg {
+  flex-shrink: 0;
+  color: #087c5a;
+  margin-top: 2px;
+}
+.cash-summary-inline p {
+  margin: 0;
+  line-height: 1.8;
+}
+.cash-summary-inline span,
+.cash-summary-inline small {
+  display: block;
+}
+.cash-summary-inline small {
+  font-size: 12px;
+  color: #688377;
+}
+.role-metric.red > strong {
+  color: #b73f40;
+}
+.table-footer {
+  line-height: 1.7;
+  flex-wrap: wrap;
+}
+.document-upload .form-grid {
+  grid-column: 1/-1;
+}
+.mobile-nav {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+@media (max-width: 600px) {
+  .expense-summary-line {
+    gap: 10px;
+    font-size: 13px;
+  }
+  .cash-summary-inline {
+    padding: 14px;
+    margin: 16px 0;
+  }
+  .cash-summary-inline p {
+    font-size: 13px;
+  }
+  .tabs {
+    gap: 6px;
+  }
+  .tabs button {
+    padding: 12px 10px;
+  }
+  .role-metric > strong {
+    overflow-wrap: anywhere;
+  }
+}

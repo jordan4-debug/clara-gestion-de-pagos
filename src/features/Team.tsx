@@ -67,7 +67,7 @@ export function Team({
           <strong>Estás explorando cuentas de demostración</strong>
           <p>
             La gestión de integrantes está disponible al iniciar sesión con una
-            cuenta privada de propietario. Las cuentas públicas no pueden
+            cuenta privada de gerente. Las cuentas públicas no pueden
             consultar ni modificar usuarios privados.
           </p>
         </div>
@@ -102,7 +102,7 @@ export function Team({
                 <p>{m.email}</p>
                 <small>
                   {m.role === "owner"
-                    ? "Propietario · supervisa y administra"
+                    ? "Gerente · supervisa y administra"
                     : "Asistente · registra y corrige"}
                 </small>
               </div>
@@ -181,7 +181,7 @@ export function Team({
             <Field label="Rol">
               <select name="role">
                 <option value="assistant">Asistente</option>
-                <option value="owner">Propietario</option>
+                <option value="owner">Gerente</option>
               </select>
             </Field>
             <Field

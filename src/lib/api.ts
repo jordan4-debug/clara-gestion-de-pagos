@@ -1,3 +1,4 @@
+import { decimalCents } from "../../shared/expenses.mjs";
 let csrf = "";
 export class ApiError extends Error {
   constructor(
@@ -57,10 +58,7 @@ export const dateTime = (date: string) =>
     timeStyle: "short",
     timeZone: "America/Lima",
   }).format(new Date(date.replace(" ", "T") + (date.endsWith("Z") ? "" : "Z")));
-export const solesToCents = (value: FormDataEntryValue | null) =>
-  value === null || String(value).trim() === ""
-    ? null
-    : Math.round(Number(value) * 100);
+export const solesToCents = (value: FormDataEntryValue | null) => decimalCents(value);
 export function exportBills(bills: import("../types").Bill[], month: string) {
   const safe = (x: unknown) =>
     '"' +

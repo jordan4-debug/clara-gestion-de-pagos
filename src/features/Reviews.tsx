@@ -70,24 +70,13 @@ export function ReviewCard({
   if (p.kind === "simulated")
     return (
       <article className="review-card">
-        <header>
-          <span className="badge amber">
-            Pago simulado · sin validez bancaria
-          </span>
-          <strong>{money(p.amount_cents)}</strong>
-        </header>
+        <strong>Registro histórico de demostración</strong>
         <p>
-          {p.operation} · {dateTime(p.created_at)}
+          {p.operation} · {money(p.amount_cents)}
         </p>
-        <small>Registrado por {p.actor}</small>
-        <a
-          className="button receipt-link"
-          href={`/api/payments/${p.id}/voucher`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Abrir voucher interno
-        </a>
+        <small>
+          Conservado por compatibilidad. No representa un pago bancario.
+        </small>
       </article>
     );
   return (
@@ -100,22 +89,12 @@ export function ReviewCard({
         <strong>{money(p.amount_cents)}</strong>
       </header>
       <p>
-        {p.method} · Operación <b>{p.operation}</b>
+        {p.method} · Constancia <b>{p.operation}</b>
       </p>
       <small>
-        Registrado por {p.actor} · {dateTime(p.created_at)}
+        Pago: {p.payment_date || "Fecha anterior no registrada"} · Registrado
+        por {p.actor} · {dateTime(p.created_at)}
       </small>
-      {p.destination ? (
-        <details className="review-destination">
-          <summary>Destino al registrar el abono</summary>
-          <p>{p.destination.supplier}</p>
-          <p>
-            {p.destination.bank || "Banco no indicado"} ·{" "}
-            {p.destination.account || "Cuenta no indicada"}
-          </p>
-          <small>{p.destination.reference || "Sin referencia"}</small>
-        </details>
-      ) : null}
       {p.receipt_id ? (
         <a
           className="button receipt-link"

@@ -1,3 +1,4 @@
+import { activeExpense } from "./expenses.mjs";
 import { z } from "zod";
 import { addAudit, decorate } from "./cloud-state.mjs";
 
@@ -18,6 +19,14 @@ export const reviewStatus = (p) => p.review_status || "pending";
 export function findPayment(state, id) {
   const payment = state.payments.find((p) => p.id === id);
   if (!payment) fail("Abono no encontrado.", 404);
+  if (
+    payment.kind === "simulated" ||
+    !activeExpense(
+      state,
+      state.bills.find((b) => b.id === payment.bill_id) || {},
+    )
+  )
+    fail("Este registro histórico está archivado.", 410);
   return payment;
 }
 export function checkRevision(payment, revision) {
@@ -71,6 +80,11 @@ export function assertCorrection(payment, revision, user) {
 }
 export function reviewQueue(state, selected) {
   return state.payments
+    .filter(
+      (p) =>
+        p.kind !== "simulated" &&
+        activeExpense(state, state.bills.find((b) => b.id === p.bill_id) || {}),
+    )
     .filter((p) =>
       state.bills.some((b) => b.id === p.bill_id && b.month === selected),
     )
@@ -81,6 +95,12 @@ export function reviewQueue(state, selected) {
       );
       return {
         ...p,
+        destination: p.destination
+          ? {
+              supplier: p.destination.supplier,
+              reference: p.destination.reference,
+            }
+          : undefined,
         review_status: reviewStatus(p),
         review_revision: p.review_revision || 0,
         title: b.title,
