@@ -11,6 +11,7 @@ import {
 } from "../components/ui";
 import { api, send, money, localToday, solesToCents } from "../lib/api";
 import { MoneyInput } from "../components/MoneyInput";
+import { EntitySelector } from "../components/EntitySelector";
 import type { Loan, Supplier, Dashboard, User } from "../types";
 const loanDate = (date: string) =>
   new Intl.DateTimeFormat("es-PE", {
@@ -25,12 +26,14 @@ export function Loans({
   version,
   onChanged,
   onSelect,
+  onSupplierCreated,
 }: {
   suppliers: Supplier[];
   user: User;
   version: Dashboard;
   onChanged: () => void;
   onSelect: (id: number) => void;
+  onSupplierCreated?: (supplier: Supplier) => void;
 }) {
   const [items, setItems] = useState<Loan[]>([]),
     [error, setError] = useState(""),
@@ -209,6 +212,7 @@ export function Loans({
       {creating && user.role === "assistant" ? (
         <LoanForm
           suppliers={suppliers.filter((s) => s.category === "Préstamos")}
+          onSupplierCreated={onSupplierCreated}
           onClose={() => setCreating(false)}
           onSaved={() => {
             setCreating(false);
@@ -223,10 +227,12 @@ function LoanForm({
   suppliers,
   onClose,
   onSaved,
+  onSupplierCreated,
 }: {
   suppliers: Supplier[];
   onClose: () => void;
   onSaved: () => void;
+  onSupplierCreated?: (supplier: Supplier) => void;
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -293,18 +299,11 @@ function LoanForm({
           />
         </Field>
         <div className="form-grid">
-          <Field label="Entidad financiera">
-            <select name="supplier_id" required defaultValue="">
-              <option value="" disabled>
-                Selecciona una entidad
-              </option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <EntitySelector
+            suppliers={suppliers}
+            loans
+            onCreated={onSupplierCreated}
+          />
           <Field label="Número de contrato (opcional)">
             <input name="reference" maxLength={120} />
           </Field>
@@ -357,9 +356,6 @@ function LoanForm({
             ni cambia las cuotas después de registrarlas.
           </p>
         </div>
-        {!suppliers.length ? (
-          <FormError message="Pide al gerente que registre la entidad en Configuración → Servicios y proveedores, con categoría Préstamos." />
-        ) : null}
         <FormError message={error} />
         <div className="form-actions">
           <button
@@ -370,9 +366,7 @@ function LoanForm({
           >
             Cancelar
           </button>
-          <Submit busy={busy || !suppliers.length}>
-            Guardar préstamo y cuotas
-          </Submit>
+          <Submit busy={busy}>Guardar préstamo y cuotas</Submit>
         </div>
       </form>
     </Modal>

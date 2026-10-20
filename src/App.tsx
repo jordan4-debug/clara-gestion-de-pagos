@@ -178,9 +178,7 @@ export function App() {
     );
   const title =
     page === "summary"
-      ? user.role === "owner"
-        ? "Resumen de gastos"
-        : "Deudas del mes"
+      ? "Deudas del mes"
       : navigation(user).find((x) => x.id === page)?.label || "Pagos";
   const subtitle: Record<string, string> = {
     summary:
@@ -342,6 +340,12 @@ export function App() {
           suppliers={suppliers}
           user={user}
           version={data}
+          onSupplierCreated={(supplier) =>
+            setSuppliers((previous) => [
+              ...previous.filter((s) => s.id !== supplier.id),
+              supplier,
+            ])
+          }
           onChanged={() => void refresh()}
           onSelect={setSelected}
         />
@@ -408,6 +412,12 @@ export function App() {
           suppliers={suppliers}
           month={month}
           bill={editor.bill}
+          onSupplierCreated={(supplier) =>
+            setSuppliers((previous) => [
+              ...previous.filter((s) => s.id !== supplier.id),
+              supplier,
+            ])
+          }
           onClose={() => setEditor(null)}
           onSaved={saved}
         />

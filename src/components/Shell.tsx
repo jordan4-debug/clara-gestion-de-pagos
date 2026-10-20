@@ -19,11 +19,9 @@ export function navigation(user: User) {
   return nav.map((item) => ({
     ...item,
     label:
-      item.id === "summary" && user.role === "owner"
-        ? "Resumen de gastos"
-        : item.id === "settings" && user.role === "assistant"
-          ? "Mi cuenta"
-          : item.label,
+      item.id === "settings" && user.role === "assistant"
+        ? "Mi cuenta"
+        : item.label,
   }));
 }
 export function Shell({

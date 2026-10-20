@@ -104,8 +104,9 @@ export function BillDetail({
                       ? "Esta cuota necesita el recibo original de cobro de la entidad antes de pagar."
                       : "Este registro anterior todavía no tiene su recibo original. Permite contrastar proveedor, referencia e importe antes de pagar."}
                   </p>
-                  {user.role === "assistant" &&
-                  (!bill.created_by_id || bill.created_by_id === user.id) ? (
+                  {user.role === "owner" ||
+                  !bill.created_by_id ||
+                  bill.created_by_id === user.id ? (
                     <form
                       className="document-upload"
                       onSubmit={async (e) => {
@@ -150,8 +151,9 @@ export function BillDetail({
               )}
               {bill.invoice_receipt_id &&
               !bill.invoice_number &&
-              user.role === "assistant" &&
-              (!bill.created_by_id || bill.created_by_id === user.id) ? (
+              (user.role === "owner" ||
+                !bill.created_by_id ||
+                bill.created_by_id === user.id) ? (
                 <form
                   className="document-upload"
                   onSubmit={async (e) => {
@@ -222,7 +224,7 @@ export function BillDetail({
             bill.invoice_receipt_id &&
             bill.invoice_number ? (
               <details className="external-payment-disclosure">
-                <summary>Registrar un pago realizado</summary>
+                <summary>Registrar pago</summary>
                 <PaymentFlow
                   bill={bill}
                   user={user}

@@ -17,18 +17,19 @@
     "user:create": "node scripts/create-user.mjs"
   },
   "dependencies": {
+    "lucide-react": "1.31.0",
+    "pdf-lib": "^1.17.1",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "lucide-react": "1.31.0",
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@types/node": "24.10.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@types/node": "24.10.0",
+    "esbuild": "0.28.0",
     "typescript": "5.9.3",
     "vite": "8.0.13",
-    "esbuild": "0.28.0",
     "wrangler": "4.92.0"
   }
 }

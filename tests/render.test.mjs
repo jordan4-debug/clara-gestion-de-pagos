@@ -23,9 +23,47 @@ test("Rendered manager and assistant screens expose only administrative actions 
   );
   const m = module.exports;
   const e = m.React.createElement;
+  const base = {
+    supplier: "Entidad",
+    category: "Servicios",
+    supplier_id: 1,
+    paid_cents: 0,
+    amount_cents: 10000,
+    remaining_cents: 10000,
+    month: "2026-10",
+    due_date: "2026-10-30",
+  };
+  const bills = [
+    { ...base, id: 1, title: "DEUDA-VIGENTE", status: "Pendiente" },
+    {
+      ...base,
+      id: 2,
+      title: "DEUDA-VENCIDA",
+      due_date: "2026-10-01",
+      status: "Vencido",
+    },
+    {
+      ...base,
+      id: 3,
+      title: "RECIBO-CANCELADO",
+      status: "Pagado",
+      paid_cents: 10000,
+      remaining_cents: 0,
+    },
+  ];
   const data = {
-    bills: [],
-    all_bills: [],
+    bills,
+    all_bills: [
+      ...bills,
+      {
+        ...base,
+        id: 4,
+        title: "DEUDA-FUTURA",
+        month: "2026-11",
+        due_date: "2026-11-30",
+        status: "Pendiente",
+      },
+    ],
     month: "2026-10",
     totals: { total: 0, monthPaid: 0, undefined: 0 },
     overview: {
@@ -60,7 +98,6 @@ test("Rendered manager and assistant screens expose only administrative actions 
     );
     for (const label of [
       "Deudas del mes",
-      "Pendientes",
       "Vencidos",
       "Pagados",
       "Control de efectivo",
@@ -75,6 +112,19 @@ test("Rendered manager and assistant screens expose only administrative actions 
       "Propietario",
     ])
       assert.ok(!html.includes(label), label);
+    assert.equal((html.match(/role="tab"/g) || []).length, 3);
+    assert.ok(!html.includes(">Todos<"));
+    assert.ok(!html.includes(">Pendientes<"));
+    assert.ok(html.includes("Resumen PDF"));
+    assert.ok(html.includes("Incluir deudas de los próximos meses"));
+    assert.ok(html.includes("DEUDA-VIGENTE"));
+    assert.ok(html.includes("DEUDA-VENCIDA"));
+    assert.ok(!html.includes("RECIBO-CANCELADO"));
+    assert.ok(!html.includes("DEUDA-FUTURA"));
+    assert.ok(
+      html.indexOf('class="panel payments-panel"') <
+        html.indexOf('class="role-metrics monthly-metrics"'),
+    );
     assert.equal(html.includes("Registrar recibo"), role === "assistant");
     const loans = m.renderToStaticMarkup(
       e(m.Loans, {
@@ -100,6 +150,7 @@ test("Rendered manager and assistant screens expose only administrative actions 
       onSaved: () => {},
     }),
   );
+  assert.ok(form.includes("Agregar proveedor o entidad"));
   assert.ok(form.includes("Número de recibo"));
   assert.ok(form.includes("Formato del número de recibo"));
   assert.ok(!form.includes("Préstamos"));
@@ -108,4 +159,8 @@ test("Rendered manager and assistant screens expose only administrative actions 
   );
   assert.ok(amount.includes('value="145.50"'));
   assert.ok(amount.includes('inputMode="decimal"'));
+  assert.ok(amount.includes('pattern="[0-9]+(?:\\.[0-9]{1,2})?"'));
+  assert.ok(
+    amount.includes('title="Solo números y punto decimal. Ejemplo: 100.00"'),
+  );
 });

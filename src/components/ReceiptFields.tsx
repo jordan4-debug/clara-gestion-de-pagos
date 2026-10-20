@@ -1,14 +1,22 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Field } from "./ui";
 import { receiptFormats, receiptError } from "../../shared/expenses.mjs";
 export function ReceiptFields({
   defaultFormat = "alphanumeric",
+  format: selectedFormat,
+  onFormatChange,
 }: {
   defaultFormat?: string;
+  format?: string;
+  onFormatChange?: (format: string) => void;
 }) {
-  const [format, setFormat] = useState(defaultFormat),
+  const [localFormat, setFormat] = useState(defaultFormat),
     [number, setNumber] = useState("");
+  const format = selectedFormat ?? localFormat;
   const numberRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    numberRef.current?.setCustomValidity("");
+  }, [format]);
   const rules =
     receiptFormats[format as keyof typeof receiptFormats] ||
     receiptFormats.alphanumeric;
@@ -21,6 +29,7 @@ export function ReceiptFields({
           value={format}
           onChange={(e) => {
             setFormat(e.target.value);
+            onFormatChange?.(e.target.value);
             numberRef.current?.setCustomValidity("");
           }}
         >

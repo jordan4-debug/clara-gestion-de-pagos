@@ -7,6 +7,8 @@ import {
   decimalText,
   receiptError,
   selectExpenses,
+  validMoneyDraft,
+  moneyPattern,
 } from "../shared/expenses.mjs";
 import { hashPassword } from "../server/passwords.mjs";
 const receipt = (name = "original.pdf") => ({
@@ -64,7 +66,7 @@ test("Numeric and alphanumeric receipt formats preserve valid pasted strings and
 test("Exact monetary parsing rejects precision loss and formats two decimals", () => {
   assert.equal(decimalCents("25.00"), 2500);
   assert.equal(decimalCents("145.50"), 14550);
-  assert.equal(decimalCents("1,250.75"), 125075);
+  assert.equal(decimalCents("1250.75"), 125075);
   assert.equal(decimalCents("0.10") + decimalCents("0.20"), 30);
   assert.equal(decimalText(2500), "25.00");
   assert.equal(decimalText(14550), "145.50");
@@ -76,8 +78,46 @@ test("Exact monetary parsing rejects precision loss and formats two decimals", (
     "-1",
     " 25.00",
     "1,25.00",
+    "1,250.75",
+    "100abc",
+    "S/100.00",
+    "10.1.2",
   ])
     assert.throws(() => decimalCents(value));
+});
+
+test("Money entry and pasted candidates allow digits and a single decimal point with at most two places", () => {
+  for (const value of [
+    "",
+    "0",
+    "10",
+    "100.",
+    "100.0",
+    "100.00",
+    "1250.75",
+    ".5",
+  ])
+    assert.equal(validMoneyDraft(value), true, value);
+  for (const value of [
+    "abc",
+    "100a",
+    "1e3",
+    "-1",
+    "+1",
+    "100.001",
+    "10.1.2",
+    "25,50",
+    "1,000.00",
+    "100\n",
+    " 100",
+    "S/100.00",
+  ])
+    assert.equal(validMoneyDraft(value), false, value);
+  const pattern = new RegExp(`^(?:${moneyPattern})$`, "v");
+  for (const value of ["100", "100.0", "100.00", "0.01"])
+    assert.ok(pattern.test(value));
+  for (const value of ["100a", "1.234", "1e3", "1,000.00", "100."])
+    assert.ok(!pattern.test(value));
 });
 
 test("Assistant registers a backed receipt and the server rejects incompatible numbers without writing files", async () => {
@@ -176,17 +216,17 @@ test("Banking, simulator and gateway endpoints remain retired without deleting l
   sqlite.close();
 });
 
-test("Manager administers entities and alerts but cannot enter receipts; no bank data is requested or exposed", async () => {
+test("Both roles can register entities; only manager configures existing entities and alerts", async () => {
   const { sqlite, manager, assistant } = await setup();
   assert.equal((await manager("/bills", "POST", input())).status, 403);
   assert.equal(
     (
       await assistant("/suppliers", "POST", {
-        name: "Entidad nueva",
+        name: "Entidad del asistente",
         category: "Servicios",
       })
     ).status,
-    403,
+    200,
   );
   assert.equal(
     (
@@ -310,7 +350,7 @@ test("An assistant cannot edit another assistant receipt or attach its original 
   sqlite.close();
 });
 
-test("Month filter is independent of status and paid bills never enter pending or overdue", () => {
+test("Monthly debts replace Pending and may include future debts without mixing paid receipts", () => {
   const rows = [
     {
       id: 1,
@@ -344,14 +384,78 @@ test("Month filter is independent of status and paid bills never enter pending o
       due_date: "2026-09-20",
       status: "Pagado",
     },
+    {
+      id: 5,
+      title: "Préstamo · Cuota 2",
+      supplier: "Caja Trujillo",
+      month: "2026-11",
+      due_date: "2026-11-25",
+      status: "Pendiente",
+      category: "Préstamos",
+    },
+    {
+      id: 6,
+      title: "Préstamo · Cuota 3",
+      supplier: "Caja Trujillo",
+      month: "2026-12",
+      due_date: "2026-12-25",
+      status: "Parcial",
+      category: "Préstamos",
+    },
+    {
+      id: 7,
+      title: "Futura pagada",
+      supplier: "Sedalib",
+      month: "2026-11",
+      due_date: "2026-11-01",
+      status: "Pagado",
+    },
+    {
+      id: 8,
+      title: "Agua siguiente",
+      supplier: "Sedalib",
+      month: "2026-11",
+      due_date: "2026-11-26",
+      status: "Por definir",
+    },
   ];
   const select = (tab) =>
     selectExpenses(rows, { month: "2026-10", tab }).map((b) => b.id);
-  assert.deepEqual(select("all"), [4, 1, 3, 2]);
-  assert.deepEqual(select("month"), [1, 3, 2]);
-  assert.deepEqual(select("pending"), [2]);
+  assert.deepEqual(select("all"), []);
+  assert.deepEqual(select("month"), [1, 2]);
+  assert.deepEqual(select("pending"), []);
+  assert.deepEqual(
+    selectExpenses(rows, {
+      month: "2026-10",
+      tab: "month",
+      includeFuture: true,
+    }).map((b) => b.id),
+    [1, 2, 5, 8, 6],
+  );
   assert.deepEqual(select("overdue"), [1]);
   assert.deepEqual(select("paid"), [3]);
+  assert.deepEqual(
+    selectExpenses(rows, {
+      month: "2026-11",
+      tab: "month",
+      includeFuture: true,
+      category: "Préstamos",
+    }).map((b) => b.id),
+    [5, 6],
+  );
+  assert.deepEqual(
+    selectExpenses(rows, { month: "2026-11", tab: "paid" }).map((b) => b.id),
+    [7],
+  );
+  assert.deepEqual(
+    selectExpenses(rows, {
+      month: "2026-10",
+      tab: "month",
+      includeFuture: true,
+      query: "Sedalib",
+    }).map((b) => b.id),
+    [1, 8],
+  );
   assert.deepEqual(
     selectExpenses(rows, {
       month: "2026-10",
@@ -665,6 +769,97 @@ test("Direct links require a session; role changes, private team and exports are
   const me = (await manager("/auth/me")).data.user;
   assert.equal(me.name, "Gerente de demo");
   assert.equal((await manager("/export")).status, 200);
+  sqlite.close();
+});
+
+test("Assistant creates and immediately uses an entity; normalized duplicates and edits to existing entities are protected", async () => {
+  const { sqlite, db, assistant, manager } = await setup();
+  const first = await assistant("/suppliers", "POST", {
+    name: "Proveedor de Trujillo",
+    category: "Servicios",
+    receipt_format: "numeric",
+  });
+  assert.equal(first.status, 200);
+  assert.ok(first.data.id);
+  assert.ok(!("account" in first.data));
+  const id = await make(assistant, "000009876", { supplier_id: first.data.id });
+  assert.equal((await manager(`/bills/${id}`)).data.supplier, first.data.name);
+  assert.equal(
+    (
+      await assistant(`/suppliers/${first.data.id}`, "PUT", {
+        name: "No permitido",
+        category: "Servicios",
+      })
+    ).status,
+    403,
+  );
+  const duplicates = await Promise.all([
+    assistant("/suppliers", "POST", {
+      name: "Entidad Concurrente",
+      category: "Servicios",
+    }),
+    manager("/suppliers", "POST", {
+      name: "  ENTIDAD   concurrente  ",
+      category: "Servicios",
+    }),
+  ]);
+  assert.deepEqual(duplicates.map((r) => r.status).sort(), [200, 409]);
+  assert.equal(
+    (await readState(db)).state.suppliers.filter((s) =>
+      /concurrente/i.test(s.name),
+    ).length,
+    1,
+  );
+  sqlite.close();
+});
+
+test("Manager can complete an original and register its payment without changing the assistant's record ownership", async () => {
+  const { sqlite, manager, assistant } = await setup();
+  const before = (await manager("/bills/1")).data;
+  assert.equal(
+    (
+      await manager("/bills/1/document", "POST", {
+        receipt: receipt(),
+        invoice_number: "GER-0000123",
+        receipt_format: "alphanumeric",
+      })
+    ).status,
+    201,
+  );
+  const backed = (await manager("/bills/1")).data;
+  assert.equal(backed.amount_cents, before.amount_cents);
+  assert.equal(backed.created_by_id, before.created_by_id);
+  assert.equal(
+    (
+      await manager("/bills/1/document", "POST", {
+        receipt: receipt(),
+        invoice_number: "REEMPLAZO",
+      })
+    ).status,
+    409,
+  );
+  assert.equal(
+    (
+      await manager(
+        "/bills/1/payments",
+        "POST",
+        payment(before.amount_cents, "GERENTE-PAGO-001"),
+      )
+    ).status,
+    201,
+  );
+  assert.equal((await assistant("/bills/1")).data.status, "Pagado");
+  assert.equal(
+    (
+      await manager("/bills/1", "PATCH", {
+        title: before.title,
+        supplier_id: before.supplier_id,
+        amount_cents: 1,
+        due_date: before.due_date,
+      })
+    ).status,
+    403,
+  );
   sqlite.close();
 });
 

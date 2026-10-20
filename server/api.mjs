@@ -254,13 +254,12 @@ export async function handleRequest(request, env) {
     }
     let documentMatch = path.match(/^\/bills\/(\d+)\/document$/);
     if (method === "PATCH" && documentMatch) {
-      assistant(session);
       const identity = receiptIdentity.parse(input);
       await mutateState(env.DB, (s) => {
         const bill = findBill(s, Number(documentMatch[1]));
         if (!bill.invoice_receipt_id || bill.invoice_number)
           fail("El recibo no admite este cambio.", 409);
-        assertEditable(bill, user);
+        if (user.role !== "owner") assertEditable(bill, user);
         assertReceipt(
           s,
           bill,
@@ -273,7 +272,6 @@ export async function handleRequest(request, env) {
       return json({ ok: true });
     }
     if (method === "POST" && documentMatch) {
-      assistant(session);
       const data = z
           .object({
             receipt: receiptInput,
@@ -286,7 +284,7 @@ export async function handleRequest(request, env) {
         id = Number(documentMatch[1]),
         content = decodeReceipt(data.receipt);
       const { state } = await readState(env.DB);
-      assertEditable(findBill(state, id), user);
+      if (user.role !== "owner") assertEditable(findBill(state, id), user);
       assertReceipt(
         state,
         findBill(state, id),
@@ -303,7 +301,7 @@ export async function handleRequest(request, env) {
       try {
         await mutateState(env.DB, (state) => {
           const bill = findBill(state, id);
-          assertEditable(bill, user);
+          if (user.role !== "owner") assertEditable(bill, user);
           assertReceipt(state, bill, data.invoice_number, data.receipt_format);
           if (bill.invoice_receipt_id)
             fail("El recibo original ya está archivado.", 409);
@@ -319,7 +317,9 @@ export async function handleRequest(request, env) {
           bill.invoice_name = data.receipt.name;
           bill.invoice_number = data.invoice_number;
           bill.receipt_format = data.receipt_format;
-          bill.created_by_id ||= user.id;
+          if (user.role === "assistant") bill.created_by_id ||= user.id;
+          bill.invoice_uploaded_by_id = user.id;
+          bill.invoice_uploaded_by = user.name;
           addAudit(state, actor, "Recibo original archivado", bill.title);
         });
       } catch (e) {
@@ -398,7 +398,7 @@ export async function handleRequest(request, env) {
       }
     }
     if (path === "/suppliers" || /^\/suppliers\/\d+$/.test(path)) {
-      owner(session);
+      if (!(method === "POST" && path === "/suppliers")) owner(session);
       const x = supplierInput.parse(input);
       if (
         [
@@ -421,7 +421,32 @@ export async function handleRequest(request, env) {
         await mutateState(env.DB, (state) => {
           if (method === "POST" && path === "/suppliers") {
             cap(state.suppliers, 100);
-            state.suppliers.push({ id: state.next.suppliers++, ...x });
+            const normalized = x.name
+              .normalize("NFKC")
+              .toLocaleLowerCase("es-PE")
+              .replace(/\s+/g, " ");
+            if (
+              state.suppliers.some(
+                (s) =>
+                  s.name
+                    .normalize("NFKC")
+                    .trim()
+                    .toLocaleLowerCase("es-PE")
+                    .replace(/\s+/g, " ") === normalized,
+              )
+            )
+              fail(
+                "Esta entidad ya existe. Selecciónala en la lista para evitar duplicados.",
+                409,
+              );
+            const supplier = {
+              id: state.next.suppliers++,
+              ...x,
+              created_by_id: user.id,
+            };
+            state.suppliers.push(supplier);
+            addAudit(state, actor, "Proveedor registrado", x.name);
+            return publicSupplier(supplier);
           } else if (method === "PUT" && id) {
             const previous = state.suppliers.find((s) => s.id === id);
             if (!previous) fail("Proveedor no encontrado.", 404);

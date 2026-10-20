@@ -7,7 +7,7 @@ import {
   Download,
   SlidersHorizontal,
 } from "lucide-react";
-import { Badge, BillIcon, Empty } from "../components/ui";
+import { Badge, BillIcon, Empty, FormError } from "../components/ui";
 import { money, shortDate, exportBills } from "../lib/api";
 import type { Bill } from "../types";
 export function BillTable({
@@ -27,16 +27,17 @@ export function BillTable({
 }) {
   const [tab, setTab] = useState("month"),
     [query, setQuery] = useState(""),
+    [includeFuture, setIncludeFuture] = useState(false),
+    [exporting, setExporting] = useState(false),
+    [exportError, setExportError] = useState(""),
     [category, setCategory] = useState("all");
   const available = allBills || bills;
   const tabs = [
-    ["all", "Todos"],
     ["month", "Deudas del mes"],
-    ["pending", "Pendientes"],
     ["overdue", "Vencidos"],
     ["paid", "Pagados"],
   ];
-  const scope = { month, category, query };
+  const scope = { month, category, query, includeFuture };
   const filtered = selectExpenses(available, { ...scope, tab }) as Bill[];
   const visibleTotal = filtered.reduce(
     (sum, b) => sum + (b.amount_cents || 0),
@@ -49,17 +50,51 @@ export function BillTable({
   return (
     <section className="panel payments-panel">
       <div className="panel-title">
-        <h2>Deudas y pagos del mes</h2>
+        <h2>
+          {tab === "paid"
+            ? "Pagos realizados"
+            : tab === "overdue"
+              ? "Deudas vencidas"
+              : "Deudas del mes"}
+        </h2>
         {!compact ? (
-          <button
-            className="text-button"
-            onClick={() => exportBills(filtered, month)}
-          >
-            <Download size={15} />
-            Exportar CSV
-          </button>
+          <div className="button-row report-export-actions">
+            <button
+              className="text-button"
+              disabled={exporting}
+              onClick={async () => {
+                setExporting(true);
+                setExportError("");
+                try {
+                  const { downloadPaymentSummary } =
+                    await import("../lib/payment-summary");
+                  await downloadPaymentSummary(
+                    available.filter((b) => b.month === month),
+                    month,
+                  );
+                } catch (e) {
+                  setExportError(
+                    (e as Error).message || "No se pudo generar el PDF.",
+                  );
+                } finally {
+                  setExporting(false);
+                }
+              }}
+            >
+              <Download size={15} />
+              {exporting ? "Generando PDF…" : "Resumen PDF"}
+            </button>
+            <button
+              className="text-button"
+              onClick={() => exportBills(filtered, month)}
+            >
+              <Download size={15} />
+              Exportar CSV
+            </button>
+          </div>
         ) : null}
       </div>
+      <FormError message={exportError} />
       <div className="tabs" role="tablist" aria-label="Estado de pagos">
         {tabs.map(([id, label]) => {
           const count = selectExpenses(available, { ...scope, tab: id }).length;
@@ -77,6 +112,25 @@ export function BillTable({
           );
         })}
       </div>
+      <p className="expense-filter-hint">
+        {tab === "month"
+          ? includeFuture
+            ? `Deudas sin liquidar desde ${month}, incluidas las cuotas y obligaciones de los meses siguientes.`
+            : "Lo que falta pagar en el mes seleccionado. Los recibos cancelados se consultan en Pagados."
+          : tab === "overdue"
+            ? "Recibos del mes que siguen sin liquidar después de su fecha de vencimiento."
+            : "Recibos del mes completamente pagados, con acceso a sus constancias."}
+      </p>
+      {tab === "month" ? (
+        <label className="checkbox-line upcoming-toggle">
+          <input
+            type="checkbox"
+            checked={includeFuture}
+            onChange={(e) => setIncludeFuture(e.target.checked)}
+          />
+          Incluir deudas de los próximos meses
+        </label>
+      ) : null}
       <div className="table-filters">
         <label className="search">
           <Search size={17} />
@@ -213,19 +267,27 @@ export function BillTable({
         </table>
       </div>
       {!filtered.length ? (
-        <Empty text="No hay recibos que coincidan con el periodo y los filtros. Cambia el mes o limpia la búsqueda." />
+        <Empty
+          text={
+            tab === "month"
+              ? "No hay deudas por pagar en este mes con los filtros elegidos. Consulta los pagos realizados en Pagados."
+              : "No hay recibos que coincidan con el periodo y los filtros. Cambia el mes o limpia la búsqueda."
+          }
+        />
       ) : null}
       {compact ? (
         <button className="panel-link" onClick={onSeeAll}>
-          Ver todos los pagos
+          Ver deudas del mes
           <ArrowRight size={15} />
         </button>
       ) : (
         <div className="table-footer">
           {filtered.length} {filtered.length === 1 ? "pago" : "pagos"} · Montos
           expresados en soles (PEN).{" "}
-          {tab === "all" ? "Todos los periodos" : "Periodo " + month}. Importe{" "}
-          {money(visibleTotal)} · Falta pagar {money(visiblePending)}
+          {tab === "month" && includeFuture
+            ? "Desde " + month + ": deudas actuales y próximas"
+            : "Periodo " + month}
+          . Importe {money(visibleTotal)} · Falta pagar {money(visiblePending)}
         </div>
       )}
     </section>

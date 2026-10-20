@@ -4,8 +4,8 @@ Esta corrección sustituye el alcance anterior de simulación bancaria. Clara co
 
 ## Roles y operaciones
 
-- **Gerente** (`owner` en la base, por compatibilidad): consulta el resumen de gastos y los recibos, configura entidades y avisos, administra el equipo privado, registra entregas físicas de efectivo y revisa las constancias. Puede registrar un pago que ya ocurrió, con fecha y evidencia, sin ejecutar movimientos bancarios.
-- **Asistente**: registra recibos, préstamos ya contratados y sus originales; corrige vencimiento y notas de sus propios registros o de registros antiguos sin autor. Consulta el espacio compartido y registra pagos respaldados. Solo utiliza o devuelve efectivo a su cargo.
+- **Gerente** (`owner` en la base, por compatibilidad): consulta el resumen de gastos y los recibos, administra las entidades existentes y los avisos, administra el equipo privado, registra entregas físicas de efectivo y revisa las constancias. Puede completar el original y su número cuando falten y registrar un pago que ya ocurrió, con fecha y evidencia, sin ejecutar movimientos bancarios.
+- **Asistente**: registra recibos, nuevas entidades desde sus formularios, préstamos ya contratados y sus originales; corrige vencimiento y notas de sus propios registros o de registros antiguos sin autor. Consulta el espacio compartido y registra pagos respaldados. Solo utiliza o devuelve efectivo a su cargo.
 - Las acciones se validan en la API. Cambiar el nombre visible a Gerente no cambia IDs, roles internos ni contraseñas existentes. El acceso público conserva los botones de demostración y usa información ficticia.
 
 ## Número del recibo
@@ -21,21 +21,25 @@ Estas reglas no se presentan como formatos oficiales de Hidrandina, Sedalib ni n
 
 ## Dinero y fechas
 
-Los importes continúan almacenados como enteros en céntimos. La conversión de texto separa parte entera y decimales y rechaza un tercer decimal; no redondea cantidades introducidas incorrectamente. Los campos se normalizan a dos decimales al salir, los listados muestran soles y los cálculos usan enteros.
+Los importes continúan almacenados como enteros en céntimos. La conversión de texto separa parte entera y decimales y rechaza un tercer decimal; no redondea cantidades introducidas incorrectamente. Los campos monetarios de recibos, préstamos, cuotas, entregas y devoluciones rechazan letras, signos, comas, espacios y un tercer decimal tanto al escribir como al pegar. Se permite el punto decimal (por ejemplo, 1250.75). Los campos se normalizan a dos decimales al salir, los listados muestran soles y los cálculos usan enteros.
 
 Se distinguen emisión opcional, vencimiento, fecha del pago realizado y fecha de registro en el sistema. El vencimiento ocurre al finalizar el día en Lima. Los registros antiguos sin fecha de pago usan su fecha de registro en Lima para los informes; la pantalla señala cuando no hay una fecha explícita. El total de gastos del mes suma pagos declarados por fecha de pago, incluidos los de deudas de otros periodos. El pendiente del mes se calcula por periodo de la obligación.
 
 ## Filtros independientes
 
-| Filtro         | Alcance                                                |
-| -------------- | ------------------------------------------------------ |
-| Todos          | Recibos de todos los periodos del espacio compartido.  |
-| Deudas del mes | Todos los recibos del mes seleccionado, pagados o no.  |
-| Pendientes     | Recibos del mes sin liquidar cuya fecha aún no venció. |
-| Vencidos       | Recibos del mes sin liquidar con fecha ya superada.    |
-| Pagados        | Recibos del mes completamente liquidados.              |
+| Vista          | Alcance                                                                                                                                                                                 |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Deudas del mes | Deudas sin liquidar del mes elegido. Es la vista inicial. El control «Incluir deudas de los próximos meses» amplía la lista a las siguientes obligaciones, sin incluir recibos pagados. |
+| Vencidos       | Deudas del mes sin liquidar cuyo día de vencimiento ya terminó en Lima.                                                                                                                 |
+| Pagados        | Recibos del mes completamente liquidados, con acceso a constancias.                                                                                                                     |
 
-Un vencido sigue formando parte del total por pagar, aunque se consulta en su pestaña específica. Los contadores respetan búsqueda y categoría; el pie muestra importe y pendiente de las filas visibles. La pestaña Todos identifica claramente su alcance de todos los periodos.
+Deudas del mes reemplaza a Pendientes. Se elimina Todos. La tabla aparece antes del resumen en ambos roles; sus contadores, búsqueda, categoría y exportación CSV usan el mismo filtro.
+
+## Entidades y resumen PDF
+
+El asistente puede agregar un proveedor o entidad desde el selector del recibo o préstamo. Un formulario integrado guarda la entidad y la selecciona, conservando concepto, número de recibo, importe y archivo del formulario principal. Ambos roles pueden crear entidades; solo el gerente modifica las existentes. Los nombres duplicados se rechazan incluso en solicitudes simultáneas. Se mantienen los controles de sesión y CSRF.
+
+El botón Resumen PDF descarga un archivo del mes completo: importe registrado, pagado, pendiente, montos por definir, estado, entidad, vencimiento y fecha del último pago. Incluye las obligaciones liquidadas aunque no estén en la pestaña activa. La biblioteca se carga al pulsar el botón; el archivo se genera dentro del navegador sin servicios externos. Se repiten encabezados y se numeran las páginas. La descarga CSV conserva la lista filtrada.
 
 ## Efectivo
 
@@ -47,7 +51,7 @@ La opción **Préstamos** está disponible para ambos roles. El asistente regist
 
 El sistema genera una obligación por cuota sin exigir autorización previa del gerente. Los importes se conservan, las cuotas comparten los permisos de sus recibos y se incluyen en deudas, filtros y totales mensuales sin sumar nuevamente el capital. Los meses cortos se ajustan al último día y los siguientes recuperan el día original. Se muestra capital, total del cronograma, pagado, pendiente, progreso y próximo vencimiento.
 
-Antes de archivar un pago de cuota, el asistente responsable adjunta el documento original con su número. Gerente o asistente puede registrar el pago realizado con constancia. Un pago en efectivo utiliza el saldo entregado al asistente con las mismas validaciones del resto de obligaciones. Los pagos parciales existentes se conservan en el saldo.
+Antes de archivar un pago de cuota, el asistente responsable o el gerente adjunta el documento original con su número. Gerente o asistente puede registrar el pago realizado con constancia. Un pago en efectivo utiliza el saldo entregado al asistente con las mismas validaciones del resto de obligaciones. Los pagos parciales existentes se conservan en el saldo.
 
 Los préstamos anteriores reaparecen sin recrearlos ni modificar su dinero, cuotas o archivos. Los contratos identificados por entidad y referencia no pueden duplicarse, incluso en solicitudes simultáneas. El límite académico es de 30 préstamos y 300 obligaciones en total. No se solicitan préstamos nuevos a entidades, se calculan intereses ni se desembolsa dinero.
 
@@ -60,6 +64,8 @@ No se solicitan cuentas bancarias ni tarjetas. Las entidades solo exponen nombre
 ## Migración y verificación
 
 `0007_administrative_scope.sql` actualiza el nombre del gerente de demostración y añade el indicador de alcance administrativo a la configuración. No elimina tablas, cambia contraseñas ni modifica dinero o archivos anteriores. Los nuevos metadatos de recibos y pagos se añaden al documento compartido existente sin tablas duplicadas.
+
+`0008_overdue_presentation_amounts.sql` corrige exclusivamente los dos ejemplos vencidos de luz e internet señalados para la presentación a S/ 100.00 y S/ 80.00. Comprueba identidad, periodo, fecha, importe anterior, ausencia de abonos y documentos antes de cambiar cada registro; conserva el importe anterior como metadato. No modifica el resto del espacio y no actúa sobre una base nueva sin esos ejemplos.
 
 Aplicación local: `npm run db:local`. Publicación: `npm run deploy`, que ejecuta las migraciones pendientes en la base remota antes del despliegue.
 

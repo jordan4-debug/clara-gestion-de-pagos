@@ -43,6 +43,12 @@ export function RoleOverview({
           </button>
         ) : null}
       </div>
+      <BillTable
+        bills={data.bills}
+        allBills={data.all_bills}
+        month={data.month}
+        onSelect={onSelect}
+      />
       <div className="role-metrics monthly-metrics">
         {metrics.map(([label, value, tone]) => (
           <div key={label} className={`role-metric ${tone}`}>
@@ -96,12 +102,6 @@ export function RoleOverview({
           </small>
         </p>
       </div>
-      <BillTable
-        bills={data.bills}
-        allBills={data.all_bills}
-        month={data.month}
-        onSelect={onSelect}
-      />
       <p className="amount-note">
         Los pagos se registran con su constancia. Revisar un documento confirma
         la revisión administrativa, sin verificar movimientos bancarios.

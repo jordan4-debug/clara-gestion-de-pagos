@@ -265,7 +265,7 @@ test("Historical loan balances survive reopening and new contracts never reuse o
   m.sqlite.close();
 });
 
-test("Loan documents and due dates remain editable only by the responsible assistant", async () => {
+test("Loan due dates stay with the responsible assistant and other assistants cannot attach its original", async () => {
   const m = await setup();
   const loan = await make(m),
     bill = loan.installments[0];

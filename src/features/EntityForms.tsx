@@ -1,4 +1,5 @@
 import { MoneyInput } from "../components/MoneyInput";
+import { EntitySelector } from "../components/EntitySelector";
 import { ReceiptFields } from "../components/ReceiptFields";
 import { receiptError } from "../../shared/expenses.mjs";
 import { useState } from "react";
@@ -13,7 +14,13 @@ export function BillForm({
   month,
   onClose,
   onSaved,
-}: { suppliers: Supplier[]; bill?: Bill; month: string } & Props) {
+  onSupplierCreated,
+}: {
+  suppliers: Supplier[];
+  bill?: Bill;
+  month: string;
+  onSupplierCreated?: (supplier: Supplier) => void;
+} & Props) {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const [category, setCategory] = useState(bill?.category || "Servicios"),
@@ -80,35 +87,17 @@ export function BillForm({
             placeholder="Ej. Servicio de luz"
           />
         </Field>
-        <Field label="Proveedor o entidad">
-          <select
-            name="supplier_id"
-            disabled={!!bill}
-            required
-            defaultValue={bill?.supplier_id || ""}
-            onChange={(e) => {
-              const supplier = suppliers.find(
-                (s) => s.id === Number(e.target.value),
-              );
-              if (supplier) {
-                setCategory(supplier.category);
-                setReceiptFormat(supplier.receipt_format || "alphanumeric");
-                setReference(supplier.reference || "");
-              }
-            }}
-          >
-            <option value="" disabled>
-              Selecciona un proveedor
-            </option>
-            {suppliers
-              .filter((s) => !!bill || s.category !== "Préstamos")
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-          </select>
-        </Field>
+        <EntitySelector
+          suppliers={suppliers}
+          initialId={bill?.supplier_id}
+          disabled={!!bill}
+          onCreated={onSupplierCreated}
+          onSelect={(supplier) => {
+            setCategory(supplier.category);
+            setReceiptFormat(supplier.receipt_format || "alphanumeric");
+            setReference(supplier.reference || "");
+          }}
+        />
         {!bill ? (
           <>
             <Field label="Categoría">
@@ -129,7 +118,10 @@ export function BillForm({
                 ))}
               </select>
             </Field>
-            <ReceiptFields key={receiptFormat} defaultFormat={receiptFormat} />
+            <ReceiptFields
+              format={receiptFormat}
+              onFormatChange={setReceiptFormat}
+            />
             <Field label="Código de servicio o referencia (opcional)">
               <input
                 name="service_reference"
@@ -358,13 +350,7 @@ export function TemplateForm({
             label="Monto fijo en soles"
             hint="Vacío: crear cada mes por definir monto."
           >
-            <input
-              name="amount"
-              type="number"
-              min="0.01"
-              max="1000000"
-              step="0.01"
-            />
+            <MoneyInput name="amount" required={false} />
           </Field>
           <Field
             label="Día de vencimiento"

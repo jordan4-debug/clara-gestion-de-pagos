@@ -70,8 +70,10 @@ Después de crear el primer gerente privado, iniciar sesión con él y abrir **C
 Clara permite registrar recibos, consultar gastos y deudas por mes y rendir el efectivo entregado al asistente. El gerente supervisa y administra; el asistente registra los recibos y realiza el seguimiento operativo. Ambos pueden archivar un pago ya realizado con constancia. No se procesa dinero mediante la web.
 
 - Número de recibo como texto, formato numérico o alfanumérico configurable, ceros iniciales y protección de duplicados por entidad.
-- Importes exactos en céntimos y presentación con dos decimales; originales y constancias de hasta 5 MiB.
-- Cinco filtros independientes, búsqueda, categoría, selector mensual y fechas de emisión, vencimiento y pago.
+- Campos de dinero que rechazan letras y más de dos decimales al escribir o pegar; importes exactos en céntimos y presentación con dos decimales; originales y constancias de hasta 5 MiB.
+- Tres vistas: Deudas del mes al ingresar, Vencidos y Pagados. La primera permite incluir las deudas de los próximos meses; búsqueda, categoría, selector mensual y fechas de emisión, vencimiento y pago.
+- Alta de entidades por gerente y asistente; desde el formulario se guarda y selecciona la entidad nueva sin perder el recibo. La edición de entidades existentes sigue a cargo del gerente.
+- Descarga directa de un resumen mensual PDF con importes, pagos, pendientes, vencimientos y paginación; exportación CSV de la lista filtrada.
 - Resumen del gerente con gastos del mes, deuda pendiente/vencida, cantidades de recibos y comparación con el periodo anterior cuando hay datos.
 - Entregas, gastos y devoluciones físicas de efectivo por asistente; entregar no crea un gasto ni un pago.
 - Permisos de servidor, revisión/corrección documental, contraseñas seguras, CSRF y cuentas privadas del equipo.

@@ -24,15 +24,18 @@ export function receiptError(number, format = "alphanumeric") {
     return "Usa letras y números, con guion o barra solo entre grupos; sin espacios ni otros símbolos (máximo 60 caracteres).";
   return "";
 }
+export const moneyPattern = "[0-9]+(?:\\.[0-9]{1,2})?";
+export const validMoneyDraft = (value) =>
+  /^[0-9]*(?:\.[0-9]{0,2})?$/.test(value);
+export const moneyInputMessage =
+  "Usa solo números y un punto decimal, con hasta dos decimales. Ejemplo: 100.00.";
 export function decimalCents(value) {
   const text = String(value ?? "");
   if (!text.trim()) return null;
   // No rounding: a third decimal is an error, not an amount to silently change.
-  if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(text))
-    throw new Error(
-      "Ingresa un importe válido con hasta dos decimales, por ejemplo 25.00 o 1,250.75.",
-    );
-  const [whole, fraction = ""] = text.replaceAll(",", "").split(".");
+  if (!new RegExp(`^(?:${moneyPattern})$`).test(text))
+    throw new Error(moneyInputMessage);
+  const [whole, fraction = ""] = text.split(".");
   const cents = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
   if (!Number.isSafeInteger(cents) || cents < 0 || cents > 100000000)
     throw new Error("El importe debe estar entre 0.00 y 1,000,000.00 soles.");
@@ -46,19 +49,19 @@ export const paymentDay = (payment) =>
   payment.payment_date || payment.created_at?.slice(0, 10);
 export function selectExpenses(
   bills,
-  { tab = "month", month, category = "all", query = "" },
+  { tab = "month", month, category = "all", query = "", includeFuture = false },
 ) {
   return bills
     .filter(
       (b) =>
-        (tab === "all" || b.month === month) &&
-        (tab === "all" ||
-          tab === "month" ||
-          (tab === "paid"
+        (tab === "month" && includeFuture
+          ? b.month >= month
+          : b.month === month) &&
+        (tab === "month"
+          ? b.status !== "Pagado"
+          : tab === "paid"
             ? b.status === "Pagado"
-            : tab === "overdue"
-              ? b.status === "Vencido"
-              : b.status !== "Pagado" && b.status !== "Vencido")) &&
+            : tab === "overdue" && b.status === "Vencido") &&
         (category === "all" || b.category === category) &&
         `${b.title} ${b.supplier} ${b.invoice_number || ""}`
           .toLocaleLowerCase()

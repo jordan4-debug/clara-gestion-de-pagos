@@ -1558,6 +1558,48 @@ button.role-metric:hover {
 .document-upload .form-grid {
   grid-column: 1/-1;
 }
+.field .money-input-error {
+  color: #a83b3b;
+}
+.payments-panel + .monthly-metrics {
+  margin-top: 24px;
+}
+.expense-filter-hint {
+  color: #587367;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 12px 24px 0;
+}
+.entity-selector {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+.inline-entity {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  margin: 4px 0;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.inline-entity legend {
+  font-weight: 700;
+  color: var(--green);
+  padding: 0 6px;
+}
+.inline-entity p {
+  margin: 0;
+}
+.upcoming-toggle {
+  margin: 12px 0 4px;
+  font-size: 13px;
+}
+.report-export-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .mobile-nav {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
