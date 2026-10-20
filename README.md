@@ -75,7 +75,8 @@ Clara permite registrar recibos, consultar gastos y deudas por mes y rendir el e
 - Resumen del gerente con gastos del mes, deuda pendiente/vencida, cantidades de recibos y comparación con el periodo anterior cuando hay datos.
 - Entregas, gastos y devoluciones físicas de efectivo por asistente; entregar no crea un gasto ni un pago.
 - Permisos de servidor, revisión/corrección documental, contraseñas seguras, CSRF y cuentas privadas del equipo.
-- Los módulos anteriores de simulación bancaria, créditos y pasarelas se retiran del flujo y se bloquean por API sin borrar sus registros históricos.
+- Préstamos ya contratados: entidad, capital, referencia, cuotas mensuales, última cuota distinta, vencimientos, constancias y saldo pendiente. El asistente registra; el gerente supervisa.
+- Los módulos anteriores de simulación bancaria y pasarelas se retiran del flujo y se bloquean por API sin borrar sus registros históricos.
 
 Ver [alcance y reglas actuales](docs/ALCANCE-ADMINISTRATIVO.md), [flujo](docs/FLUJOS.md) y [recorrido de presentación](docs/PRESENTACION.md). Los documentos de revisiones anteriores son históricos y quedan sustituidos por este alcance.
 
@@ -89,6 +90,7 @@ server/passwords.mjs Hash y verificación de contraseñas
 server/reviews.mjs   Revisión, observación y corrección de comprobantes
 server/reports.mjs   Reportes por periodo y categoría
 server/cash.mjs      Entregas, pagos y devoluciones de efectivo por asistente
+server/loans.mjs     Contratos existentes y cronogramas de cuotas mensuales
 server/expenses.mjs  Formatos, recibos únicos y permisos administrativos
 shared/expenses.mjs  Dinero exacto y filtros compartidos
 server/team.mjs      Administración de cuentas privadas y auditoría
@@ -104,7 +106,7 @@ wrangler.jsonc       Proyecto y binding de la base D1
 cloudflare-account.json Identificador público de la cuenta de despliegue
 ```
 
-El espacio académico se guarda como un documento JSON limitado a 512 KB con revisión optimista: cada escritura comprueba la revisión leída y reintenta si otro participante modificó los datos. Los comprobantes se guardan por separado para no aumentar ese documento. El límite de demostración es de 300 obligaciones, 100 proveedores, 100 plantillas y 100 comprobantes, cada archivo de hasta 5 MiB. Para ampliar a una operación financiera de producción se necesita normalizar el modelo y revisar límites, respaldo y recuperación.
+El espacio académico se guarda como un documento JSON limitado a 512 KB con revisión optimista: cada escritura comprueba la revisión leída y reintenta si otro participante modificó los datos. Los comprobantes se guardan por separado para no aumentar ese documento. El límite de demostración es de 300 obligaciones, 100 proveedores, 30 préstamos y 100 comprobantes, cada archivo de hasta 5 MiB. Para ampliar a una operación financiera de producción se necesita normalizar el modelo y revisar límites, respaldo y recuperación.
 
 ## Publicar
 
@@ -130,7 +132,7 @@ node tests/integration.mjs
 
 Las pruebas cubren contraseñas con sal, concurrencia, rechazo sin escrituras parciales, archivos de hasta 5 MiB, inicio y cierre de sesión, roles, CSRF/origen, fechas de febrero, idempotencia mensual, abonos, duplicados y sobrepagos. La prueba HTTP genera registros ficticios y se niega a ejecutarse sobre un dominio público.
 
-También se prueban los formatos de recibo, ceros iniciales, duplicados concurrentes, filtros independientes, permisos sobre registros propios, entregas sin gasto, revisión y corrección de constancias, y renderizado de los paneles. Los antiguos módulos bancarios y créditos no tienen rutas operativas. `node scripts/smoke-live.mjs` valida el despliegue sin crear obligaciones, pagos ni entregas.
+También se prueban los formatos de recibo, ceros iniciales, duplicados concurrentes, filtros independientes, permisos sobre registros propios, entregas sin gasto, revisión y corrección de constancias, y renderizado de los paneles. Se verifican también los cronogramas de préstamos, meses cortos, importes inmutables, contratos duplicados concurrentes, permisos de registro y conservación del historial. Los antiguos módulos bancarios no tienen rutas operativas. `node scripts/smoke-live.mjs` valida el despliegue sin crear obligaciones, pagos ni entregas.
 
 ## Antes de usar datos privados
 

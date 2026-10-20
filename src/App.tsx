@@ -12,6 +12,7 @@ import { Shell, navigation } from "./components/Shell";
 import { Login } from "./features/Access";
 import { RoleOverview } from "./features/RoleOverview";
 import { Cash } from "./features/Cash";
+import { Loans } from "./features/Loans";
 
 import { Modal, FormError } from "./components/ui";
 import { Team } from "./features/Team";
@@ -334,6 +335,15 @@ export function App() {
           user={user}
           onSelect={setSelected}
           onNew={() => setEditor({ type: "bill" })}
+        />
+      ) : null}
+      {data && page === "loans" ? (
+        <Loans
+          suppliers={suppliers}
+          user={user}
+          version={data}
+          onChanged={() => void refresh()}
+          onSelect={setSelected}
         />
       ) : null}
       {page === "cash" ? (

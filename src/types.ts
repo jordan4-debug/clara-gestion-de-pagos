@@ -190,3 +190,23 @@ export type CashData = {
     payment_id?: number;
   }[];
 };
+
+export type Loan = {
+  id: number;
+  title: string;
+  supplier: string;
+  supplier_id: number;
+  principal_cents: number;
+  total_cents: number;
+  paid_cents: number;
+  remaining_cents: number;
+  installment_count: number;
+  installment_cents: number;
+  last_installment_cents: number;
+  paid_installments: number;
+  overdue_installments: number;
+  next_due_date: string | null;
+  reference: string;
+  notes: string;
+  installments: Bill[];
+};

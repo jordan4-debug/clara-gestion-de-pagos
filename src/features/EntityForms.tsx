@@ -100,11 +100,13 @@ export function BillForm({
             <option value="" disabled>
               Selecciona un proveedor
             </option>
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
+            {suppliers
+              .filter((s) => !!bill || s.category !== "Préstamos")
+              .map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
           </select>
         </Field>
         {!bill ? (
@@ -264,11 +266,16 @@ export function SupplierForm({
             name="category"
             defaultValue={supplier?.category || "Servicios"}
           >
-            {["Servicios", "Proveedores", "Impuestos", "Alquiler", "Otros"].map(
-              (x) => (
-                <option key={x}>{x}</option>
-              ),
-            )}
+            {[
+              "Servicios",
+              "Proveedores",
+              "Impuestos",
+              "Alquiler",
+              "Préstamos",
+              "Otros",
+            ].map((x) => (
+              <option key={x}>{x}</option>
+            ))}
           </select>
         </Field>
         <Field label="Formato habitual de recibo">

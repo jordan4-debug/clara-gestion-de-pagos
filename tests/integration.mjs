@@ -57,7 +57,6 @@ assert.equal(
 );
 for (const [path, method] of [
   ["/finance", "GET"],
-  ["/loans", "GET"],
   ["/bills/1/simulate", "POST"],
   ["/bills/1/checkout", "POST"],
 ])
@@ -65,6 +64,11 @@ for (const [path, method] of [
     (await assistant(path, method, method === "POST" ? {} : undefined)).status,
     410,
   );
+for (const call of [manager, assistant]) {
+  const loans = await call("/loans");
+  assert.equal(loans.status, 200);
+  assert.ok(Array.isArray(loans.data));
+}
 const identity = String(Date.now()),
   input = {
     title: "Recibo ficticio HTTP " + identity,

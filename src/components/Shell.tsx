@@ -11,6 +11,7 @@ import { Brand } from "./ui";
 import type { User } from "../types";
 export const nav = [
   { id: "summary", label: "Deudas del mes", icon: House },
+  { id: "loans", label: "Préstamos", icon: Landmark },
   { id: "cash", label: "Control de efectivo", icon: Banknote },
   { id: "settings", label: "Configuración", icon: Settings },
 ];

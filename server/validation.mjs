@@ -33,7 +33,14 @@ export const billInput = z.object({
   amount_cents: cents.nullable(),
   due_date: date,
   category: z
-    .enum(["Servicios", "Proveedores", "Impuestos", "Alquiler", "Otros"])
+    .enum([
+      "Servicios",
+      "Proveedores",
+      "Impuestos",
+      "Alquiler",
+      "Préstamos",
+      "Otros",
+    ])
     .optional(),
   invoice_number: z.string().max(60).optional(),
   receipt_format: z.enum(["numeric", "alphanumeric"]).optional(),
@@ -48,6 +55,7 @@ export const supplierInput = z.object({
     "Proveedores",
     "Impuestos",
     "Alquiler",
+    "Préstamos",
     "Otros",
   ]),
   reference: z.string().trim().max(160).default(""),

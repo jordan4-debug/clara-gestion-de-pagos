@@ -95,11 +95,16 @@ export function BillTable({
             onChange={(e) => setCategory(e.target.value)}
           >
             <option value="all">Todas las categorías</option>
-            {["Servicios", "Proveedores", "Impuestos", "Alquiler", "Otros"].map(
-              (x) => (
-                <option key={x}>{x}</option>
-              ),
-            )}
+            {[
+              "Servicios",
+              "Proveedores",
+              "Impuestos",
+              "Alquiler",
+              "Préstamos",
+              "Otros",
+            ].map((x) => (
+              <option key={x}>{x}</option>
+            ))}
           </select>
         </label>
       </div>

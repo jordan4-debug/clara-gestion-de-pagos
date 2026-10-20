@@ -28,6 +28,7 @@ import {
 } from "./reviews.mjs";
 import { report } from "./reports.mjs";
 import { handleTeam } from "./team.mjs";
+import { loanInput, createLoan, listLoans } from "./loans.mjs";
 
 import {
   cashInput,
@@ -37,7 +38,6 @@ import {
   spendCash,
 } from "./cash.mjs";
 import {
-  activeExpense,
   assertEditable,
   assertReceipt,
   assertOriginal,
@@ -79,11 +79,6 @@ const supplierExists = (state, id) => {
 const findBill = (state, id) => {
   const bill = state.bills.find((b) => b.id === id);
   if (!bill) fail("Pago no encontrado.", 404);
-  if (!activeExpense(state, bill))
-    fail(
-      "Los préstamos están archivados y no forman parte del control de servicios.",
-      410,
-    );
   return bill;
 };
 
@@ -114,7 +109,7 @@ export async function handleRequest(request, env) {
     const { session, user } = auth;
     const actor = user.name;
     if (
-      /^\/(?:finance|loans|templates|attempts)(?:\/|$)/.test(path) ||
+      /^\/(?:finance|templates|attempts)(?:\/|$)/.test(path) ||
       path === "/months/generate" ||
       /\/(?:simulate|checkout|voucher)$/.test(path)
     )
@@ -134,6 +129,7 @@ export async function handleRequest(request, env) {
     }
     if (method === "GET") {
       const { state } = await readState(env.DB);
+      if (path === "/loans") return json(listLoans(state));
       if (path === "/cash")
         return json(
           cashView(
@@ -187,7 +183,6 @@ export async function handleRequest(request, env) {
       if (path === "/suppliers")
         return json(
           state.suppliers
-            .filter((s) => s.category !== "Préstamos")
             .map(publicSupplier)
             .sort((a, b) => a.name.localeCompare(b.name)),
         );
@@ -236,6 +231,14 @@ export async function handleRequest(request, env) {
       fail("Ruta no encontrada.", 404);
     }
     const input = await body(request);
+    if (method === "POST" && path === "/loans") {
+      assistant(session);
+      const data = loanInput.parse(input);
+      return json(
+        await mutateState(env.DB, (state) => createLoan(state, data, user)),
+        201,
+      );
+    }
     if (method === "POST" && path === "/cash") {
       const data = cashInput.parse(input),
         people = await cashPeople(env.DB, user);
@@ -456,9 +459,13 @@ export async function handleRequest(request, env) {
         const content = decodeReceipt(document);
         const { state } = await readState(env.DB);
         supplierExists(state, x.supplier_id);
-        if (!activeExpense(state, x))
+        if (
+          x.category === "Préstamos" ||
+          state.suppliers.find((s) => s.id === x.supplier_id)?.category ===
+            "Préstamos"
+        )
           fail(
-            "Registra servicios o gastos; los préstamos están fuera del alcance.",
+            "Registra el contrato y sus cuotas desde Préstamos para evitar duplicar el cronograma.",
             400,
           );
         assertReceipt(state, x, x.invoice_number, x.receipt_format);

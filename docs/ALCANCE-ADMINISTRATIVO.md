@@ -5,7 +5,7 @@ Esta corrección sustituye el alcance anterior de simulación bancaria. Clara co
 ## Roles y operaciones
 
 - **Gerente** (`owner` en la base, por compatibilidad): consulta el resumen de gastos y los recibos, configura entidades y avisos, administra el equipo privado, registra entregas físicas de efectivo y revisa las constancias. Puede registrar un pago que ya ocurrió, con fecha y evidencia, sin ejecutar movimientos bancarios.
-- **Asistente**: registra recibos y sus originales; corrige vencimiento y notas de sus propios registros o de registros antiguos sin autor. Consulta el espacio compartido y registra pagos respaldados. Solo utiliza o devuelve efectivo a su cargo.
+- **Asistente**: registra recibos, préstamos ya contratados y sus originales; corrige vencimiento y notas de sus propios registros o de registros antiguos sin autor. Consulta el espacio compartido y registra pagos respaldados. Solo utiliza o devuelve efectivo a su cargo.
 - Las acciones se validan en la API. Cambiar el nombre visible a Gerente no cambia IDs, roles internos ni contraseñas existentes. El acceso público conserva los botones de demostración y usa información ficticia.
 
 ## Número del recibo
@@ -41,9 +41,19 @@ Un vencido sigue formando parte del total por pagar, aunque se consulta en su pe
 
 La entrega física al asistente se registra por separado. No crea pagos ni modifica los gastos del mes. Solo guardar un pago con medio Efectivo consume fondos a cargo, con comprobación de saldo en la misma escritura. Las devoluciones no son gastos. Se muestran entregas, gastos y devoluciones del periodo, y el saldo acumulado por rendir. El historial identifica fecha, asistente y operación relacionada.
 
+## Préstamos y cuotas
+
+La opción **Préstamos** está disponible para ambos roles. El asistente registra un contrato ya celebrado: entidad de categoría Préstamos, capital, número de cuotas pendientes, importe mensual, primera fecha de vencimiento, última cuota opcionalmente diferente, referencia y notas. El gerente consulta el cronograma y sus constancias; no registra contratos.
+
+El sistema genera una obligación por cuota sin exigir autorización previa del gerente. Los importes se conservan, las cuotas comparten los permisos de sus recibos y se incluyen en deudas, filtros y totales mensuales sin sumar nuevamente el capital. Los meses cortos se ajustan al último día y los siguientes recuperan el día original. Se muestra capital, total del cronograma, pagado, pendiente, progreso y próximo vencimiento.
+
+Antes de archivar un pago de cuota, el asistente responsable adjunta el documento original con su número. Gerente o asistente puede registrar el pago realizado con constancia. Un pago en efectivo utiliza el saldo entregado al asistente con las mismas validaciones del resto de obligaciones. Los pagos parciales existentes se conservan en el saldo.
+
+Los préstamos anteriores reaparecen sin recrearlos ni modificar su dinero, cuotas o archivos. Los contratos identificados por entidad y referencia no pueden duplicarse, incluso en solicitudes simultáneas. El límite académico es de 30 préstamos y 300 obligaciones en total. No se solicitan préstamos nuevos a entidades, se calculan intereses ni se desembolsa dinero.
+
 ## Funciones retiradas y compatibilidad
 
-Se retiran de la navegación y se responde **410** en la API a presupuestos bancarios, simulador, checkout, generación de vouchers internos, préstamos y plantillas del antiguo flujo. No se borran sus datos. Los préstamos históricos se excluyen de los listados de servicios y no admiten nuevas operaciones. El respaldo administrativo del gerente conserva los datos originales para auditoría.
+Se retiran de la navegación y se responde **410** en la API a presupuestos bancarios, simulador, checkout, generación de vouchers internos y plantillas del antiguo flujo. No se borran sus datos. El seguimiento administrativo de préstamos y cuotas permanece disponible. El respaldo administrativo del gerente conserva los datos originales para auditoría.
 
 No se solicitan cuentas bancarias ni tarjetas. Las entidades solo exponen nombre, categoría, referencia administrativa y formato del recibo. Los campos bancarios y pasarelas antiguos no se devuelven como configuración activa. Registrar un pago y revisar su constancia son operaciones administrativas, no certificaciones bancarias.
 
@@ -53,6 +63,6 @@ No se solicitan cuentas bancarias ni tarjetas. Las entidades solo exponen nombre
 
 Aplicación local: `npm run db:local`. Publicación: `npm run deploy`, que ejecuta las migraciones pendientes en la base remota antes del despliegue.
 
-Las pruebas cubren formatos y ceros iniciales, duplicados y concurrencia, céntimos exactos, filtros, fechas, permisos directos, registro de pagos, entregas sin gasto, rendición de efectivo, revisión de constancias, archivos de 5 MiB y renderizado de los paneles. Las pruebas HTTP generan datos solo en localhost. La comprobación pública es de lectura y no crea pagos, recibos ni entregas.
+Las pruebas cubren formatos y ceros iniciales, duplicados y concurrencia, céntimos exactos, filtros, fechas, permisos directos, registro de pagos, entregas sin gasto, rendición de efectivo, revisión de constancias, archivos de 5 MiB, cronogramas y registro de pagos de préstamos, conservación de contratos anteriores y renderizado de los paneles. Las pruebas HTTP generan datos solo en localhost. La comprobación pública es de lectura y no crea pagos, recibos ni entregas.
 
 No hay una decisión pendiente que impida el control administrativo. Los formatos oficiales particulares pueden ajustarse si el gerente aporta ejemplos. La revisión visual interactiva requiere habilitar el uso del navegador de esta sesión; las pruebas de renderizado no sustituyen esa inspección.

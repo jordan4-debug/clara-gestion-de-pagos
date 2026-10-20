@@ -150,7 +150,7 @@ test("Receipt uniqueness is per entity, ignores alphabetic case, preserves zeroe
   sqlite.close();
 });
 
-test("Removed finance, simulator, gateway and loan endpoints are retired for both roles without deleting history", async () => {
+test("Banking, simulator and gateway endpoints remain retired without deleting loan history", async () => {
   const { sqlite, db, manager, assistant } = await setup();
   await mutateState(db, (s) => {
     s.loans = [{ id: 42, title: "Contrato anterior" }];
@@ -161,8 +161,6 @@ test("Removed finance, simulator, gateway and loan endpoints are retired for bot
     for (const [path, method] of [
       ["/finance", "GET"],
       ["/finance/2026-10", "PUT"],
-      ["/loans", "GET"],
-      ["/loans", "POST"],
       ["/bills/1/simulate", "POST"],
       ["/bills/1/checkout", "POST"],
       ["/payments/1/voucher", "GET"],
@@ -212,12 +210,7 @@ test("Manager administers entities and alerts but cannot enter receipts; no bank
   );
   const suppliers = (await assistant("/suppliers")).data;
   assert.ok(
-    suppliers.every(
-      (s) =>
-        !("account" in s) &&
-        !("payment_gateway" in s) &&
-        s.category !== "Préstamos",
-    ),
+    suppliers.every((s) => !("account" in s) && !("payment_gateway" in s)),
   );
   assert.equal(
     (
@@ -586,7 +579,7 @@ test("Manager review and assistant correction retain old files and never change 
   sqlite.close();
 });
 
-test("Summary uses payment dates and excludes archived loans; past-due unknown amounts are still overdue", async () => {
+test("Summary includes loan installments and payment dates; past-due unknown amounts are still overdue", async () => {
   const { sqlite, db, manager } = await setup();
   await mutateState(db, (s) => {
     s.bills = [
@@ -630,14 +623,14 @@ test("Summary uses payment dates and excludes archived loans; past-due unknown a
     ];
   });
   const d = (await manager("/dashboard?month=2026-10")).data;
-  assert.equal(d.bills.length, 2);
-  assert.equal(d.overview.pending_cents, 1500);
-  assert.equal(d.overview.overdue_count, 2);
-  assert.equal(d.overview.overdue_cents, 1500);
+  assert.equal(d.bills.length, 3);
+  assert.equal(d.overview.pending_cents, 51500);
+  assert.equal(d.overview.overdue_count, 3);
+  assert.equal(d.overview.overdue_cents, 51500);
   assert.equal(d.overview.paid_cents, 0);
   assert.equal(d.overview.previous_cents, 1000);
   assert.equal(d.totals.undefined, 1);
-  assert.equal((await manager("/bills/103")).status, 410);
+  assert.equal((await manager("/bills/103")).status, 200);
   sqlite.close();
 });
 

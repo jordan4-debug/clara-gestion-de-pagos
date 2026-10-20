@@ -1,6 +1,6 @@
 # Dirección visual de Clara
 
-> Documento histórico: el alcance vigente es [Control administrativo de gastos](ALCANCE-ADMINISTRATIVO.md). Las funciones bancarias y de préstamos descritas aquí están retiradas.
+> Documento histórico: el alcance vigente es [Control administrativo de gastos](ALCANCE-ADMINISTRATIVO.md). Las funciones bancarias descritas aquí están retiradas. El seguimiento de préstamos ya contratados está disponible según el alcance vigente.
 > La interfaz utiliza componentes React, formularios y estados vinculados a la API. Cada rol tiene un panel enfocado en sus responsabilidades.
 
 ## Criterios de diseño

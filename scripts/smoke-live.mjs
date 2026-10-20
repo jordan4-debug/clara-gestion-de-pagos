@@ -40,7 +40,6 @@ const first = await call(owner, "/dashboard"),
 assert.equal(first.status, 200);
 for (const [path, method] of [
   ["/finance", "GET"],
-  ["/loans", "GET"],
   ["/bills/1/simulate", "POST"],
   ["/bills/1/checkout", "POST"],
 ])
@@ -56,6 +55,15 @@ assert.equal(
   first.data.totals.monthPaid + first.data.totals.pending,
 );
 for (const session of [owner, assistant]) {
+  const loans = await call(session, "/loans");
+  assert.equal(loans.status, 200);
+  assert.ok(Array.isArray(loans.data));
+  for (const loan of loans.data) {
+    assert.equal(loan.installment_count, loan.installments.length);
+    assert.equal(loan.total_cents, loan.paid_cents + loan.remaining_cents);
+    for (const installment of loan.installments)
+      assert.ok(first.data.all_bills.some((b) => b.id === installment.id));
+  }
   const cash = await call(session, `/cash?month=${first.data.month}`);
   assert.equal(cash.status, 200);
   assert.ok(Array.isArray(cash.data.movements));
@@ -67,12 +75,7 @@ assert.equal((await call(owner, "/bills", "POST", {})).status, 403);
 const suppliers = await call(owner, "/suppliers");
 assert.equal(suppliers.status, 200);
 assert.ok(
-  suppliers.data.every(
-    (s) =>
-      s.category !== "Préstamos" &&
-      !("account" in s) &&
-      !("payment_gateway" in s),
-  ),
+  suppliers.data.every((s) => !("account" in s) && !("payment_gateway" in s)),
 );
 assert.equal(
   first.data.overview.pending_count,
@@ -111,5 +114,5 @@ assert.equal((await call(assistant, "/team")).status, 403);
 await call(owner, "/auth/logout", "POST", {});
 await call(assistant, "/auth/logout", "POST", {});
 console.log(
-  `PASS: ${base} · acceso, roles, totales mensuales, efectivo por asistente, comprobantes, equipo protegido y ${backup.data.state.bills.length} obligaciones; control administrativo sin procesamiento de dinero. No se alteraron obligaciones, efectivo ni comprobantes.`,
+  `PASS: ${base} · acceso, roles, préstamos y cuotas, totales mensuales, efectivo por asistente, comprobantes, equipo protegido y ${backup.data.state.bills.length} obligaciones; control administrativo sin procesamiento de dinero. No se alteraron obligaciones, efectivo ni comprobantes.`,
 );

@@ -1,9 +1,6 @@
 import { receiptError } from "../shared/expenses.mjs";
-export const activeExpense = (state, bill) =>
-  !bill.loan_id &&
-  (bill.category ||
-    state.suppliers.find((s) => s.id === bill.supplier_id)?.category) !==
-    "Préstamos";
+// Loan installments are obligations too; they share receipts, payments and totals.
+export const activeExpense = (_state, bill) => Boolean(bill?.id);
 export function assertEditable(bill, user) {
   if (user.role !== "assistant")
     throw Object.assign(

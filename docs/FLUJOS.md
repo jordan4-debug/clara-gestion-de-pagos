@@ -8,6 +8,7 @@ Consultar [alcance administrativo, permisos, reglas de recibo y filtros](ALCANCE
 4. Después de realizar un pago fuera de Clara, gerente o asistente archiva la fecha, medio, identificador y constancia del pago. La aplicación no mueve dinero.
 5. El gerente compara el original con la constancia y la revisa u observa. Las correcciones conservan los archivos anteriores y no duplican el abono.
 6. El gerente registra entregas físicas. Efectivo muestra entregado, utilizado, devuelto y por rendir. Entregar no significa gastar.
-7. Todos los periodos, deudas del mes, pendientes, vencidos y pagados se consultan por separado, con contadores y totales coherentes.
+7. En Préstamos, el asistente registra el contrato existente y sus cuotas pendientes. El gerente consulta capital, cronograma, pagado y pendiente. Cada cuota aparece en el mes correspondiente y se registra su pago con original y constancia.
+8. Todos los periodos, deudas del mes, pendientes, vencidos y pagados se consultan por separado, con contadores y totales coherentes.
 
 La demostración pública usa información ficticia. Para datos privados deben configurarse usuarios propios y desactivarse `DEMO_MODE`. Las cuentas de demostración no administran usuarios privados. Los avisos se muestran dentro de la aplicación; no se envía correo ni WhatsApp.

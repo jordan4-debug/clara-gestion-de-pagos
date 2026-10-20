@@ -1,6 +1,6 @@
 # Cobertura de épicas y requisitos · 20 de octubre de 2026
 
-> Documento histórico: el alcance vigente es [Control administrativo de gastos](ALCANCE-ADMINISTRATIVO.md). Las funciones bancarias y de préstamos descritas aquí están retiradas.
+> Documento histórico: el alcance vigente es [Control administrativo de gastos](ALCANCE-ADMINISTRATIVO.md). Las funciones bancarias descritas aquí están retiradas. El seguimiento de préstamos ya contratados está disponible según el alcance vigente.
 > El catálogo entregado se compara con la versión de Clara publicada tras esta revisión. Propietario y gerente designan el mismo rol `owner`; el segundo rol es `assistant`. No hay un rol adicional de cliente.
 
 ## Funcionalidades

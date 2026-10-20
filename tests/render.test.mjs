@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 test("Rendered manager and assistant screens expose only administrative actions and independent filters", async () => {
   const { outputFiles } = buildSync({
     stdin: {
-      contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import {RoleOverview} from './src/features/RoleOverview'; import {Shell} from './src/components/Shell'; import {BillForm} from './src/features/EntityForms'; import {MoneyInput} from './src/components/MoneyInput'; export {React,renderToStaticMarkup,RoleOverview,Shell,BillForm,MoneyInput};`,
+      contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import {RoleOverview} from './src/features/RoleOverview'; import {Shell} from './src/components/Shell'; import {BillForm} from './src/features/EntityForms'; import {MoneyInput} from './src/components/MoneyInput'; import {Loans} from './src/features/Loans'; export {React,renderToStaticMarkup,RoleOverview,Shell,BillForm,MoneyInput,Loans};`,
       resolveDir: process.cwd(),
       loader: "tsx",
     },
@@ -64,18 +64,29 @@ test("Rendered manager and assistant screens expose only administrative actions 
       "Vencidos",
       "Pagados",
       "Control de efectivo",
+      "Préstamos",
     ])
       assert.ok(html.includes(label));
     for (const label of [
       "Izipay",
       "Recargar saldo",
-      "Préstamos",
       "Pagar en prueba",
       "Cuenta de prueba",
       "Propietario",
     ])
       assert.ok(!html.includes(label), label);
     assert.equal(html.includes("Registrar recibo"), role === "assistant");
+    const loans = m.renderToStaticMarkup(
+      e(m.Loans, {
+        suppliers: [],
+        user,
+        version: data,
+        onChanged: () => {},
+        onSelect: () => {},
+      }),
+    );
+    assert.equal(loans.includes("Registrar préstamo"), role === "assistant");
+    assert.ok(loans.includes("el gerente supervisa"));
     if (role === "owner") {
       assert.ok(html.includes("Gastos pagados en el mes"));
       assert.ok(html.includes("1,250.75"));
