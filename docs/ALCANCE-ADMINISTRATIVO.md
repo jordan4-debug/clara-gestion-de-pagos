@@ -8,6 +8,10 @@ Esta corrección sustituye el alcance anterior de simulación bancaria. Clara co
 - **Asistente**: registra recibos, nuevas entidades desde sus formularios, préstamos ya contratados y sus originales; corrige vencimiento y notas de sus propios registros o de registros antiguos sin autor. Consulta el espacio compartido y registra pagos respaldados. Solo utiliza o devuelve efectivo a su cargo.
 - Las acciones se validan en la API. Cambiar el nombre visible a Gerente no cambia IDs, roles internos ni contraseñas existentes. La publicación requiere correo y contraseña de cuentas privadas. Se eliminaron del código de la pantalla de acceso los botones de demostración.
 
+## Ventanas de registro y presentación
+
+Los títulos de páginas y ventanas, las etiquetas de campos y los encabezados del cronograma usan el verde de Clara. Las ventanas compartidas no se cierran al hacer clic fuera, en sus márgenes ni al pulsar Escape. Antes de guardar, el cierre debe ser explícito con la «X» o Cancelar. Mientras se guarda se bloquean el cierre, la cancelación, la navegación interna y los envíos repetidos, también cuando la operación ocurre dentro de la ventana (pago, original, revisión, corrección o entidad nueva). Al terminar se recuperan los controles; si falla, el formulario conserva los valores y muestra el error.
+
 ## Número del recibo
 
 Se conserva como texto, sin convertir a número, recortar espacios o retirar ceros. El campo permite pegado normal y muestra errores específicos. El sistema aplica el formato guardado de la entidad. Los formularios muestran solamente el número del documento, sin un selector de letras o números. Se conservan estas reglas internas de validación:

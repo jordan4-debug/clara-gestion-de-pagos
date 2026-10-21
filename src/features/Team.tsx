@@ -67,8 +67,8 @@ export function Team({
           <strong>Estás explorando cuentas de demostración</strong>
           <p>
             La gestión de integrantes está disponible al iniciar sesión con una
-            cuenta privada de gerente. Las cuentas públicas no pueden
-            consultar ni modificar usuarios privados.
+            cuenta privada de gerente. Las cuentas públicas no pueden consultar
+            ni modificar usuarios privados.
           </p>
         </div>
       ) : null}
@@ -142,6 +142,7 @@ export function Team({
       {create ? (
         <Modal
           title="Nuevo integrante"
+          busy={busy}
           onClose={() => {
             if (!busy) setCreate(false);
           }}
@@ -215,6 +216,7 @@ export function Team({
       {target ? (
         <Modal
           title={target.active ? "Desactivar integrante" : "Activar integrante"}
+          busy={busy}
           onClose={() => {
             if (!busy) setTarget(null);
           }}

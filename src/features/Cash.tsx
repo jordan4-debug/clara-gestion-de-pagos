@@ -198,6 +198,7 @@ export function Cash({
               : "Registrar devolución de efectivo"
           }
           onClose={() => setKind(null)}
+          busy={busy}
         >
           <form
             className="form-body"

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Field, FormError } from "./ui";
+import { Field, FormError, useModalLock } from "./ui";
 import { send } from "../lib/api";
 import type { Supplier } from "../types";
 
@@ -26,6 +26,7 @@ export function EntitySelector({
     [name, setName] = useState(""),
     [category, setCategory] = useState(loans ? "Préstamos" : "Servicios"),
     [reference, setReference] = useState("");
+  useModalLock(busy);
   const items = [
     ...suppliers,
     ...created.filter((s) => !suppliers.some((p) => p.id === s.id)),

@@ -435,6 +435,7 @@ export function App() {
       {logoutPrompt ? (
         <Modal
           title="¿Cerrar sesión?"
+          busy={logoutBusy}
           onClose={() => {
             if (!logoutBusy) setLogoutPrompt(false);
           }}

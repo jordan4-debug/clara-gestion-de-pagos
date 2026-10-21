@@ -392,7 +392,12 @@ export function LoanForm({
     };
   }, [parameters]);
   return (
-    <Modal title="Registrar préstamo y cronograma" onClose={onClose} wide>
+    <Modal
+      title="Registrar préstamo y cronograma"
+      onClose={onClose}
+      wide
+      busy={busy}
+    >
       <form
         className="form-body"
         onChange={(e) => {

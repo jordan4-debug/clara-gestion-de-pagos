@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { Field, FormError, Submit, formData } from "../components/ui";
+import {
+  Field,
+  FormError,
+  Submit,
+  formData,
+  useModalLock,
+} from "../components/ui";
 import { api, send, money, localToday } from "../lib/api";
 import { receiptPayload } from "./Reviews";
 import type { Bill, User, CashData } from "../types";
@@ -19,6 +25,7 @@ export function PaymentFlow({
     [holder, setHolder] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  useModalLock(busy);
   useEffect(() => {
     if (method !== "Efectivo") return;
     let live = true;

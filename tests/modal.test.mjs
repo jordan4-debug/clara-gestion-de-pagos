@@ -1,0 +1,381 @@
+import { test, after } from "node:test";
+import assert from "node:assert/strict";
+import { JSDOM } from "jsdom";
+import { buildSync } from "esbuild";
+import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
+
+// DOM unit tests, without starting or controlling a browser. Only native dialog
+// open/close transitions are stubbed; React handlers, state and propagation are real.
+const dom = new JSDOM(
+  "<!doctype html><html><head></head><body></body></html>",
+  { url: "https://clara.example/" },
+);
+for (const key of [
+  "window",
+  "document",
+  "HTMLElement",
+  "Element",
+  "Node",
+  "Event",
+  "MouseEvent",
+  "HTMLInputElement",
+  "HTMLDialogElement",
+  "FormData",
+])
+  globalThis[key] = dom.window[key];
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+dom.window.HTMLDialogElement.prototype.showModal = function () {
+  this.open = true;
+};
+dom.window.HTMLDialogElement.prototype.close = function () {
+  this.open = false;
+};
+after(() => dom.window.close());
+
+const { createElement: e, act, useState, StrictMode } = await import("react");
+const { createRoot } = await import("react-dom/client");
+const { outputFiles } = buildSync({
+  stdin: {
+    contents:
+      "export { Modal, Field, useModalLock } from './src/components/ui'; export { LoanForm, ScheduleTable } from './src/features/Loans'; export { EntitySelector } from './src/components/EntitySelector';",
+    resolveDir: process.cwd(),
+    loader: "tsx",
+  },
+  bundle: true,
+  write: false,
+  platform: "node",
+  format: "cjs",
+  jsx: "automatic",
+  packages: "external",
+});
+const module = { exports: {} };
+new Function("require", "module", "exports", outputFiles[0].text)(
+  createRequire(import.meta.url),
+  module,
+  module.exports,
+);
+const { Modal, useModalLock, EntitySelector } = module.exports;
+
+async function mounted(t) {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  t.after(async () => {
+    await act(() => root.unmount());
+    container.remove();
+  });
+  return {
+    container,
+    render: async (element) =>
+      act(() => root.render(e(StrictMode, null, element))),
+  };
+}
+const click = async (node) =>
+  act(() =>
+    node.dispatchEvent(
+      new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }),
+    ),
+  );
+function cancel(dialog) {
+  const event = new dom.window.Event("cancel", {
+    bubbles: false,
+    cancelable: true,
+  });
+  dialog.dispatchEvent(event);
+  assert.equal(
+    event.defaultPrevented,
+    true,
+    "Escape/close request must be canceled",
+  );
+}
+
+test("Backdrop clicks, dialog padding and Escape preserve entered data; idle explicit close still works", async (t) => {
+  const { container, render } = await mounted(t);
+  let closes = 0;
+  await render(
+    e(
+      Modal,
+      { title: "Registrar préstamo", onClose: () => closes++ },
+      e("input", { defaultValue: "Contrato histórico ingresado" }),
+    ),
+  );
+  const dialog = container.querySelector("dialog");
+  assert.equal(dialog.getAttribute("closedby"), "none");
+  await click(dialog);
+  await click(container.querySelector("header"));
+  cancel(dialog);
+  assert.equal(closes, 0);
+  assert.equal(dialog.open, true);
+  assert.equal(
+    container.querySelector("input").value,
+    "Contrato histórico ingresado",
+  );
+  await click(container.querySelector('[aria-label="Cerrar ventana"]'));
+  assert.equal(closes, 1);
+});
+
+test("Saving locks X, explicit Cancel, navigation and duplicate submits, then unlocks when it finishes", async (t) => {
+  const { container, render } = await mounted(t);
+  let actions = 0;
+  const screen = (busy) =>
+    e(
+      Modal,
+      { title: "Guardar recibo", busy, onClose: () => actions++ },
+      e(
+        "form",
+        {
+          onSubmit: (event) => {
+            event.preventDefault();
+            actions++;
+          },
+        },
+        e(
+          "button",
+          { type: "button", "data-cancel": true, onClick: () => actions++ },
+          "Cancelar",
+        ),
+        e("a", { href: "#otro", onClick: () => actions++ }, "Otro recibo"),
+      ),
+    );
+  await render(screen(true));
+  const dialog = container.querySelector("dialog");
+  assert.equal(dialog.getAttribute("aria-busy"), "true");
+  assert.equal(
+    container.querySelector('[aria-label="Cerrar ventana"]').disabled,
+    true,
+  );
+  await click(container.querySelector('[aria-label="Cerrar ventana"]'));
+  await click(container.querySelector("[data-cancel]"));
+  await click(container.querySelector("a"));
+  await act(() =>
+    container
+      .querySelector("form")
+      .dispatchEvent(
+        new dom.window.Event("submit", { bubbles: true, cancelable: true }),
+      ),
+  );
+  cancel(dialog);
+  assert.equal(actions, 0);
+  await render(screen(false));
+  assert.equal(
+    container.querySelector('[aria-label="Cerrar ventana"]').disabled,
+    false,
+  );
+  await click(container.querySelector("[data-cancel]"));
+  assert.equal(actions, 1);
+});
+
+test("Independent nested operations keep their containing modal locked until every operation finishes", async (t) => {
+  const { container, render } = await mounted(t);
+  let closes = 0;
+  function Operation({ busy }) {
+    useModalLock(busy);
+    return null;
+  }
+  const screen = (first, second) =>
+    e(
+      Modal,
+      { title: "Detalle del pago", onClose: () => closes++ },
+      e(Operation, { key: "payment", busy: first }),
+      e(Operation, { key: "proof", busy: second }),
+    );
+  await render(screen(true, true));
+  const close = () => container.querySelector('[aria-label="Cerrar ventana"]');
+  assert.equal(close().disabled, true);
+  await render(screen(false, true));
+  assert.equal(close().disabled, true);
+  await click(close());
+  assert.equal(closes, 0);
+  await render(screen(false, false));
+  assert.equal(close().disabled, false);
+  await click(close());
+  assert.equal(closes, 1);
+});
+
+test("A failed save retains form values and restores explicit cancellation without accidental dismissal", async (t) => {
+  const { container, render } = await mounted(t);
+  let rejectSave,
+    closes = 0;
+  const save = new Promise((_, reject) => {
+    rejectSave = reject;
+  });
+  function Screen() {
+    const [busy, setBusy] = useState(false),
+      [error, setError] = useState("");
+    return e(
+      Modal,
+      { title: "Guardar préstamo", busy, onClose: () => closes++ },
+      e(
+        "form",
+        {
+          onSubmit: async (event) => {
+            event.preventDefault();
+            setBusy(true);
+            try {
+              await save;
+            } catch {
+              setError("Reintenta el guardado");
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+        e("input", { defaultValue: "Contrato que se conserva" }),
+        e("p", { role: "alert" }, error),
+      ),
+    );
+  }
+  await render(e(Screen));
+  await act(() =>
+    container
+      .querySelector("form")
+      .dispatchEvent(
+        new dom.window.Event("submit", { bubbles: true, cancelable: true }),
+      ),
+  );
+  assert.equal(
+    container.querySelector('[aria-label="Cerrar ventana"]').disabled,
+    true,
+  );
+  await click(container.querySelector("dialog"));
+  await act(async () => {
+    rejectSave(new Error("Solicitud fallida"));
+    await save.catch(() => {});
+  });
+  assert.equal(
+    container.querySelector("input").value,
+    "Contrato que se conserva",
+  );
+  assert.equal(
+    container.querySelector('[role="alert"]').textContent,
+    "Reintenta el guardado",
+  );
+  assert.equal(
+    container.querySelector('[aria-label="Cerrar ventana"]').disabled,
+    false,
+  );
+  assert.equal(closes, 0);
+});
+
+test("Saving an actual inline entity locks its parent form and preserves the chosen entity and draft", async (t) => {
+  const { container, render } = await mounted(t);
+  const originalFetch = globalThis.fetch;
+  let finish;
+  globalThis.fetch = () =>
+    new Promise((resolve) => {
+      finish = resolve;
+    });
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  let closes = 0;
+  await render(
+    e(
+      Modal,
+      { title: "Registrar recibo", onClose: () => closes++ },
+      e(
+        "form",
+        null,
+        e("input", {
+          name: "draft",
+          defaultValue: "Recibo histórico sin perder",
+        }),
+        e(EntitySelector, { suppliers: [] }),
+      ),
+    ),
+  );
+  const selector = container.querySelector('select[name="supplier_id"]');
+  await act(() => {
+    selector.value = "new";
+    selector.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  const name = container.querySelector(".inline-entity input");
+  await act(() => {
+    Object.getOwnPropertyDescriptor(
+      dom.window.HTMLInputElement.prototype,
+      "value",
+    ).set.call(name, "Entidad nueva de prueba");
+    name.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  });
+  const saveButton = [...container.querySelectorAll("button")].find(
+    (button) => button.textContent === "Guardar y seleccionar",
+  );
+  assert.equal(saveButton.disabled, false);
+  await click(saveButton);
+  assert.equal(
+    container.querySelector('[aria-label="Cerrar ventana"]').disabled,
+    true,
+  );
+  await click(container.querySelector("dialog"));
+  assert.equal(closes, 0);
+  await act(() =>
+    finish(
+      new Response(
+        JSON.stringify({
+          id: 99,
+          name: "Entidad nueva de prueba",
+          category: "Servicios",
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
+    ),
+  );
+  assert.equal(
+    container.querySelector('[aria-label="Cerrar ventana"]').disabled,
+    false,
+  );
+  assert.equal(selector.value, "99");
+  assert.equal(
+    container.querySelector('input[name="draft"]').value,
+    "Recibo histórico sin perder",
+  );
+});
+
+test("The active stylesheet cascade colors titles, field labels and every loan schedule header green", () => {
+  const view = new JSDOM(
+    '<body><h1>Página</h1><div class="modal-head"><h2>Préstamo</h2></div><div class="loan-preview"><h3>Vista previa</h3></div><label class="field"><span>Capital</span><input></label><table class="report-table calculated-schedule"><thead><tr>' +
+      [
+        "Cuota",
+        "Vencimiento",
+        "Tipo",
+        "Saldo inicial",
+        "Interés",
+        "Amortización",
+        "Cuota a pagar",
+        "Saldo final",
+      ]
+        .map((label) => `<th>${label}</th>`)
+        .join("") +
+      "</tr></thead></table></body>",
+  );
+  try {
+    for (const file of [
+      "src/styles.css",
+      "src/white.css",
+      "src/workflow.css",
+    ]) {
+      const style = view.window.document.createElement("style");
+      style.textContent = readFileSync(file, "utf8");
+      view.window.document.head.append(style);
+    }
+    assert.equal(
+      view.window
+        .getComputedStyle(view.window.document.documentElement)
+        .getPropertyValue("--green")
+        .trim(),
+      "#087c5a",
+    );
+    for (const element of view.window.document.querySelectorAll(
+      "h1,h2,h3,.field>span,thead th",
+    ))
+      assert.ok(
+        ["var(--green)", "rgb(8, 124, 90)"].includes(
+          view.window.getComputedStyle(element).color,
+        ),
+        element.textContent,
+      );
+  } finally {
+    view.window.close();
+  }
+});

@@ -109,6 +109,16 @@
   margin: 8px 0;
   min-height: 32px;
 }
+/* Shared heading color: page titles, dialogs, fields and schedule columns. */
+body :is(h1, h2, h3, h4, h5, h6),
+.modal-head h2,
+.field > span,
+.login-form .field > span,
+.report-table thead th,
+.double-months legend,
+.inline-entity legend {
+  color: var(--green);
+}
 .loan-list {
   display: grid;
   gap: 22px;

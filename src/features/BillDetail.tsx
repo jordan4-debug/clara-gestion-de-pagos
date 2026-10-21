@@ -44,7 +44,12 @@ export function BillDetail({
     };
   }, [id]);
   return (
-    <Modal title={bill?.title || "Detalle del pago"} onClose={onClose} wide>
+    <Modal
+      title={bill?.title || "Detalle del pago"}
+      onClose={onClose}
+      wide
+      busy={uploading}
+    >
       <div className="detail-body">
         <FormError message={error} />
         {bill ? (

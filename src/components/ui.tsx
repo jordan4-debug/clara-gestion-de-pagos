@@ -1,4 +1,13 @@
-import { useEffect, useRef, useId } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useId,
+  useState,
+} from "react";
 import type { ReactNode, FormEvent } from "react";
 import {
   X,
@@ -77,18 +86,44 @@ export function BillIcon({
     </span>
   );
 }
+const ModalLockContext = createContext<
+  ((id: string, locked: boolean) => void) | null
+>(null);
+
+// Nested operations (payments, document uploads and inline entities) protect their dialog too.
+export function useModalLock(locked: boolean) {
+  const setLock = useContext(ModalLockContext);
+  const id = useId();
+  useLayoutEffect(() => {
+    if (!locked || !setLock) return;
+    setLock(id, true);
+    return () => setLock(id, false);
+  }, [id, locked, setLock]);
+}
+
 export function Modal({
   title,
   children,
   onClose,
   wide = false,
+  busy = false,
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
+  busy?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const locks = useRef(new Set<string>());
+  const [nestedBusy, setNestedBusy] = useState(false);
+  const setLock = useCallback((id: string, locked: boolean) => {
+    if (locked) locks.current.add(id);
+    else locks.current.delete(id);
+    setNestedBusy(locks.current.size > 0);
+  }, []);
+  const pending = busy || nestedBusy;
+  const cannotClose = () => busy || locks.current.size > 0;
   const titleId = useId();
   useEffect(() => {
     const dialog = ref.current;
@@ -99,26 +134,43 @@ export function Modal({
     <dialog
       ref={ref}
       aria-labelledby={titleId}
+      aria-busy={pending}
+      closedby="none"
       className={wide ? "modal wide" : "modal"}
       onCancel={(e) => {
         e.preventDefault();
-        onClose();
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+      onClickCapture={(e) => {
+        // Explicit Cancel, edit/navigation links and inline actions also wait for a save.
+        if (cannotClose() && (e.target as Element).closest("button, a")) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+      onSubmitCapture={(e) => {
+        if (cannotClose()) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
       }}
     >
       <header className="modal-head">
         <h2 id={titleId}>{title}</h2>
         <button
           className="icon-button"
+          type="button"
           aria-label="Cerrar ventana"
-          onClick={onClose}
+          disabled={pending}
+          onClick={() => {
+            if (!cannotClose()) onClose();
+          }}
         >
           <X size={20} />
         </button>
       </header>
-      {children}
+      <ModalLockContext.Provider value={setLock}>
+        {children}
+      </ModalLockContext.Provider>
     </dialog>
   );
 }

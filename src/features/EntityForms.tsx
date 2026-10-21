@@ -36,6 +36,7 @@ export function BillForm({
             : "Registrar recibo"
       }
       onClose={onClose}
+      busy={busy}
     >
       <form
         className="form-body"
@@ -212,7 +213,12 @@ export function BillForm({
         </p>
         <FormError message={error} />
         <div className="form-actions">
-          <button type="button" className="button" onClick={onClose}>
+          <button
+            type="button"
+            className="button"
+            disabled={busy}
+            onClick={onClose}
+          >
             Cancelar
           </button>
           <Submit busy={busy}>
@@ -234,6 +240,7 @@ export function SupplierForm({
     <Modal
       title={supplier ? "Editar entidad" : "Nueva entidad"}
       onClose={onClose}
+      busy={busy}
     >
       <form
         className="form-body"
@@ -295,7 +302,12 @@ export function SupplierForm({
         </Field>
         <FormError message={error} />
         <div className="form-actions">
-          <button type="button" className="button" onClick={onClose}>
+          <button
+            type="button"
+            className="button"
+            disabled={busy}
+            onClick={onClose}
+          >
             Cancelar
           </button>
           <Submit busy={busy}>Guardar entidad</Submit>
@@ -312,7 +324,7 @@ export function TemplateForm({
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   return (
-    <Modal title="Nuevo gasto recurrente" onClose={onClose}>
+    <Modal title="Nuevo gasto recurrente" onClose={onClose} busy={busy}>
       <form
         className="form-body"
         onSubmit={async (e) => {
@@ -375,7 +387,12 @@ export function TemplateForm({
         </div>
         <FormError message={error} />
         <div className="form-actions">
-          <button type="button" className="button" onClick={onClose}>
+          <button
+            type="button"
+            className="button"
+            disabled={busy}
+            onClick={onClose}
+          >
             Cancelar
           </button>
           <Submit busy={busy}>Crear recurrente</Submit>

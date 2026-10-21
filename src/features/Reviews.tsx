@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FileText, ShieldCheck, MessageSquare, Upload } from "lucide-react";
-import { Field, FormError, Empty } from "../components/ui";
+import { Field, FormError, Empty, useModalLock } from "../components/ui";
 import { send, money, dateTime } from "../lib/api";
 import type { User, Payment, Review } from "../types";
 
@@ -40,6 +40,7 @@ export function ReviewCard({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [note, setNote] = useState("");
+  useModalLock(busy);
   const status = p.review_status || "pending";
   const canCorrect =
     status === "observed" &&
