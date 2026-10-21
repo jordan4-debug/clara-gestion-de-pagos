@@ -16,7 +16,9 @@ export function SettingsView({
   notify: (s: string) => void;
 }) {
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [variationBusy, setVariationBusy] = useState(false),
+    [variationError, setVariationError] = useState("");
   return (
     <div className="settings-grid">
       {user.role === "owner" ? (
@@ -102,8 +104,8 @@ export function SettingsView({
           <form
             onSubmit={async (e) => {
               const f = formData(e);
-              setBusy(true);
-              setError("");
+              setVariationBusy(true);
+              setVariationError("");
               try {
                 await send(
                   "/settings",
@@ -117,13 +119,13 @@ export function SettingsView({
                 onChanged();
                 notify("Alertas de variación guardadas.");
               } catch (e) {
-                setError((e as Error).message);
+                setVariationError((e as Error).message);
               } finally {
-                setBusy(false);
+                setVariationBusy(false);
               }
             }}
           >
-            <fieldset disabled={busy}>
+            <fieldset disabled={variationBusy}>
               <label className="variation-toggle">
                 <input
                   type="checkbox"
@@ -162,10 +164,10 @@ export function SettingsView({
                 excluyen cuotas de préstamos, referencias de ejemplo y periodos
                 con varios recibos del mismo suministro.
               </p>
-              <Submit busy={busy}>Guardar alertas de variación</Submit>
+              <Submit busy={variationBusy}>Guardar alertas de variación</Submit>
             </fieldset>
           </form>
-          <FormError message={error} />
+          <FormError message={variationError} />
         </section>
       ) : null}
       <section className="panel settings-panel">

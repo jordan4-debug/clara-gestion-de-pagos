@@ -1673,6 +1673,7 @@ button.role-metric:hover {
   margin-top: 16px;
 }
 .variation-item {
+  overflow-wrap: anywhere;
   padding: 18px;
   border: 1px solid #e5d4ac;
   border-radius: 12px;
