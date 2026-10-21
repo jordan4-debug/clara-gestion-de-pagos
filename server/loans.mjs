@@ -1,10 +1,12 @@
 import { z } from "zod";
-import { remaining, status } from "./domain.mjs";
+import { remaining, status, today } from "./domain.mjs";
+import { date } from "./validation.mjs";
 import { scheduleInput, calculateSchedule } from "./loan-schedule.mjs";
 import { addAudit, decorate } from "./cloud-state.mjs";
 export const loanInput = scheduleInput.extend({
   title: z.string().trim().min(3).max(120),
   supplier_id: z.number().int().positive(),
+  disbursement_date: date.optional(),
   reference: z.string().trim().max(120).default(""),
   notes: z.string().trim().max(2000).default(""),
 });
@@ -15,7 +17,21 @@ export function createLoan(state, input, user) {
   const supplier = state.suppliers.find((s) => s.id === input.supplier_id);
   if (!supplier || supplier.category !== "Préstamos")
     fail("Selecciona una entidad de la categoría Préstamos.");
-  const { title, supplier_id, reference, notes, ...parameters } = input;
+  if (input.disbursement_date && input.disbursement_date > today())
+    fail("La fecha de desembolso no puede estar en el futuro.");
+  if (
+    input.disbursement_date &&
+    input.disbursement_date > input.first_due_date
+  )
+    fail("La fecha de desembolso no puede ser posterior al primer vencimiento.");
+  const {
+    title,
+    supplier_id,
+    reference,
+    notes,
+    disbursement_date,
+    ...parameters
+  } = input;
   const calculated = calculateSchedule(parameters);
   if (
     input.reference &&
