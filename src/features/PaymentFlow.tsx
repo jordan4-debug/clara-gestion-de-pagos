@@ -86,6 +86,7 @@ export function PaymentFlow({
             <input
               type="date"
               name="payment_date"
+              min="1900-01-01"
               max={localToday()}
               defaultValue={localToday()}
               required

@@ -76,7 +76,8 @@ Clara permite registrar recibos, consultar gastos y deudas por mes y rendir el e
 - Entregas, gastos y devoluciones físicas de efectivo por asistente; entregar no crea un gasto ni un pago. El cuadre muestra saldo inicial + entregas - pagos en efectivo - devoluciones = saldo al cierre del periodo.
 - Permisos de servidor, revisión/corrección documental, contraseñas seguras, CSRF y cuentas privadas del equipo.
 - Retiro reversible de préstamos sin abonos por el gerente, junto con sus cuotas; conserva los pagos y el efectivo existentes.
-- Préstamos ya contratados: entidad, capital, referencia, cuotas mensuales, última cuota distinta, vencimientos, constancias y saldo pendiente. El asistente registra; el gerente supervisa.
+- Préstamos: capital, porcentaje de interés total del contrato, desembolso, plazo y meses dobles. El servidor genera la vista previa y el cronograma con interés, amortización, cuota y saldos; ajusta la última cuota para cerrar en cero. Los contratos anteriores conservan sus importes. Ver [fórmula y ejemplos](docs/PRESTAMOS-Y-FECHAS.md).
+- Fechas históricas entre 1900 y 2099: vencimientos, desembolsos, pagos y movimientos de efectivo. Los pagos y movimientos ya realizados no admiten fechas futuras. Se conservan las fechas reales de registro y auditoría.
 - Los módulos anteriores de simulación bancaria y pasarelas se retiran del flujo y se bloquean por API sin borrar sus registros históricos.
 
 Ver [alcance y reglas actuales](docs/ALCANCE-ADMINISTRATIVO.md), [flujo](docs/FLUJOS.md) y [recorrido de presentación](docs/PRESENTACION.md). Los documentos de revisiones anteriores son históricos y quedan sustituidos por este alcance.

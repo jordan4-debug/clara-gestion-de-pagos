@@ -9,7 +9,14 @@ import {
   formData,
   Empty,
 } from "../components/ui";
-import { api, send, money, solesToCents, dateTime } from "../lib/api";
+import {
+  api,
+  send,
+  money,
+  solesToCents,
+  dateTime,
+  localToday,
+} from "../lib/api";
 import type { User, CashData } from "../types";
 const labels = {
   delivery: "Entrega al asistente",
@@ -157,8 +164,16 @@ export function Cash({
                       <p>{m.note}</p>
                       <small>
                         {data.people.find((p) => p.id === m.holder_id)?.name} ·{" "}
-                        {m.actor} · {dateTime(m.created_at)}
+                        {m.actor}
+                        {!m.movement_date ? ` · ${dateTime(m.created_at)}` : ""}
                       </small>
+                      {m.movement_date ? (
+                        <small>
+                          Fecha del movimiento:{" "}
+                          {m.movement_date.split("-").reverse().join("/")} ·
+                          Registro: {dateTime(m.created_at)}
+                        </small>
+                      ) : null}
                     </div>
                     <strong>
                       {m.kind === "delivery" ? "+" : "−"}
@@ -195,6 +210,7 @@ export function Cash({
                   kind,
                   holder_id: Number(f.get("holder_id")),
                   amount_cents: solesToCents(f.get("amount")),
+                  movement_date: f.get("movement_date"),
                   note: f.get("note"),
                 });
                 changed();
@@ -232,6 +248,23 @@ export function Cash({
             </Field>
             <Field label="Importe en soles">
               <MoneyInput name="amount" />
+            </Field>
+            <Field
+              label="Fecha del movimiento"
+              hint="Permite registrar entregas o devoluciones históricas; conserva la fecha real de registro."
+            >
+              <input
+                name="movement_date"
+                type="date"
+                required
+                min="1900-01-01"
+                max={localToday()}
+                defaultValue={
+                  month < localToday().slice(0, 7)
+                    ? `${month}-01`
+                    : localToday()
+                }
+              />
             </Field>
             <Field label="Motivo o referencia">
               <input

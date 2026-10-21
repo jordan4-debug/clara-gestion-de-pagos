@@ -2,8 +2,14 @@ import { z } from "zod";
 import { receiptError } from "../shared/expenses.mjs";
 import { today, validDate } from "./domain.mjs";
 export const cents = z.number().int().positive().max(100000000);
-export const date = z.string().refine(validDate, "Fecha inválida.");
-export const month = z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/);
+export const date = z
+  .string()
+  .refine(
+    (value) =>
+      validDate(value) && value >= "1900-01-01" && value <= "2099-12-31",
+    "Ingresa una fecha válida entre 1900 y 2099.",
+  );
+export const month = z.string().regex(/^(19|20)\d{2}-(0[1-9]|1[0-2])$/);
 export const paymentMethods = [
   "Transferencia",
   "Yape",

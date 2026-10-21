@@ -2,11 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildSync } from "esbuild";
 import { createRequire } from "node:module";
+import { calculateSchedule } from "../server/loan-schedule.mjs";
 import { seedState } from "../server/cloud-state.mjs";
 test("Rendered manager and assistant screens expose only administrative actions and independent filters", async () => {
   const { outputFiles } = buildSync({
     stdin: {
-      contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import {RoleOverview} from './src/features/RoleOverview'; import {Shell} from './src/components/Shell'; import {BillForm} from './src/features/EntityForms'; import {MoneyInput} from './src/components/MoneyInput'; import {Loans} from './src/features/Loans'; import {Login} from './src/features/Access'; import {EntitySelector} from './src/components/EntitySelector'; import {SupplierForm} from './src/features/EntityForms'; import {SettingsView} from './src/features/SettingsView'; export {React,renderToStaticMarkup,RoleOverview,Shell,BillForm,MoneyInput,Loans,Login,EntitySelector,SupplierForm,SettingsView};`,
+      contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import {RoleOverview} from './src/features/RoleOverview'; import {Shell} from './src/components/Shell'; import {BillForm} from './src/features/EntityForms'; import {MoneyInput} from './src/components/MoneyInput'; import {Loans,LoanForm,ScheduleTable} from './src/features/Loans'; import {Login} from './src/features/Access'; import {EntitySelector} from './src/components/EntitySelector'; import {SupplierForm} from './src/features/EntityForms'; import {SettingsView} from './src/features/SettingsView'; export {React,renderToStaticMarkup,RoleOverview,Shell,BillForm,MoneyInput,Loans,Login,EntitySelector,SupplierForm,SettingsView,LoanForm,ScheduleTable};`,
       resolveDir: process.cwd(),
       loader: "tsx",
     },
@@ -271,6 +272,65 @@ test("Rendered manager and assistant screens expose only administrative actions 
   assert.ok(!supplierForm.includes("Formato habitual de recibo"));
   assert.ok(!supplierForm.includes("Letras y números"));
   assert.ok(!form.includes("Préstamos"));
+  const loanForm = m.renderToStaticMarkup(
+    e(m.LoanForm, { suppliers, onClose: () => {}, onSaved: () => {} }),
+  );
+  assert.ok(loanForm.includes("Tasa de interés total (%)"));
+  assert.ok(loanForm.includes('name="disbursement_date"'));
+  assert.ok(loanForm.includes('name="count"'));
+  assert.equal((loanForm.match(/name="double_months"/g) || []).length, 12);
+  assert.ok(loanForm.includes('min="1900-01-01"'));
+  assert.ok(!loanForm.includes('name="quota"'));
+  assert.ok(!loanForm.includes('name="last"'));
+  assert.ok(!loanForm.includes('name="first_due_date"'));
+  const sample = calculateSchedule({
+    principal_cents: 3600000,
+    total_interest_percent: 17.02,
+    disbursement_date: "2026-03-05",
+    installments: 24,
+    double_months: [7, 12],
+  });
+  const schedule = m.renderToStaticMarkup(
+    e(m.ScheduleTable, { rows: sample.schedule }),
+  );
+  for (const column of [
+    "Saldo inicial",
+    "Interés",
+    "Amortización",
+    "Cuota a pagar",
+    "Saldo final",
+    "Normal",
+    "Doble",
+    "Totales",
+  ])
+    assert.ok(schedule.includes(column), column);
+  assert.ok(schedule.includes('role="region"'));
+  const legacy = m.renderToStaticMarkup(
+    e(m.ScheduleTable, {
+      rows: [
+        {
+          installment_number: 1,
+          due_date: "2020-01-01",
+          amount_cents: 35000,
+          id: 1,
+          status: "Parcial",
+        },
+      ],
+      onSelect: () => {},
+    }),
+  );
+  assert.ok(!legacy.includes("Amortización"));
+  assert.ok(legacy.includes("Parcial"));
+  const historicalForm = m.renderToStaticMarkup(
+    e(m.BillForm, {
+      suppliers,
+      month: "2025-09",
+      onClose: () => {},
+      onSaved: () => {},
+    }),
+  );
+  assert.ok(historicalForm.includes('value="2025-09-01"'));
+  assert.ok(historicalForm.includes('min="1900-01-01"'));
   const amount = m.renderToStaticMarkup(
     e(m.MoneyInput, { name: "amount", cents: 14550 }),
   );

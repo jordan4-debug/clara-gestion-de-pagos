@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Landmark, ChevronDown, ArrowRight } from "lucide-react";
 import {
   Modal,
@@ -12,7 +12,14 @@ import {
 import { api, send, money, localToday, solesToCents } from "../lib/api";
 import { MoneyInput } from "../components/MoneyInput";
 import { EntitySelector } from "../components/EntitySelector";
-import type { Loan, Supplier, Dashboard, User } from "../types";
+import type {
+  Loan,
+  Supplier,
+  Dashboard,
+  User,
+  LoanPreview,
+  Bill,
+} from "../types";
 const loanDate = (date: string) =>
   new Intl.DateTimeFormat("es-PE", {
     day: "numeric",
@@ -159,49 +166,27 @@ export function Loans({
                 Próxima cuota pendiente: {loanDate(l.next_due_date)}
               </p>
             ) : null}
+            {l.calculation_method && l.disbursement_date ? (
+              <p className="muted loan-next">
+                Desembolso: {loanDate(l.disbursement_date)} · Interés total:{" "}
+                {l.total_interest_percent}%
+                {l.double_months?.length
+                  ? ` · Meses dobles: ${l.double_months.map((month) => monthNames[month - 1]).join(", ")}`
+                  : " · Sin cuotas dobles"}
+              </p>
+            ) : null}
             {l.notes ? <p className="notes">{l.notes}</p> : null}
             <details className="loan-schedule">
               <summary>
                 Ver cronograma de cuotas <ChevronDown size={17} />
               </summary>
-              <div className="table-scroll">
-                <table className="report-table">
-                  <thead>
-                    <tr>
-                      <th>Cuota</th>
-                      <th>Vencimiento</th>
-                      <th>Importe</th>
-                      <th>Estado</th>
-                      <th>Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {l.installments.map((b) => (
-                      <tr key={b.id}>
-                        <th scope="row">
-                          {b.installment_number}/{l.installment_count}
-                        </th>
-                        <td>{loanDate(b.due_date)}</td>
-                        <td>{money(b.amount_cents)}</td>
-                        <td>
-                          <Badge status={b.status} />
-                        </td>
-                        <td>
-                          <button
-                            className="text-button"
-                            onClick={() => onSelect(b.id)}
-                          >
-                            {b.status === "Pagado"
-                              ? "Ver constancia"
-                              : "Ver detalle"}
-                            <ArrowRight size={15} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {l.calculation_method ? (
+                <p className="muted">
+                  Los saldos muestran el capital programado. El estado de cada
+                  cuota refleja los pagos registrados.
+                </p>
+              ) : null}
+              <ScheduleTable rows={l.installments} onSelect={onSelect} />
             </details>
           </section>
         ))}
@@ -223,7 +208,144 @@ export function Loans({
     </>
   );
 }
-function LoanForm({
+const monthNames = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+export function ScheduleTable({
+  rows,
+  onSelect,
+}: {
+  rows: (Pick<
+    Bill,
+    | "due_date"
+    | "amount_cents"
+    | "installment_number"
+    | "is_double"
+    | "opening_balance_cents"
+    | "interest_cents"
+    | "amortization_cents"
+    | "closing_balance_cents"
+  > & { id?: number; status?: string })[];
+  onSelect?: (id: number) => void;
+}) {
+  const calculated =
+    rows.length > 0 && rows.every((row) => row.opening_balance_cents != null);
+  return (
+    <div
+      className="table-scroll"
+      tabIndex={0}
+      role="region"
+      aria-label="Cronograma de cuotas"
+    >
+      <table
+        className={`report-table ${calculated ? "calculated-schedule" : ""}`}
+      >
+        <thead>
+          <tr>
+            <th>Cuota</th>
+            <th>Vencimiento</th>
+            {calculated ? (
+              <>
+                <th>Tipo</th>
+                <th>Saldo inicial</th>
+                <th>Interés</th>
+                <th>Amortización</th>
+              </>
+            ) : null}
+            <th>Cuota a pagar</th>
+            {calculated ? <th>Saldo final</th> : null}
+            {onSelect ? (
+              <>
+                <th>Estado</th>
+                <th>Acción</th>
+              </>
+            ) : null}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.installment_number}>
+              <th scope="row">{row.installment_number}</th>
+              <td>{loanDate(row.due_date)}</td>
+              {calculated ? (
+                <>
+                  <td>{row.is_double ? "Doble" : "Normal"}</td>
+                  <td>{money(row.opening_balance_cents!)}</td>
+                  <td>{money(row.interest_cents!)}</td>
+                  <td>{money(row.amortization_cents!)}</td>
+                </>
+              ) : null}
+              <td>{money(row.amount_cents)}</td>
+              {calculated ? <td>{money(row.closing_balance_cents!)}</td> : null}
+              {onSelect && row.id != null ? (
+                <>
+                  <td>
+                    <Badge status={row.status || "Pendiente"} />
+                  </td>
+                  <td>
+                    <button
+                      className="text-button"
+                      onClick={() => onSelect(row.id!)}
+                    >
+                      {row.status === "Pagado"
+                        ? "Ver constancia"
+                        : "Ver detalle"}
+                      <ArrowRight size={15} />
+                    </button>
+                  </td>
+                </>
+              ) : null}
+            </tr>
+          ))}
+        </tbody>
+        {calculated ? (
+          <tfoot>
+            <tr>
+              <th colSpan={4}>Totales</th>
+              <td>
+                {money(rows.reduce((sum, row) => sum + row.interest_cents!, 0))}
+              </td>
+              <td>
+                {money(
+                  rows.reduce((sum, row) => sum + row.amortization_cents!, 0),
+                )}
+              </td>
+              <td>
+                {money(rows.reduce((sum, row) => sum + row.amount_cents!, 0))}
+              </td>
+              <td>{money(rows.at(-1)!.closing_balance_cents!)}</td>
+              {onSelect ? <td colSpan={2} /> : null}
+            </tr>
+          </tfoot>
+        ) : null}
+      </table>
+    </div>
+  );
+}
+
+function scheduleParameters(f: FormData) {
+  const percent = solesToCents(f.get("total_interest_percent"));
+  return {
+    principal_cents: solesToCents(f.get("principal")),
+    total_interest_percent: percent == null ? null : percent / 100,
+    disbursement_date: String(f.get("disbursement_date") || ""),
+    installments: Number(f.get("count")),
+    double_months: f.getAll("double_months").map(Number),
+  };
+}
+export function LoanForm({
   suppliers,
   onClose,
   onSaved,
@@ -235,29 +357,66 @@ function LoanForm({
   onSupplierCreated?: (supplier: Supplier) => void;
 }) {
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [total, setTotal] = useState<number | null>(null);
+    [error, setError] = useState("");
+  const [parameters, setParameters] = useState("");
+  const [preview, setPreview] = useState<LoanPreview | null>(null);
+  const [previewError, setPreviewError] = useState("");
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const previewVersion = useRef(0);
+  useEffect(() => {
+    if (!parameters) return;
+    const version = previewVersion.current;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void api<LoanPreview>("/loans/preview", {
+        method: "POST",
+        body: parameters,
+        signal: controller.signal,
+      })
+        .then((result) => {
+          if (!controller.signal.aborted && version === previewVersion.current)
+            setPreview(result);
+        })
+        .catch((e) => {
+          if (!controller.signal.aborted && version === previewVersion.current)
+            setPreviewError((e as Error).message);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted && version === previewVersion.current)
+            setPreviewBusy(false);
+        });
+    }, 300);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [parameters]);
   return (
     <Modal title="Registrar préstamo y cronograma" onClose={onClose} wide>
       <form
         className="form-body"
         onChange={(e) => {
-          const f = new FormData(e.currentTarget);
           try {
-            const quota = solesToCents(f.get("quota")),
-              last = solesToCents(f.get("last")) ?? quota,
-              count = Number(f.get("count"));
-            setTotal(
-              quota != null &&
-                last != null &&
-                Number.isInteger(count) &&
-                count >= 1 &&
-                count <= 120
-                ? quota * (count - 1) + last
-                : null,
-            );
+            const values = scheduleParameters(new FormData(e.currentTarget));
+            const next =
+              values.principal_cents &&
+              values.total_interest_percent != null &&
+              values.disbursement_date &&
+              values.installments
+                ? JSON.stringify(values)
+                : "";
+            if (next !== parameters) {
+              previewVersion.current++;
+              setPreview(null);
+              setPreviewError("");
+              setPreviewBusy(!!next);
+              setParameters(next);
+            }
           } catch {
-            setTotal(null);
+            previewVersion.current++;
+            setParameters("");
+            setPreview(null);
+            setPreviewBusy(false);
           }
         }}
         onSubmit={async (e) => {
@@ -266,13 +425,9 @@ function LoanForm({
           setError("");
           try {
             await send("/loans", {
+              ...scheduleParameters(f),
               title: f.get("title"),
               supplier_id: Number(f.get("supplier_id")),
-              principal_cents: solesToCents(f.get("principal")),
-              installment_cents: solesToCents(f.get("quota")),
-              last_installment_cents: solesToCents(f.get("last")) ?? undefined,
-              installments: Number(f.get("count")),
-              first_due_date: f.get("first_due_date"),
               reference: f.get("reference"),
               notes: f.get("notes"),
             });
@@ -285,16 +440,16 @@ function LoanForm({
         }}
       >
         <p className="muted">
-          Registra los datos del contrato y las cuotas que faltan pagar. Clara
-          permite su seguimiento; no solicita ni desembolsa créditos.
+          Registra el capital y las condiciones del préstamo. Puedes ingresar
+          desembolsos de meses o años anteriores. Las cuotas históricas se
+          registran pendientes; sus pagos se acreditan por separado.
         </p>
         <Field label="Nombre del préstamo">
           <input
             name="title"
+            required
             minLength={3}
             maxLength={120}
-            required
-            autoFocus
             placeholder="Ej. Préstamo de capital de trabajo"
           />
         </Field>
@@ -312,10 +467,32 @@ function LoanForm({
           <Field label="Capital del préstamo (S/)">
             <MoneyInput name="principal" />
           </Field>
-          <Field label="Número de cuotas pendientes">
+          <Field
+            label="Tasa de interés total (%)"
+            hint="Porcentaje sobre el capital para todo el préstamo. Hasta dos decimales; 0 si no tiene interés."
+          >
+            <MoneyInput name="total_interest_percent" />
+          </Field>
+        </div>
+        <div className="form-grid">
+          <Field
+            label="Fecha de desembolso"
+            hint="Primera cuota: un mes después. Conserva el día; en meses cortos usa el último día disponible."
+          >
+            <input
+              name="disbursement_date"
+              type="date"
+              required
+              min="1900-01-01"
+              max="2099-12-31"
+              defaultValue={localToday()}
+            />
+          </Field>
+          <Field label="Plazo / número de cuotas">
             <input
               name="count"
               type="number"
+              step={1}
               min={1}
               max={120}
               required
@@ -323,39 +500,70 @@ function LoanForm({
             />
           </Field>
         </div>
-        <div className="form-grid">
-          <Field label="Importe de cada cuota (S/)">
-            <MoneyInput name="quota" />
-          </Field>
-          <Field
-            label="Última cuota (S/) · opcional"
-            hint="Vacío: igual a las demás cuotas."
-          >
-            <MoneyInput name="last" required={false} />
-          </Field>
-        </div>
-        <Field
-          label="Primer vencimiento pendiente"
-          hint="Las siguientes cuotas se generan mensualmente. En meses cortos se ajusta al último día."
-        >
-          <input
-            name="first_due_date"
-            type="date"
-            required
-            min={localToday()}
-            defaultValue={localToday()}
-          />
-        </Field>
+        <fieldset className="double-months">
+          <legend>Meses con cuota doble</legend>
+          <p className="muted">
+            Se aplican cada año del cronograma. Sin selección: todas las cuotas
+            son normales.
+          </p>
+          <div className="month-options">
+            {monthNames.map((name, index) => (
+              <label key={name}>
+                <input type="checkbox" name="double_months" value={index + 1} />
+                {name}
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <Field label="Notas (opcional)">
           <textarea name="notes" rows={2} maxLength={2000} />
         </Field>
         <div className="notice">
-          <strong>Total del cronograma: {money(total)}</strong>
+          <strong>Interés total fijo para todo el plazo</strong>
           <p>
-            Ingresa los importes de tu contrato. El sistema no calcula intereses
-            ni cambia las cuotas después de registrarlas.
+            Capital × porcentaje = interés total. Se reparte proporcionalmente
+            entre las cuotas. La cuota doble equivale a dos cuotas normales; la
+            última se ajusta por centavos para cerrar el capital en S/ 0.00. No
+            incluye seguros ni comisiones.
           </p>
         </div>
+        <section
+          className="loan-preview"
+          aria-label="Vista previa del préstamo"
+          aria-busy={previewBusy}
+        >
+          {previewBusy ? <p role="status">Calculando cronograma…</p> : null}
+          <FormError message={previewError} />
+          {preview ? (
+            <>
+              <h3>Vista previa del cronograma</h3>
+              <dl className="loan-summary">
+                <div>
+                  <dt>Capital</dt>
+                  <dd>{money(preview.principal_cents)}</dd>
+                </div>
+                <div>
+                  <dt>Interés total</dt>
+                  <dd>{money(preview.interest_total_cents)}</dd>
+                </div>
+                <div>
+                  <dt>Total a pagar</dt>
+                  <dd>{money(preview.total_cents)}</dd>
+                </div>
+                <div>
+                  <dt>Cuota normal de referencia</dt>
+                  <dd>{money(preview.base_installment_cents)}</dd>
+                </div>
+              </dl>
+              <ScheduleTable rows={preview.schedule} />
+            </>
+          ) : !previewBusy && !previewError ? (
+            <p className="muted">
+              Completa capital, tasa, desembolso y plazo para ver todas las
+              cuotas antes de guardar.
+            </p>
+          ) : null}
+        </section>
         <FormError message={error} />
         <div className="form-actions">
           <button
@@ -366,7 +574,9 @@ function LoanForm({
           >
             Cancelar
           </button>
-          <Submit busy={busy}>Guardar préstamo y cuotas</Submit>
+          <Submit busy={busy} disabled={!preview || previewBusy}>
+            Guardar préstamo y cuotas
+          </Submit>
         </div>
       </form>
     </Modal>

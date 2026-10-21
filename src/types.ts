@@ -46,6 +46,11 @@ export type Bill = {
   last_payment_date?: string | null;
   loan_id?: number;
   installment_number?: number;
+  is_double?: boolean;
+  opening_balance_cents?: number;
+  interest_cents?: number;
+  amortization_cents?: number;
+  closing_balance_cents?: number;
   service_reference?: string;
   pending_reviews: number;
   observed_reviews: number;
@@ -220,6 +225,7 @@ export type CashData = {
     created_at: string;
     bill_id?: number;
     payment_id?: number;
+    movement_date?: string;
   }[];
 };
 
@@ -235,10 +241,34 @@ export type Loan = {
   installment_count: number;
   installment_cents: number;
   last_installment_cents: number;
+  calculation_method?: string;
+  total_interest_percent?: number;
+  interest_total_cents?: number;
+  disbursement_date?: string;
+  double_months?: number[];
   paid_installments: number;
   overdue_installments: number;
   next_due_date: string | null;
   reference: string;
   notes: string;
   installments: Bill[];
+};
+export type LoanScheduleRow = {
+  installment_number: number;
+  due_date: string;
+  is_double: boolean;
+  opening_balance_cents: number;
+  interest_cents: number;
+  amortization_cents: number;
+  amount_cents: number;
+  closing_balance_cents: number;
+};
+export type LoanPreview = {
+  calculation_method: string;
+  principal_cents: number;
+  total_interest_percent: number;
+  interest_total_cents: number;
+  total_cents: number;
+  base_installment_cents: number;
+  schedule: LoanScheduleRow[];
 };

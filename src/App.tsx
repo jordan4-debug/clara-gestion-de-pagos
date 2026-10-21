@@ -123,7 +123,7 @@ export function App() {
     const next = new Date(Date.UTC(year, m - 1 + step, 1))
       .toISOString()
       .slice(0, 7);
-    if (next >= "2020-01" && next <= "2099-12") setMonth(next);
+    if (next >= "1900-01" && next <= "2099-12") setMonth(next);
   }
   const onNavigate = (id: string) => {
     if (!user || !navigation(user).some((n) => n.id === id)) return;
@@ -236,7 +236,7 @@ export function App() {
           <button
             className="icon-button month-step"
             aria-label="Mes anterior"
-            disabled={month === "2020-01"}
+            disabled={month === "1900-01"}
             onClick={() => changeMonth(-1)}
           >
             <ChevronLeft size={21} />
@@ -246,7 +246,7 @@ export function App() {
             <input
               type="month"
               aria-label="Mes de consulta"
-              min="2020-01"
+              min="1900-01"
               max="2099-12"
               value={month}
               onChange={(e) => {

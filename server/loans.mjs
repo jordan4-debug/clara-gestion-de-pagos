@@ -1,15 +1,10 @@
 import { z } from "zod";
-import { cents, date } from "./validation.mjs";
-import { today, monthDate, remaining, status } from "./domain.mjs";
+import { remaining, status } from "./domain.mjs";
+import { scheduleInput, calculateSchedule } from "./loan-schedule.mjs";
 import { addAudit, decorate } from "./cloud-state.mjs";
-export const loanInput = z.object({
+export const loanInput = scheduleInput.extend({
   title: z.string().trim().min(3).max(120),
   supplier_id: z.number().int().positive(),
-  principal_cents: cents,
-  installment_cents: cents,
-  last_installment_cents: cents.optional(),
-  installments: z.number().int().min(1).max(120),
-  first_due_date: date,
   reference: z.string().trim().max(120).default(""),
   notes: z.string().trim().max(2000).default(""),
 });
@@ -20,10 +15,8 @@ export function createLoan(state, input, user) {
   const supplier = state.suppliers.find((s) => s.id === input.supplier_id);
   if (!supplier || supplier.category !== "Préstamos")
     fail("Selecciona una entidad de la categoría Préstamos.");
-  if (input.first_due_date < today())
-    fail("La primera cuota pendiente no puede vencer antes de hoy.");
-  const last = input.last_installment_cents ?? input.installment_cents;
-  const total = input.installment_cents * (input.installments - 1) + last;
+  const { title, supplier_id, reference, notes, ...parameters } = input;
+  const calculated = calculateSchedule(parameters);
   if (
     input.reference &&
     (state.loans || []).some(
@@ -47,38 +40,32 @@ export function createLoan(state, input, user) {
   const loan = {
     id,
     ...input,
-    last_installment_cents: last,
-    total_cents: total,
+    calculation_method: calculated.calculation_method,
+    interest_total_cents: calculated.interest_total_cents,
+    installment_cents: calculated.base_installment_cents,
+    last_installment_cents: calculated.schedule.at(-1).amount_cents,
+    first_due_date: calculated.schedule[0].due_date,
+    total_cents: calculated.total_cents,
     created_at: new Date().toISOString(),
     actor: user.name,
     actor_id: user.id,
   };
   state.loans.push(loan);
-  const first = new Date(input.first_due_date + "T12:00:00Z"),
-    day = Number(input.first_due_date.slice(8));
-  for (let i = 0; i < input.installments; i++) {
-    const month = new Date(
-      Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + i, 1),
-    )
-      .toISOString()
-      .slice(0, 7);
+  for (const row of calculated.schedule) {
     state.bills.push({
       id: state.next.bills++,
-      title: `${input.title} · Cuota ${i + 1}/${input.installments}`,
+      title: `${input.title} · Cuota ${row.installment_number}/${input.installments}`,
       supplier_id: input.supplier_id,
-      amount_cents:
-        i === input.installments - 1 ? last : input.installment_cents,
+      ...row,
       paid_cents: 0,
       category: "Préstamos",
       created_by: user.name,
       created_by_id: user.id,
       created_at: loan.created_at,
-      due_date: monthDate(month, day),
-      month,
+      month: row.due_date.slice(0, 7),
       template_id: null,
       approval: "approved",
       loan_id: id,
-      installment_number: i + 1,
       service_reference: input.reference,
       notes: input.notes,
     });

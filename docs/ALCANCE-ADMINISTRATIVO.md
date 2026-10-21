@@ -23,7 +23,7 @@ Estas reglas no se presentan como formatos oficiales de Hidrandina, Sedalib ni n
 
 Los importes continúan almacenados como enteros en céntimos. La conversión de texto separa parte entera y decimales y rechaza un tercer decimal; no redondea cantidades introducidas incorrectamente. Los campos monetarios de recibos, préstamos, cuotas, entregas y devoluciones rechazan letras, signos, comas, espacios y un tercer decimal tanto al escribir como al pegar. Se permite el punto decimal (por ejemplo, 1250.75). Los campos se normalizan a dos decimales al salir, los listados muestran soles y los cálculos usan enteros.
 
-Se distinguen emisión opcional, vencimiento, fecha del pago realizado y fecha de registro en el sistema. El vencimiento ocurre al finalizar el día en Lima. Los registros antiguos sin fecha de pago usan su fecha de registro en Lima para los informes; la pantalla señala cuando no hay una fecha explícita. El total de gastos del mes suma pagos declarados por fecha de pago, incluidos los de deudas de otros periodos. El pendiente del mes se calcula por periodo de la obligación.
+Se permiten fechas históricas de 1900 a 2099 en recibos, préstamos y selector mensual. Los pagos y movimientos de efectivo reales pueden registrarse con su fecha anterior, pero no futura. Se distinguen emisión opcional, vencimiento, fecha del pago realizado y fecha de registro en el sistema. El vencimiento ocurre al finalizar el día en Lima. Los registros antiguos sin fecha de pago usan su fecha de registro en Lima para los informes; la pantalla señala cuando no hay una fecha explícita. El total de gastos del mes suma pagos declarados por fecha de pago, incluidos los de deudas de otros periodos. El pendiente del mes se calcula por periodo de la obligación.
 
 ## Filtros independientes
 
@@ -55,11 +55,11 @@ La ampliación no necesita tablas o columnas nuevas. Si el operador puede public
 
 ## Efectivo
 
-La entrega física al asistente se registra por separado. No crea pagos ni modifica los gastos del mes. Solo guardar un pago con medio Efectivo consume fondos a cargo, con comprobación de saldo en la misma escritura. Las devoluciones no son gastos. Se muestran entregas, gastos y devoluciones del periodo, y el saldo acumulado por rendir. El historial identifica fecha, asistente y operación relacionada. Se muestra el saldo inicial del periodo y el cuadre completo hasta su cierre; el saldo actual por rendir conserva su alcance acumulado. Los pagos por transferencia o portal no consumen efectivo. Las devoluciones de prueba existentes se conservan como fueron registradas.
+La entrega física al asistente se registra por separado. No crea pagos ni modifica los gastos del mes. Solo guardar un pago con medio Efectivo consume fondos a cargo, con comprobación de saldo en la misma escritura. Las devoluciones no son gastos. Se muestran entregas, gastos y devoluciones del periodo, y el saldo acumulado por rendir. El historial identifica fecha, asistente y operación relacionada. Se muestra el saldo inicial del periodo y el cuadre completo hasta su cierre; el saldo actual por rendir conserva su alcance acumulado. Los pagos por transferencia o portal no consumen efectivo. Las devoluciones de prueba existentes se conservan como fueron registradas. Los nuevos movimientos incluyen fecha efectiva; los gastos usan la fecha declarada del pago. El servidor verifica el saldo cronológico diario e impide cubrir un pago anterior con una entrega posterior. Los registros antiguos sin fecha efectiva conservan su mes de registro en Lima.
 
 ## Préstamos y cuotas
 
-La opción **Préstamos** está disponible para ambos roles. El asistente registra un contrato ya celebrado: entidad de categoría Préstamos, capital, número de cuotas pendientes, importe mensual, primera fecha de vencimiento, última cuota opcionalmente diferente, referencia y notas. El gerente consulta el cronograma y sus constancias; no registra contratos.
+La opción **Préstamos** está disponible para ambos roles. El asistente registra entidad, capital, porcentaje de interés total para todo el contrato, desembolso, plazo de 1 a 120 cuotas, meses con cuota doble, referencia y notas. El servidor calcula la vista previa y las cuotas; ya no se introducen importes manuales de cuota. Ver [fórmula y fechas históricas](PRESTAMOS-Y-FECHAS.md). El gerente consulta el cronograma y sus constancias; no registra contratos.
 
 El sistema genera una obligación por cuota sin exigir autorización previa del gerente. Los importes se conservan, las cuotas comparten los permisos de sus recibos y se incluyen en deudas, filtros y totales mensuales sin sumar nuevamente el capital. Los meses cortos se ajustan al último día y los siguientes recuperan el día original. Se muestra capital, total del cronograma, pagado, pendiente, progreso y próximo vencimiento.
 
@@ -67,7 +67,7 @@ Antes de archivar un pago de cuota, el asistente responsable o el gerente adjunt
 
 El gerente puede retirar un préstamo sin abonos con `POST /api/loans/:id/archive`. Se retiran todas sus cuotas de las consultas, totales y pagos; los datos quedan recuperables con `POST /api/loans/:id/restore`. Los préstamos con pagos no se retiran.
 
-Los préstamos anteriores reaparecen sin recrearlos ni modificar su dinero, cuotas o archivos. Los contratos identificados por entidad y referencia no pueden duplicarse, incluso en solicitudes simultáneas. El límite académico es de 30 préstamos y 300 obligaciones en total. No se solicitan préstamos nuevos a entidades, se calculan intereses ni se desembolsa dinero.
+Los préstamos anteriores reaparecen sin recrearlos ni modificar su dinero, cuotas o archivos. Los contratos identificados por entidad y referencia no pueden duplicarse, incluso en solicitudes simultáneas. El límite académico es de 30 préstamos y 300 obligaciones en total. El cálculo usa el interés total fijo confirmado para el MVP; no solicita créditos ni desembolsa dinero. Los contratos anteriores no se recalculan.
 
 ## Funciones retiradas y compatibilidad
 

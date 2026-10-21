@@ -11,6 +11,7 @@ import {
   moneyPattern,
 } from "../shared/expenses.mjs";
 import { hashPassword } from "../server/passwords.mjs";
+import { cashView } from "../server/cash.mjs";
 const receipt = (name = "original.pdf") => ({
   name,
   mime: "application/pdf",
@@ -51,6 +52,156 @@ async function make(call, number = "0000123", extra = {}) {
   assert.equal(r.status, 201, JSON.stringify(r.data));
   return r.data.id;
 }
+
+test("Historical receipts, edits, payments and month reports accept earlier years without changing audit dates", async () => {
+  const { sqlite, manager, assistant } = await setup();
+  const id = await make(assistant, "002385", {
+    due_date: "2025-10-30",
+    issued_date: "2025-09-01",
+    amount_cents: 12992,
+  });
+  const detail = (await assistant(`/bills/${id}`)).data;
+  assert.equal(detail.status, "Vencido");
+  const changed = await assistant(`/bills/${id}`, "PATCH", {
+    title: detail.title,
+    supplier_id: detail.supplier_id,
+    amount_cents: detail.amount_cents,
+    due_date: "2025-09-30",
+    notes: "Vencimiento histórico corregido",
+  });
+  assert.equal(changed.status, 200);
+  assert.equal(
+    (
+      await assistant(
+        `/bills/${id}/payments`,
+        "POST",
+        payment(12992, "HISTORICO-2025", { payment_date: "2025-09-30" }),
+      )
+    ).status,
+    201,
+  );
+  const report = (await manager("/dashboard?month=2025-09")).data;
+  const saved = report.bills.find((bill) => bill.id === id);
+  assert.equal(saved.month, "2025-09");
+  assert.equal(saved.status, "Pagado");
+  const p = (await manager(`/bills/${id}`)).data.payments[0];
+  assert.equal(p.payment_date, "2025-09-30");
+  assert.ok(p.created_at > "2025-09-30");
+  const ancient = await make(assistant, "1998", { due_date: "1998-12-31" });
+  assert.ok(
+    (await manager("/dashboard?month=1998-12")).data.bills.some(
+      (b) => b.id === ancient,
+    ),
+  );
+  for (const due_date of ["2025-02-30", "1899-12-31", "2100-01-01"])
+    assert.equal(
+      (await assistant("/bills", "POST", input("INVALIDA", { due_date })))
+        .status,
+      400,
+    );
+  sqlite.close();
+});
+
+test("Historical cash uses actual movement/payment dates, prevents spending later funds and reconciles month carry-over", async () => {
+  const { sqlite, db, manager, assistant } = await setup();
+  const holder_id = (await manager("/cash")).data.people[0].id;
+  const delivery = {
+    kind: "delivery",
+    holder_id,
+    amount_cents: 1000,
+    note: "Entrega real histórica",
+    movement_date: "2025-10-01",
+  };
+  assert.equal((await manager("/cash", "POST", delivery)).status, 201);
+  const id = await make(assistant, "HISTORICO", {
+    receipt_format: "alphanumeric",
+    due_date: "2025-09-30",
+    amount_cents: 600,
+  });
+  const cashPayment = payment(600, "EFECTIVO-HISTORICO", {
+    method: "Efectivo",
+    payment_date: "2025-09-30",
+  });
+  const before = JSON.stringify((await readState(db)).state);
+  assert.equal(
+    (await assistant(`/bills/${id}/payments`, "POST", cashPayment)).status,
+    409,
+  );
+  assert.equal(JSON.stringify((await readState(db)).state), before);
+  assert.equal(
+    (
+      await manager("/cash", "POST", {
+        ...delivery,
+        movement_date: "2025-09-01",
+      })
+    ).status,
+    201,
+  );
+  assert.equal(
+    (await assistant(`/bills/${id}/payments`, "POST", cashPayment)).status,
+    201,
+  );
+  assert.equal(
+    (
+      await assistant("/cash", "POST", {
+        ...delivery,
+        kind: "return",
+        amount_cents: 400,
+      })
+    ).status,
+    201,
+  );
+  const september = (await manager("/cash?month=2025-09")).data;
+  assert.deepEqual(september.totals, {
+    delivered: 1000,
+    spent: 600,
+    returned: 0,
+  });
+  assert.deepEqual(september.reconciliation, {
+    opening_cents: 0,
+    closing_cents: 400,
+  });
+  const october = (await manager("/cash?month=2025-10")).data;
+  assert.deepEqual(october.reconciliation, {
+    opening_cents: 400,
+    closing_cents: 1000,
+  });
+  assert.equal(october.balance_cents, 1000);
+  const expense = september.movements.find((m) => m.kind === "expense");
+  assert.equal(expense.movement_date, "2025-09-30");
+  assert.ok(expense.created_at > "2025-09-30");
+  assert.equal(
+    (await manager("/dashboard?month=2025-09")).data.cash_summary.spent,
+    600,
+  );
+  for (const movement_date of ["2099-01-01", "2025-02-30"])
+    assert.equal(
+      (await manager("/cash", "POST", { ...delivery, movement_date })).status,
+      400,
+    );
+  sqlite.close();
+});
+
+test("Legacy cash without an effective date keeps its original Lima accounting month", () => {
+  const movement = {
+    id: 1,
+    holder_id: 2,
+    kind: "delivery",
+    amount_cents: 1000,
+    created_at: "2025-10-01T01:00:00.000Z",
+  };
+  const state = { cash_movements: [movement] };
+  assert.equal(
+    cashView(state, "2025-09", { role: "owner" }, [{ id: 2 }]).totals.delivered,
+    1000,
+  );
+  assert.equal(
+    cashView(state, "2025-10", { role: "owner" }, [{ id: 2 }]).reconciliation
+      .opening_cents,
+    1000,
+  );
+  assert.equal(state.cash_movements[0].movement_date, undefined);
+});
 
 test("Numeric and alphanumeric receipt formats preserve valid pasted strings and leading zeroes", () => {
   for (const n of ["000001", "1234567890123456789012345678901234567890"])

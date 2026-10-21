@@ -113,6 +113,54 @@
   display: grid;
   gap: 22px;
 }
+.double-months {
+  min-width: 0;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.double-months legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+.month-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+.month-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+.month-options input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--green);
+}
+.loan-preview {
+  margin-top: 20px;
+  min-width: 0;
+}
+.loan-preview h3 {
+  margin-bottom: 16px;
+}
+.calculated-schedule {
+  min-width: 900px;
+  font-variant-numeric: tabular-nums;
+}
+.calculated-schedule td,
+.calculated-schedule th {
+  white-space: nowrap;
+}
+.calculated-schedule tfoot {
+  font-weight: 600;
+  border-top: 2px solid var(--border);
+}
 .loan-title {
   display: flex;
   gap: 13px;

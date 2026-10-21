@@ -28,7 +28,13 @@ export function BillForm({
     [receiptFormat, setReceiptFormat] = useState("alphanumeric");
   return (
     <Modal
-      title={bill ? "Editar vencimiento y notas" : "Registrar recibo"}
+      title={
+        bill?.opening_balance_cents != null
+          ? "Editar notas de la cuota"
+          : bill
+            ? "Editar vencimiento y notas"
+            : "Registrar recibo"
+      }
       onClose={onClose}
     >
       <form
@@ -143,19 +149,24 @@ export function BillForm({
               readOnly={bill?.amount_cents != null}
             />
           </Field>
-          <Field label="Vencimiento">
+          <Field
+            label="Vencimiento"
+            hint={
+              bill?.opening_balance_cents != null
+                ? "Fecha fijada por el cronograma calculado del préstamo."
+                : undefined
+            }
+          >
             <input
               name="due_date"
               type="date"
               required
-              min={
-                bill?.due_date && bill.due_date < localToday()
-                  ? bill.due_date
-                  : localToday()
-              }
+              min="1900-01-01"
+              max="2099-12-31"
+              readOnly={bill?.opening_balance_cents != null}
               defaultValue={
                 bill?.due_date ||
-                (month > localToday().slice(0, 7)
+                (month !== localToday().slice(0, 7)
                   ? `${month}-01`
                   : localToday())
               }
@@ -164,7 +175,12 @@ export function BillForm({
         </div>
         {!bill ? (
           <Field label="Fecha de emisión (opcional)">
-            <input name="issued_date" type="date" max={localToday()} />
+            <input
+              name="issued_date"
+              type="date"
+              min="1900-01-01"
+              max={localToday()}
+            />
           </Field>
         ) : null}
         {!bill ? (

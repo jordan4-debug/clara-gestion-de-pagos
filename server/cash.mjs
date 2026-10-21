@@ -1,11 +1,18 @@
 import { z } from "zod";
-import { cents } from "./validation.mjs";
+import { cents, date } from "./validation.mjs";
+import { today } from "./domain.mjs";
 import { addAudit } from "./cloud-state.mjs";
 export const cashInput = z.object({
   kind: z.enum(["delivery", "return"]),
   holder_id: z.number().int().positive(),
   amount_cents: cents,
   note: z.string().trim().min(5).max(500),
+  movement_date: date
+    .refine(
+      (value) => value <= today(),
+      "La fecha del movimiento no puede ser futura.",
+    )
+    .default(() => today()),
 });
 const fail = (message, status = 409) => {
   throw Object.assign(new Error(message), { status });
@@ -18,6 +25,32 @@ export const cashBalance = (state, holder) =>
         sum + (m.kind === "delivery" ? m.amount_cents : -m.amount_cents),
       0,
     );
+export const movementDate = (movement) =>
+  movement.movement_date || today(new Date(movement.created_at));
+function assertTimeline(state, proposed) {
+  const days = new Map();
+  for (const movement of [...(state.cash_movements || []), proposed]) {
+    if (movement.holder_id !== proposed.holder_id) continue;
+    const day = movementDate(movement);
+    days.set(
+      day,
+      (days.get(day) || 0) +
+        (movement.kind === "delivery"
+          ? movement.amount_cents
+          : -movement.amount_cents),
+    );
+  }
+  let balance = 0;
+  for (const [day, amount] of [...days].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    balance += amount;
+    if (balance < 0)
+      fail(
+        `El efectivo no alcanza al ${day}. Registra primero la entrega con su fecha real.`,
+      );
+  }
+}
 export function addCash(state, input, user) {
   if (input.kind === "delivery" && user.role !== "owner")
     fail("Solo el gerente registra entregas de efectivo.", 403);
@@ -30,6 +63,7 @@ export function addCash(state, input, user) {
     fail("La devolución supera el efectivo por rendir.");
   if ((state.cash_movements || []).length >= 500)
     fail("Se alcanzó el límite de movimientos de efectivo.");
+  assertTimeline(state, input);
   state.cash_movements ||= [];
   state.next.cash ||= 1;
   state.cash_movements.push({
@@ -46,7 +80,15 @@ export function addCash(state, input, user) {
     `${input.note} · S/ ${(input.amount_cents / 100).toFixed(2)}`,
   );
 }
-export function spendCash(state, bill, paymentId, amount, user, holderId) {
+export function spendCash(
+  state,
+  bill,
+  paymentId,
+  amount,
+  user,
+  holderId,
+  paymentDate = today(),
+) {
   if (user.role === "owner" && holderId == null) return; // Personal cash does not consume an assistant's funds.
   const holder = user.role === "assistant" ? user.id : holderId;
   if (user.role === "assistant" && holderId != null && holderId !== user.id)
@@ -57,6 +99,12 @@ export function spendCash(state, bill, paymentId, amount, user, holderId) {
     );
   if ((state.cash_movements || []).length >= 500)
     fail("Se alcanzó el límite de movimientos de efectivo.");
+  assertTimeline(state, {
+    holder_id: holder,
+    kind: "expense",
+    amount_cents: amount,
+    movement_date: paymentDate,
+  });
   state.cash_movements ||= [];
   state.next.cash ||= 1;
   state.cash_movements.push({
@@ -66,6 +114,7 @@ export function spendCash(state, bill, paymentId, amount, user, holderId) {
     amount_cents: amount,
     bill_id: bill.id,
     payment_id: paymentId,
+    movement_date: paymentDate,
     note: bill.title,
     actor: user.name,
     actor_id: user.id,
@@ -86,14 +135,7 @@ export async function cashPeople(db, user) {
 export function cashView(state, selected, user, people) {
   const ids = new Set(people.map((p) => p.id));
   const all = (state.cash_movements || []).filter((m) => ids.has(m.holder_id));
-  const movementMonth = (m) =>
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/Lima",
-      year: "numeric",
-      month: "2-digit",
-    })
-      .format(new Date(m.created_at))
-      .slice(0, 7);
+  const movementMonth = (m) => movementDate(m).slice(0, 7);
   const movements = all.filter((m) => movementMonth(m) === selected);
   const signed = (m) =>
     m.kind === "delivery" ? m.amount_cents : -m.amount_cents;
@@ -108,7 +150,9 @@ export function cashView(state, selected, user, people) {
     })),
     balance_cents: people.reduce((n, p) => n + cashBalance(state, p.id), 0),
     reconciliation: { opening_cents: opening, closing_cents: closing },
-    movements: [...movements].reverse(),
+    movements: [...movements].sort(
+      (a, b) => movementDate(b).localeCompare(movementDate(a)) || b.id - a.id,
+    ),
     totals: {
       delivered: movements
         .filter((m) => m.kind === "delivery")

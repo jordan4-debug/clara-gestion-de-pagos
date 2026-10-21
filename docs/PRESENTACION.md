@@ -10,7 +10,7 @@
 8. Como asistente abrir el recibo, desplegar Registrar pago, elegir medio, fecha e identificador, adjuntar constancia y confirmar la declaración. El importe original no se edita.
 9. Como gerente consultar el pago y revisar u observar la constancia. Diferenciar fecha del pago y fecha de registro.
 10. Mostrar que el efectivo utilizado se vincula al pago y que el asistente puede registrar una devolución sin superar lo disponible.
-11. Como asistente abrir Préstamos, registrar un contrato ficticio con tres cuotas y comprobar el cronograma mensual y la última cuota opcional. Ingresar como gerente y mostrar que puede consultar el contrato, pero no crear uno. Adjuntar el recibo original a una cuota antes de registrar su pago.
+11. Como asistente abrir Préstamos, registrar un contrato ficticio con tres cuotas y comprobar la vista previa calculada con tasa total, desembolso histórico y meses dobles, el desglose de capital e interés y el saldo final cero. Ingresar como gerente y mostrar que puede consultar el contrato, pero no crear uno. Adjuntar el recibo original a una cuota antes de registrar su pago.
 12. Explicar que Clara no procesa dinero y que los módulos bancarios anteriores están archivados con sus datos conservados.
 
 Usar únicamente información y documentos ficticios en la demostración compartida.

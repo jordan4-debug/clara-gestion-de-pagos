@@ -29,6 +29,7 @@ import {
 import { report } from "./reports.mjs";
 import { handleTeam } from "./team.mjs";
 import { loanInput, createLoan, listLoans, archiveLoan } from "./loans.mjs";
+import { calculateSchedule } from "./loan-schedule.mjs";
 import { variationConfig, billVariation } from "./variations.mjs";
 
 import {
@@ -276,6 +277,9 @@ export async function handleRequest(request, env) {
         ),
       );
     }
+    if (method === "POST" && path === "/loans/preview") {
+      return json(calculateSchedule(input));
+    }
     if (method === "POST" && path === "/loans") {
       assistant(session);
       const data = loanInput.parse(input);
@@ -518,8 +522,6 @@ export async function handleRequest(request, env) {
         fail(
           "La fecha de emisión no puede ser futura ni posterior al vencimiento.",
         );
-      if (!id && x.due_date < today())
-        fail("El vencimiento del nuevo pago no puede ser anterior a hoy.");
       let document = null,
         documentKey = null;
       if (!id) {
@@ -544,6 +546,11 @@ export async function handleRequest(request, env) {
             supplierExists(state, x.supplier_id);
             if (id) {
               const bill = findBill(state, id);
+              const issued = x.issued_date ?? bill.issued_date;
+              if (issued && (issued > today() || issued > x.due_date))
+                fail(
+                  "La fecha de emisión no puede ser futura ni posterior al vencimiento.",
+                );
               assertEditable(bill, user);
               if (
                 x.title !== bill.title ||
@@ -587,8 +594,16 @@ export async function handleRequest(request, env) {
                   "No se modifica el contrato ni el importe de una cuota de préstamo.",
                   409,
                 );
-              if (x.due_date !== bill.due_date && x.due_date < today())
-                fail("El nuevo vencimiento no puede ser anterior a hoy.");
+              if (
+                bill.loan_id &&
+                state.loans?.find((loan) => loan.id === bill.loan_id)
+                  ?.calculation_method &&
+                x.due_date !== bill.due_date
+              )
+                fail(
+                  "El vencimiento pertenece al cronograma calculado del préstamo.",
+                  409,
+                );
               Object.assign(bill, x, {
                 created_by_id: bill.created_by_id || user.id,
                 month: x.due_date.slice(0, 7),
@@ -687,6 +702,7 @@ export async function handleRequest(request, env) {
                 x.amount_cents,
                 user,
                 x.cash_holder_id,
+                x.payment_date,
               );
             const receipt_id = state.next.receipts++;
             state.receipts.push({
