@@ -166,6 +166,15 @@ export function Loans({
                 Próxima cuota pendiente: {loanDate(l.next_due_date)}
               </p>
             ) : null}
+            {l.annual_interest_percent != null && l.first_due_date ? (
+              <p className="muted loan-next">
+                Primer vencimiento: {loanDate(l.first_due_date)} · Tasa anual
+                nominal: {l.annual_interest_percent}% · Tasa mensual: anual ÷ 12
+                {l.double_months?.length
+                  ? ` · Meses dobles: ${l.double_months.map((month) => monthNames[month - 1]).join(", ")}`
+                  : " · Sin cuotas dobles"}
+              </p>
+            ) : null}
             {l.calculation_method && l.disbursement_date ? (
               <p className="muted loan-next">
                 Desembolso: {loanDate(l.disbursement_date)} · Interés total:{" "}
@@ -336,11 +345,11 @@ export function ScheduleTable({
 }
 
 function scheduleParameters(f: FormData) {
-  const percent = solesToCents(f.get("total_interest_percent"));
+  const percent = String(f.get("annual_interest_percent") || "");
   return {
     principal_cents: solesToCents(f.get("principal")),
-    total_interest_percent: percent == null ? null : percent / 100,
-    disbursement_date: String(f.get("disbursement_date") || ""),
+    annual_interest_percent: percent,
+    first_due_date: String(f.get("first_due_date") || ""),
     installments: Number(f.get("count")),
     double_months: f.getAll("double_months").map(Number),
   };
@@ -405,8 +414,8 @@ export function LoanForm({
             const values = scheduleParameters(new FormData(e.currentTarget));
             const next =
               values.principal_cents &&
-              values.total_interest_percent != null &&
-              values.disbursement_date &&
+              values.annual_interest_percent !== "" &&
+              values.first_due_date &&
               values.installments
                 ? JSON.stringify(values)
                 : "";
@@ -446,7 +455,7 @@ export function LoanForm({
       >
         <p className="muted">
           Registra el capital y las condiciones del préstamo. Puedes ingresar
-          desembolsos de meses o años anteriores. Las cuotas históricas se
+          vencimientos de meses o años anteriores. Las cuotas históricas se
           registran pendientes; sus pagos se acreditan por separado.
         </p>
         <Field label="Nombre del préstamo">
@@ -473,19 +482,19 @@ export function LoanForm({
             <MoneyInput name="principal" />
           </Field>
           <Field
-            label="Tasa de interés total (%)"
-            hint="Porcentaje sobre el capital para todo el préstamo. Hasta dos decimales; 0 si no tiene interés."
+            label="Tasa de interés anual nominal (%)"
+            hint="Regla del ejemplo BCP: tasa anual ÷ 12 para obtener la tasa mensual sobre saldo. Hasta dos decimales; 0 si no tiene interés."
           >
-            <MoneyInput name="total_interest_percent" />
+            <MoneyInput name="annual_interest_percent" />
           </Field>
         </div>
         <div className="form-grid">
           <Field
-            label="Fecha de desembolso"
-            hint="Primera cuota: un mes después. Conserva el día; en meses cortos usa el último día disponible."
+            label="Fecha de vencimiento"
+            hint="Es el primer vencimiento. Las demás cuotas siguen cada mes; en meses cortos se usa el último día disponible."
           >
             <input
-              name="disbursement_date"
+              name="first_due_date"
               type="date"
               required
               min="1900-01-01"
@@ -524,12 +533,13 @@ export function LoanForm({
           <textarea name="notes" rows={2} maxLength={2000} />
         </Field>
         <div className="notice">
-          <strong>Interés total fijo para todo el plazo</strong>
+          <strong>Método francés con cuotas dobles</strong>
           <p>
-            Capital × porcentaje = interés total. Se reparte proporcionalmente
-            entre las cuotas. La cuota doble equivale a dos cuotas normales; la
-            última se ajusta por centavos para cerrar el capital en S/ 0.00. No
-            incluye seguros ni comisiones.
+            El interés de cada mes se calcula sobre el saldo de capital
+            pendiente. La cuota normal se calcula considerando el plazo y los
+            meses dobles. La última cuota se ajusta para cerrar el capital en S/
+            0.00. Los vencimientos son mensuales; no incluye seguros ni
+            comisiones.
           </p>
         </div>
         <section
@@ -564,8 +574,8 @@ export function LoanForm({
             </>
           ) : !previewBusy && !previewError ? (
             <p className="muted">
-              Completa capital, tasa, desembolso y plazo para ver todas las
-              cuotas antes de guardar.
+              Completa capital, tasa, primer vencimiento y plazo para ver todas
+              las cuotas antes de guardar.
             </p>
           ) : null}
         </section>

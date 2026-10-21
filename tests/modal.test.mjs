@@ -4,6 +4,7 @@ import { JSDOM } from "jsdom";
 import { buildSync } from "esbuild";
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
+import { calculateSchedule } from "../server/loan-schedule.mjs";
 
 // DOM unit tests, without starting or controlling a browser. Only native dialog
 // open/close transitions are stubbed; React handlers, state and propagation are real.
@@ -56,6 +57,7 @@ new Function("require", "module", "exports", outputFiles[0].text)(
   module.exports,
 );
 const { Modal, useModalLock, EntitySelector } = module.exports;
+const { LoanForm } = module.exports;
 
 async function mounted(t) {
   const container = document.createElement("div");
@@ -330,6 +332,99 @@ test("Saving an actual inline entity locks its parent form and preserves the cho
     container.querySelector('input[name="draft"]').value,
     "Recibo histórico sin perder",
   );
+});
+
+test("Loan form previews and saves the textual annual rate and historical first due date, retaining the draft while saving", async (t) => {
+  const { container, render } = await mounted(t);
+  const originalFetch = globalThis.fetch;
+  let previewInput,
+    savedInput,
+    finish,
+    saved = 0,
+    closed = 0;
+  globalThis.fetch = (path, options) => {
+    const input = JSON.parse(options.body);
+    if (path === "/api/loans/preview") {
+      previewInput = input;
+      return Promise.resolve(
+        new Response(JSON.stringify(calculateSchedule(input)), {
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    }
+    assert.equal(path, "/api/loans");
+    savedInput = input;
+    return new Promise((resolve) => {
+      finish = resolve;
+    });
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  await render(
+    e(LoanForm, {
+      suppliers: [{ id: 1, name: "BCP", category: "Préstamos" }],
+      onClose: () => closed++,
+      onSaved: () => saved++,
+    }),
+  );
+  await act(() => {
+    for (const [name, value] of Object.entries({
+      title: "Contrato BCP histórico",
+      principal: "36000.00",
+      annual_interest_percent: "17.02",
+      first_due_date: "2024-04-04",
+      count: "24",
+    })) {
+      const input = container.querySelector(`input[name="${name}"]`);
+      Object.getOwnPropertyDescriptor(
+        dom.window.HTMLInputElement.prototype,
+        "value",
+      ).set.call(input, value);
+      input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    }
+    const selector = container.querySelector('select[name="supplier_id"]');
+    selector.value = "1";
+    selector.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+  });
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  });
+  assert.equal(previewInput.annual_interest_percent, "17.02");
+  assert.equal(previewInput.first_due_date, "2024-04-04");
+  assert.equal(previewInput.disbursement_date, undefined);
+  assert.ok(container.querySelector(".calculated-schedule"));
+  assert.equal(
+    container.querySelector('button[type="submit"]').disabled,
+    false,
+  );
+  await act(() =>
+    container
+      .querySelector("form")
+      .dispatchEvent(
+        new dom.window.Event("submit", { bubbles: true, cancelable: true }),
+      ),
+  );
+  assert.equal(savedInput.first_due_date, "2024-04-04");
+  assert.equal(savedInput.annual_interest_percent, "17.02");
+  assert.equal(savedInput.supplier_id, 1);
+  assert.equal(
+    container.querySelector('[aria-label="Cerrar ventana"]').disabled,
+    true,
+  );
+  await click(container.querySelector("dialog"));
+  cancel(container.querySelector("dialog"));
+  assert.equal(closed, 0);
+  assert.equal(saved, 0);
+  await act(async () => {
+    finish(
+      new Response(JSON.stringify({ id: 42 }), {
+        status: 201,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  });
+  assert.equal(saved, 1);
 });
 
 test("The active stylesheet cascade colors titles, field labels and every loan schedule header green", () => {

@@ -275,18 +275,18 @@ test("Rendered manager and assistant screens expose only administrative actions 
   const loanForm = m.renderToStaticMarkup(
     e(m.LoanForm, { suppliers, onClose: () => {}, onSaved: () => {} }),
   );
-  assert.ok(loanForm.includes("Tasa de interés total (%)"));
-  assert.ok(loanForm.includes('name="disbursement_date"'));
+  assert.ok(loanForm.includes("Tasa de interés anual nominal (%)"));
+  assert.ok(loanForm.includes('name="first_due_date"'));
   assert.ok(loanForm.includes('name="count"'));
   assert.equal((loanForm.match(/name="double_months"/g) || []).length, 12);
   assert.ok(loanForm.includes('min="1900-01-01"'));
   assert.ok(!loanForm.includes('name="quota"'));
   assert.ok(!loanForm.includes('name="last"'));
-  assert.ok(!loanForm.includes('name="first_due_date"'));
+  assert.ok(!loanForm.includes('name="disbursement_date"'));
   const sample = calculateSchedule({
     principal_cents: 3600000,
-    total_interest_percent: 17.02,
-    disbursement_date: "2026-03-05",
+    annual_interest_percent: "17.02",
+    first_due_date: "2026-04-05",
     installments: 24,
     double_months: [7, 12],
   });

@@ -1,20 +1,29 @@
 import { z } from "zod";
+import Decimal from "decimal.js";
 import { cents, date } from "./validation.mjs";
 import { monthDate } from "./domain.mjs";
 
-// A percentage of the original principal for the WHOLE contract, not an annual rate.
+// Isolated context: every financial operation uses base-ten Decimal arithmetic.
+const D = Decimal.clone({ precision: 80, rounding: Decimal.ROUND_HALF_UP });
 export const scheduleInput = z
   .object({
     principal_cents: cents,
-    total_interest_percent: z
-      .number()
-      .min(0)
-      .max(1000)
+    annual_interest_percent: z
+      .string({
+        invalid_type_error:
+          "Ingresa la tasa anual como decimal, por ejemplo 17.02.",
+      })
+      .max(16)
+      .regex(
+        /^\d+(?:\.\d{1,2})?$/,
+        "La tasa anual admite números y hasta dos decimales.",
+      )
       .refine(
-        (value) => /^\d+(?:\.\d{1,2})?$/.test(String(value)),
-        "La tasa total admite hasta dos decimales.",
+        (value) =>
+          /^\d+(?:\.\d{1,2})?$/.test(value) && new D(value).lte("1000"),
+        "La tasa anual debe estar entre 0 y 1000 %.",
       ),
-    disbursement_date: date,
+    first_due_date: date,
     installments: z.number().int().min(1).max(120),
     double_months: z
       .array(z.number().int().min(1).max(12))
@@ -26,85 +35,109 @@ export const scheduleInput = z
       .default([]),
   })
   .strict();
-
 const fail = (message) => {
   throw Object.assign(new Error(message), { status: 400 });
 };
-// Exact positive rational rounding, half up. No binary floating point money arithmetic.
-const round = (numerator, denominator) =>
-  Number((2n * numerator + denominator) / (2n * denominator));
-
+const asCents = (value) => {
+  if (
+    !value.isInteger() ||
+    !value.isFinite() ||
+    value.isNegative() ||
+    value.gt(Number.MAX_SAFE_INTEGER)
+  )
+    fail("El cálculo no se puede representar en céntimos exactos.");
+  // Only exact, safe integer cents leave the Decimal context, for JSON persistence.
+  return value.toNumber();
+};
 export function calculateSchedule(raw) {
   const input = scheduleInput.parse(raw);
-  const [year, month, day] = input.disbursement_date.split("-").map(Number);
+  const [year, month, day] = input.first_due_date.split("-").map(Number);
   const rows = Array.from({ length: input.installments }, (_, index) => {
-    const dueMonth = new Date(Date.UTC(year, month + index, 1))
+    const dueMonth = new Date(Date.UTC(year, month - 1 + index, 1))
       .toISOString()
       .slice(0, 7);
     if (dueMonth > "2099-12")
       fail("El cronograma debe terminar antes del año 2100.");
-    const double = input.double_months.includes(Number(dueMonth.slice(5)));
     return {
       installment_number: index + 1,
       due_date: monthDate(dueMonth, day),
-      is_double: double,
-      weight: double ? 2 : 1,
+      is_double: input.double_months.includes(Number(dueMonth.slice(5))),
     };
   });
-  const rateBasisPoints = BigInt(
-    Math.round(input.total_interest_percent * 100),
+  // Business rule from the BCP teaching example: nominal annual percentage / 12.
+  // 36,000 * (17.02 / 100 / 12) = 510.60 for the first month's interest.
+  const annual = new D(input.annual_interest_percent);
+  const rate = annual.div("1200");
+  // Exact rational annuity coefficients protect half-cent boundaries even for
+  // recurring monthly rates. r = annual basis points / 120000; 1+r = q/b.
+  const b = 120000n,
+    q = b + BigInt(annual.mul("100").toFixed(0));
+  const denominator = q ** BigInt(rows.length);
+  let bPower = b,
+    qPower = q ** BigInt(rows.length - 1),
+    discountedNumerator = 0n;
+  for (const row of rows) {
+    discountedNumerator += (row.is_double ? 2n : 1n) * bPower * qPower;
+    bPower *= b;
+    qPower /= q;
+  }
+  // Weighted annuity; with no double months this is P*r/(1-(1+r)^-n).
+  // Weights preserve the agreed term when some payments are double.
+  const numerator = BigInt(input.principal_cents) * denominator;
+  const base = new D(
+    (
+      (2n * numerator + discountedNumerator) /
+      (2n * discountedNumerator)
+    ).toString(),
   );
-  const interest = round(
-    BigInt(input.principal_cents) * rateBasisPoints,
-    10000n,
-  );
-  const total = input.principal_cents + interest;
-  const units = rows.reduce((sum, row) => sum + row.weight, 0);
-  // Round the common quota down; the final quota receives the remaining cents.
-  // Rounding it up can overpay the entire contract before its last small quota.
-  const base = Number(BigInt(total) / BigInt(units));
-  let paid = 0,
-    allocatedInterest = 0,
-    balance = input.principal_cents;
-  const schedule = rows.map(({ weight, ...row }, index) => {
-    const payment = index === rows.length - 1 ? total - paid : base * weight;
-    const cumulativeInterest = round(
-      BigInt(paid + payment) * BigInt(interest),
-      BigInt(total),
-    );
-    const rowInterest = cumulativeInterest - allocatedInterest;
-    const amortization = payment - rowInterest;
+  let balance = new D(input.principal_cents),
+    interestTotal = new D("0"),
+    total = new D("0");
+  const schedule = rows.map((row, index) => {
+    // Multiply before dividing: no recurring-rate approximation enters the rounding.
+    const interest = balance.mul(annual).div("1200").toDecimalPlaces(0);
+    const payment =
+      index === rows.length - 1
+        ? balance.plus(interest)
+        : base.mul(row.is_double ? "2" : "1");
+    const amortization = payment.minus(interest);
     if (
-      payment <= 0 ||
-      payment > 100000000 ||
-      amortization <= 0 ||
-      amortization > balance
+      payment.lte("0") ||
+      payment.gt("100000000") ||
+      amortization.lte("0") ||
+      amortization.gt(balance)
     )
       fail(
-        "El capital y el plazo no permiten cuotas válidas de al menos un céntimo de amortización. Ajusta los datos.",
+        "El capital, la tasa y el plazo no permiten cuotas con amortización positiva al céntimo. Ajusta las condiciones del préstamo.",
       );
     const opening = balance;
-    balance -= amortization;
-    paid += payment;
-    allocatedInterest = cumulativeInterest;
+    balance = balance.minus(amortization);
+    interestTotal = interestTotal.plus(interest);
+    total = total.plus(payment);
     return {
       ...row,
-      opening_balance_cents: opening,
-      interest_cents: rowInterest,
-      amortization_cents: amortization,
-      amount_cents: payment,
-      closing_balance_cents: balance,
+      opening_balance_cents: asCents(opening),
+      interest_cents: asCents(interest),
+      amortization_cents: asCents(amortization),
+      amount_cents: asCents(payment),
+      closing_balance_cents: asCents(balance),
     };
   });
-  if (balance !== 0 || paid !== total || allocatedInterest !== interest)
+  if (
+    !balance.isZero() ||
+    !total.eq(new D(input.principal_cents).plus(interestTotal))
+  )
     fail("No se pudo cerrar el cronograma.");
   return {
-    calculation_method: "total-interest-v1",
+    calculation_method: "french-nominal-monthly-v1",
+    rate_convention: "nominal-annual-divided-12",
     principal_cents: input.principal_cents,
-    total_interest_percent: input.total_interest_percent,
-    interest_total_cents: interest,
-    total_cents: total,
-    base_installment_cents: base,
+    annual_interest_percent: new D(input.annual_interest_percent).toFixed(2),
+    monthly_rate: rate.toString(),
+    first_due_date: input.first_due_date,
+    interest_total_cents: asCents(interestTotal),
+    total_cents: asCents(total),
+    base_installment_cents: asCents(base),
     schedule,
   };
 }

@@ -63,7 +63,7 @@ La entrega física al asistente se registra por separado. No crea pagos ni modif
 
 ## Préstamos y cuotas
 
-La opción **Préstamos** está disponible para ambos roles. El asistente registra entidad, capital, porcentaje de interés total para todo el contrato, desembolso, plazo de 1 a 120 cuotas, meses con cuota doble, referencia y notas. El servidor calcula la vista previa y las cuotas; ya no se introducen importes manuales de cuota. Ver [fórmula y fechas históricas](PRESTAMOS-Y-FECHAS.md). El gerente consulta el cronograma y sus constancias; no registra contratos.
+La opción **Préstamos** está disponible para ambos roles. El asistente registra entidad, capital, tasa de interés anual nominal y fecha del primer vencimiento, plazo de 1 a 120 cuotas, meses con cuota doble, referencia y notas. El servidor calcula la vista previa y las cuotas; ya no se introducen importes manuales de cuota. Ver [fórmula y fechas históricas](PRESTAMOS-Y-FECHAS.md). El gerente consulta el cronograma y sus constancias; no registra contratos.
 
 El sistema genera una obligación por cuota sin exigir autorización previa del gerente. Los importes se conservan, las cuotas comparten los permisos de sus recibos y se incluyen en deudas, filtros y totales mensuales sin sumar nuevamente el capital. Los meses cortos se ajustan al último día y los siguientes recuperan el día original. Se muestra capital, total del cronograma, pagado, pendiente, progreso y próximo vencimiento.
 
@@ -71,7 +71,7 @@ Antes de archivar un pago de cuota, el asistente responsable o el gerente adjunt
 
 El gerente puede retirar un préstamo sin abonos con `POST /api/loans/:id/archive`. Se retiran todas sus cuotas de las consultas, totales y pagos; los datos quedan recuperables con `POST /api/loans/:id/restore`. Los préstamos con pagos no se retiran.
 
-Los préstamos anteriores reaparecen sin recrearlos ni modificar su dinero, cuotas o archivos. Los contratos identificados por entidad y referencia no pueden duplicarse, incluso en solicitudes simultáneas. El límite académico es de 30 préstamos y 300 obligaciones en total. El cálculo usa el interés total fijo confirmado para el MVP; no solicita créditos ni desembolsa dinero. Los contratos anteriores no se recalculan.
+Los préstamos anteriores reaparecen sin recrearlos ni modificar su dinero, cuotas o archivos. Los contratos identificados por entidad y referencia no pueden duplicarse, incluso en solicitudes simultáneas. El límite académico es de 30 préstamos y 300 obligaciones en total. El cálculo vigente usa el método francés, interés sobre saldo y tasa anual nominal dividida entre 12, con vencimientos mensuales; no solicita créditos ni desembolsa dinero. Los contratos anteriores no se recalculan.
 
 ## Funciones retiradas y compatibilidad
 

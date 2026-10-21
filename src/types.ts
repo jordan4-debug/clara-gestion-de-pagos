@@ -243,6 +243,10 @@ export type Loan = {
   last_installment_cents: number;
   calculation_method?: string;
   total_interest_percent?: number;
+  annual_interest_percent?: string;
+  rate_convention?: string;
+  monthly_rate?: string;
+  first_due_date?: string;
   interest_total_cents?: number;
   disbursement_date?: string;
   double_months?: number[];
@@ -266,7 +270,10 @@ export type LoanScheduleRow = {
 export type LoanPreview = {
   calculation_method: string;
   principal_cents: number;
-  total_interest_percent: number;
+  annual_interest_percent: string;
+  rate_convention: string;
+  monthly_rate: string;
+  first_due_date: string;
   interest_total_cents: number;
   total_cents: number;
   base_installment_cents: number;

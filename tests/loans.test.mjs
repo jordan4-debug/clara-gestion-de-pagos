@@ -24,10 +24,10 @@ const contract = (supplier_id, extra = {}) => ({
   title: "Préstamo de capital de trabajo",
   supplier_id,
   principal_cents: 100000,
-  total_interest_percent: 3.03,
+  annual_interest_percent: "12.00",
   double_months: [],
   installments: 3,
-  disbursement_date: "2027-12-31",
+  first_due_date: "2028-01-31",
   reference: "CONTRATO-001",
   notes: "Importes del contrato ya celebrado",
   ...extra,
@@ -102,8 +102,8 @@ test("Assistant registers calculated loan installments; manager supervises and m
     403,
   );
   const loan = await make(m);
-  assert.equal(loan.total_cents, 103030);
-  assert.equal(loan.remaining_cents, 103030);
+  assert.equal(loan.total_cents, 102007);
+  assert.equal(loan.remaining_cents, 102007);
   assert.equal(loan.paid_installments, 0);
   assert.deepEqual(
     loan.installments.map((b) => b.due_date),
@@ -111,7 +111,7 @@ test("Assistant registers calculated loan installments; manager supervises and m
   );
   assert.deepEqual(
     loan.installments.map((b) => b.amount_cents),
-    [34343, 34343, 34344],
+    [34002, 34002, 34003],
   );
   assert.ok(
     loan.installments.every(
@@ -127,7 +127,7 @@ test("Assistant registers calculated loan installments; manager supervises and m
   );
   const dashboard = (await m.manager("/dashboard?month=2028-02")).data;
   assert.equal(dashboard.bills.filter((b) => b.loan_id === loan.id).length, 1);
-  assert.equal(dashboard.overview.pending_cents, 34343);
+  assert.equal(dashboard.overview.pending_cents, 34002);
   assert.equal(
     dashboard.all_bills.filter((b) => b.loan_id === loan.id).length,
     3,
@@ -137,7 +137,7 @@ test("Assistant registers calculated loan installments; manager supervises and m
 
 test("Ordinary February, one final installment and the full due day are handled without premature expiration", async () => {
   const m = await setup();
-  const loan = await make(m, { disbursement_date: "2026-12-31" });
+  const loan = await make(m, { first_due_date: "2027-01-31" });
   assert.deepEqual(
     loan.installments.map((b) => b.due_date),
     ["2027-01-31", "2027-02-28", "2027-03-31"],
@@ -145,10 +145,10 @@ test("Ordinary February, one final installment and the full due day are handled 
   const one = await make(m, {
     reference: "UNICA",
     installments: 1,
-    disbursement_date: "2020-01-31",
+    first_due_date: "2020-01-31",
   });
   assert.equal(one.installments.length, 1);
-  assert.equal(one.total_cents, 103030);
+  assert.equal(one.total_cents, 101000);
   assert.equal(one.installments[0].status, "Vencido");
   assert.equal(one.overdue_installments, 1);
   assert.equal(
@@ -164,9 +164,12 @@ test("Invalid and duplicate contracts cannot leave partial schedules, including 
   for (const extra of [
     { installments: 0 },
     { installments: 121 },
-    { total_interest_percent: -1 },
-    { total_interest_percent: 17.023 },
-    { total_interest_percent: "17.02" },
+    { annual_interest_percent: "-1" },
+    { annual_interest_percent: "17.023" },
+    { annual_interest_percent: 17.02 },
+    { annual_interest_percent: "1e2" },
+    { annual_interest_percent: "1000.01" },
+    { total_interest_percent: 17.02 },
     { installments: 1.5 },
     { double_months: [7, 7] },
     { double_months: [13] },
@@ -175,9 +178,9 @@ test("Invalid and duplicate contracts cannot leave partial schedules, including 
     { installment_cents: 1 },
     { principal_cents: 1.25 },
     { last_installment_cents: -1 },
-    { disbursement_date: "2027-02-30" },
-    { disbursement_date: "1899-12-31" },
-    { disbursement_date: "2099-12-01" },
+    { first_due_date: "2027-02-30" },
+    { first_due_date: "1899-12-31" },
+    { first_due_date: "2099-12-01" },
     { supplier_id: 1 },
   ])
     assert.equal(
@@ -204,7 +207,7 @@ test("Invalid and duplicate contracts cannot leave partial schedules, including 
       await m.assistant("/bills", "POST", {
         title: "Cuota duplicada",
         supplier_id: m.lender.id,
-        amount_cents: 34343,
+        amount_cents: 34002,
         due_date: "2028-01-31",
         invoice_number: "001",
         invoice: receipt,
@@ -231,7 +234,7 @@ test("A backed installment payment updates the loan, monthly debt and cash ledge
     409,
   );
   const payment = {
-    amount_cents: 34343,
+    amount_cents: 34002,
     method: "Efectivo",
     operation: "CUOTA-REALIZADA-001",
     receipt,
@@ -257,7 +260,7 @@ test("A backed installment payment updates the loan, monthly debt and cash ledge
       await m.manager("/cash", "POST", {
         kind: "delivery",
         holder_id: person.id,
-        amount_cents: 34343,
+        amount_cents: 34002,
         note: "Efectivo para la cuota",
       })
     ).status,
@@ -270,11 +273,11 @@ test("A backed installment payment updates the loan, monthly debt and cash ledge
   const updated = (await m.manager("/loans")).data.find(
     (l) => l.id === loan.id,
   );
-  assert.equal(updated.paid_cents, 34343);
-  assert.equal(updated.remaining_cents, 68687);
+  assert.equal(updated.paid_cents, 34002);
+  assert.equal(updated.remaining_cents, 68005);
   assert.equal(updated.paid_installments, 1);
   assert.equal(updated.next_due_date, "2028-02-29");
-  assert.equal(updated.installments[0].amount_cents, 34343);
+  assert.equal(updated.installments[0].amount_cents, 34002);
   assert.equal(updated.installments[0].status, "Pagado");
   const month = (await m.manager("/dashboard?month=2028-01")).data;
   assert.equal(month.overview.pending_cents, 0);
@@ -310,7 +313,7 @@ test("Historical loan balances survive reopening and new contracts never reuse o
   const history = (await m.manager("/loans")).data[0];
   assert.equal(history.id, 42);
   assert.equal(history.paid_cents, 12000);
-  assert.equal(history.remaining_cents, 91030);
+  assert.equal(history.remaining_cents, 90007);
   assert.equal(JSON.stringify((await readState(m.db)).state), before);
   const fresh = await make(m, { reference: "CONTRATO-002" });
   assert.equal(fresh.id, 43);
@@ -377,8 +380,8 @@ test("Authenticated preview is read-only and the server saves exactly that sched
   const m = await setup();
   const parameters = {
     principal_cents: 3600000,
-    total_interest_percent: 17.02,
-    disbursement_date: "2024-03-05",
+    annual_interest_percent: "17.02",
+    first_due_date: "2024-04-05",
     installments: 24,
     double_months: [7, 12],
   };
@@ -396,7 +399,7 @@ test("Authenticated preview is read-only and the server saves exactly that sched
   assert.equal(JSON.stringify((await readState(m.db)).state), before);
   const loan = await make(m, parameters);
   assert.equal(loan.total_cents, preview.data.total_cents);
-  assert.equal(loan.interest_total_cents, 612720);
+  assert.equal(loan.interest_total_cents, 672982);
   assert.equal(loan.overdue_installments, 24);
   assert.equal(loan.paid_cents, 0);
   for (const [index, row] of preview.data.schedule.entries())
@@ -481,6 +484,56 @@ test("Insufficient space rejects the whole calculated loan without leaving parti
   assert.equal(
     (await m.assistant("/loans", "POST", contract(m.lender.id))).status,
     409,
+  );
+  assert.equal(JSON.stringify((await readState(m.db)).state), before);
+  m.sqlite.close();
+});
+
+test("A failed atomic D1 state write leaves neither a loan nor any installment or audit entry", async () => {
+  const m = await setup();
+  const before = JSON.stringify((await readState(m.db)).state);
+  const prepare = m.db.prepare.bind(m.db);
+  m.db.prepare = (sql) => {
+    const statement = prepare(sql);
+    if (sql.startsWith("UPDATE shared_state SET"))
+      statement.run = async () => {
+        throw Object.assign(
+          new Error("Escritura temporalmente no disponible."),
+          { status: 503 },
+        );
+      };
+    return statement;
+  };
+  assert.equal(
+    (await m.assistant("/loans", "POST", contract(m.lender.id))).status,
+    503,
+  );
+  assert.equal(JSON.stringify((await readState(m.db)).state), before);
+  m.sqlite.close();
+});
+
+test("Previously stored total-interest schedules keep their rate interpretation and original installments", async () => {
+  const m = await setup();
+  const oldLoan = await make(m);
+  await mutateState(m.db, (s) => {
+    const loan = s.loans.find((l) => l.id === oldLoan.id);
+    delete loan.annual_interest_percent;
+    delete loan.monthly_rate;
+    delete loan.rate_convention;
+    Object.assign(loan, {
+      calculation_method: "total-interest-v1",
+      total_interest_percent: 17.02,
+      disbursement_date: "2027-12-31",
+    });
+  });
+  const before = JSON.stringify((await readState(m.db)).state);
+  const stored = (await m.manager("/loans")).data[0];
+  assert.equal(stored.calculation_method, "total-interest-v1");
+  assert.equal(stored.total_interest_percent, 17.02);
+  assert.equal(stored.annual_interest_percent, undefined);
+  assert.deepEqual(
+    stored.installments.map((b) => b.amount_cents),
+    oldLoan.installments.map((b) => b.amount_cents),
   );
   assert.equal(JSON.stringify((await readState(m.db)).state), before);
   m.sqlite.close();
