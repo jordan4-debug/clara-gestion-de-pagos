@@ -373,6 +373,7 @@ test("Loan form previews and saves the textual annual rate and historical first 
       title: "Contrato BCP histórico",
       principal: "36000.00",
       annual_interest_percent: "17.02",
+      disbursement_date: "2024-03-04",
       first_due_date: "2024-04-04",
       count: "24",
     })) {
@@ -406,6 +407,7 @@ test("Loan form previews and saves the textual annual rate and historical first 
       ),
   );
   assert.equal(savedInput.first_due_date, "2024-04-04");
+  assert.equal(savedInput.disbursement_date, "2024-03-04");
   assert.equal(savedInput.annual_interest_percent, "17.02");
   assert.equal(savedInput.supplier_id, 1);
   assert.equal(

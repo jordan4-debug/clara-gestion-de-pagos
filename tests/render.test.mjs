@@ -254,7 +254,11 @@ test("Rendered manager and assistant screens expose only administrative actions 
   assert.ok(loanForm.includes('min="1900-01-01"'));
   assert.ok(!loanForm.includes('name="quota"'));
   assert.ok(!loanForm.includes('name="last"'));
-  assert.ok(!loanForm.includes('name="disbursement_date"'));
+  assert.ok(loanForm.includes('name="disbursement_date"'));
+  assert.ok(
+    loanForm.indexOf('name="disbursement_date"') <
+      loanForm.indexOf('name="first_due_date"'),
+  );
   const sample = calculateSchedule({
     principal_cents: 3600000,
     annual_interest_percent: "17.02",
