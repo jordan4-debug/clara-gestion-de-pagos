@@ -6,6 +6,7 @@ import type { Bill, User } from "../types";
 import { ReviewCard, receiptPayload } from "./Reviews";
 import { PaymentFlow } from "./PaymentFlow";
 import { ReceiptFields } from "../components/ReceiptFields";
+import { VariationComparison } from "./VariationAlerts";
 export function BillDetail({
   id,
   user,
@@ -13,6 +14,7 @@ export function BillDetail({
   onChanged,
   onEdit,
   notify,
+  onSelectRelated,
 }: {
   id: number;
   user: User;
@@ -20,15 +22,26 @@ export function BillDetail({
   onChanged: () => void;
   onEdit: (bill: Bill) => void;
   notify: (s: string) => void;
+  onSelectRelated?: (id: number) => void;
 }) {
   const [bill, setBill] = useState<Bill | null>(null),
     [error, setError] = useState(""),
     [uploading, setUploading] = useState(false);
   const load = () => api<Bill>(`/bills/${id}`).then(setBill);
   useEffect(() => {
+    let active = true;
+    setBill(null);
+    setError("");
     void api<Bill>(`/bills/${id}`)
-      .then(setBill)
-      .catch((e) => setError(e.message));
+      .then((value) => {
+        if (active) setBill(value);
+      })
+      .catch((e) => {
+        if (active) setError(e.message);
+      });
+    return () => {
+      active = false;
+    };
   }, [id]);
   return (
     <Modal title={bill?.title || "Detalle del pago"} onClose={onClose} wide>
@@ -46,6 +59,19 @@ export function BillDetail({
               </div>
               <Badge status={bill.status} />
             </div>
+            {user.role === "owner" && bill.variation ? (
+              <section className="detail-section">
+                <h3>
+                  {bill.variation.alert
+                    ? "Aumento de importe para revisar"
+                    : "Comparación de importes"}
+                </h3>
+                <VariationComparison
+                  entry={bill.variation}
+                  onSelect={onSelectRelated}
+                />
+              </section>
+            ) : null}
             {bill.paid_cents > 0 ? (
               <div className="balance-strip">
                 <span>

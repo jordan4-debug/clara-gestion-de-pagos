@@ -23,7 +23,8 @@ import { SettingsView } from "./features/SettingsView";
 import { api, send, setCsrf, shortDate, ApiError } from "./lib/api";
 import type { User, Dashboard, Supplier, Settings, Bill } from "./types";
 type Editor =
-  { type: "bill"; bill?: Bill } | { type: "supplier"; supplier?: Supplier };
+  | { type: "bill"; bill?: Bill }
+  | { type: "supplier"; supplier?: Supplier };
 export function App() {
   const [user, setUser] = useState<User | null>(null),
     [checking, setChecking] = useState(true),
@@ -332,6 +333,7 @@ export function App() {
           user={user}
           onSelect={setSelected}
           onNew={() => setEditor({ type: "bill" })}
+          onConfigureAlerts={() => onNavigate("settings")}
         />
       ) : null}
       {data && page === "loans" ? (
@@ -404,6 +406,7 @@ export function App() {
             setEditor({ type: "bill", bill });
           }}
           notify={notify}
+          onSelectRelated={setSelected}
         />
       ) : null}
       {editor?.type === "bill" && user.role === "assistant" ? (

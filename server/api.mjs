@@ -29,6 +29,7 @@ import {
 import { report } from "./reports.mjs";
 import { handleTeam } from "./team.mjs";
 import { loanInput, createLoan, listLoans, archiveLoan } from "./loans.mjs";
+import { variationConfig, billVariation } from "./variations.mjs";
 
 import {
   cashInput,
@@ -57,11 +58,18 @@ const json = (value, status = 200, headers = {}) =>
       ...headers,
     },
   });
-const settingsSchema = z.object({
-  threshold_cents: cents.optional(),
-  reminder_days: z.number().int().min(0).max(30),
-  recipient: z.enum(["owner", "assistant", "both"]),
-});
+const settingsSchema = z
+  .object({
+    reminder_days: z.number().int().min(0).max(30).optional(),
+    recipient: z.enum(["owner", "assistant", "both"]).optional(),
+    variation_enabled: z.boolean().optional(),
+    variation_percent: z.number().int().min(1).max(1000).optional(),
+    variation_min_cents: z.number().int().min(0).max(100000000).optional(),
+  })
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    "No hay ajustes válidos para guardar.",
+  );
 const owner = (session) => {
   if (session.role !== "owner") fail("Solo el gerente puede hacer esto.", 403);
 };
@@ -204,7 +212,11 @@ export async function handleRequest(request, env) {
         );
       if (path === "/activity") return json(state.activity.slice(0, 300));
       if (path === "/settings")
-        return json({ ...state.settings, mode: "administrative" });
+        return json({
+          ...state.settings,
+          ...variationConfig(state.settings),
+          mode: "administrative",
+        });
       if (path === "/attempts") {
         owner(session);
         return json([]);
@@ -214,6 +226,9 @@ export async function handleRequest(request, env) {
         const bill = findBill(state, Number(match[1]));
         return json({
           ...decorate(state, bill),
+          ...(user.role === "owner"
+            ? { variation: billVariation(state, bill) }
+            : {}),
           payments: state.payments
             .map((p) => ({
               ...p,
@@ -734,15 +749,12 @@ export async function handleRequest(request, env) {
       const x = settingsSchema.parse(input);
       return json(
         await mutateState(env.DB, (state) => {
-          state.settings = {
-            reminder_days: x.reminder_days,
-            recipient: x.recipient,
-          };
+          Object.assign(state.settings, x);
           addAudit(
             state,
             actor,
             "Configuración actualizada",
-            "Anticipación y destinatarios de avisos guardados.",
+            "Avisos de vencimiento y variación de importes actualizados.",
           );
           return { ok: true };
         }),

@@ -81,7 +81,9 @@ export function EntitySelector({
           }}
         >
           <option value="" disabled>
-            Selecciona un proveedor o entidad
+            {loans
+              ? "Selecciona una entidad"
+              : "Selecciona un proveedor o entidad"}
           </option>
           {[...new Set(items.map((s) => s.category))].map((group) => (
             <optgroup key={group} label={group}>
@@ -95,7 +97,11 @@ export function EntitySelector({
             </optgroup>
           ))}
           {!disabled ? (
-            <option value="new">+ Agregar proveedor o entidad</option>
+            <option value="new">
+              {loans
+                ? "+ Agregar entidad financiera"
+                : "+ Agregar proveedor o entidad"}
+            </option>
           ) : null}
         </select>
       </Field>
@@ -109,7 +115,7 @@ export function EntitySelector({
           }}
         >
           <Plus size={15} />
-          Agregar proveedor o entidad
+          {loans ? "Agregar entidad financiera" : "Agregar proveedor o entidad"}
         </button>
       ) : null}
       {adding ? (

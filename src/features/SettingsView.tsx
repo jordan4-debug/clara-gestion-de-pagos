@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Bell, KeyRound, AlertCircle } from "lucide-react";
 import { Field, FormError, Submit, formData } from "../components/ui";
-import { send } from "../lib/api";
+import { send, solesToCents } from "../lib/api";
+import { MoneyInput } from "../components/MoneyInput";
 import type { Settings, User } from "../types";
 export function SettingsView({
   settings,
@@ -83,6 +84,85 @@ export function SettingsView({
                   Solo el gerente puede cambiar los avisos.
                 </p>
               )}
+            </fieldset>
+          </form>
+          <FormError message={error} />
+        </section>
+      ) : null}
+      {user.role === "owner" ? (
+        <section className="panel settings-panel">
+          <h2>
+            <AlertCircle size={21} /> Alertas de variación
+          </h2>
+          <p className="muted">
+            Avisa al gerente cuando el importe de un recibo supera al último
+            periodo comparable del mismo proveedor y suministro. No solicita
+            autorización para pagar.
+          </p>
+          <form
+            onSubmit={async (e) => {
+              const f = formData(e);
+              setBusy(true);
+              setError("");
+              try {
+                await send(
+                  "/settings",
+                  {
+                    variation_enabled: f.has("variation_enabled"),
+                    variation_percent: Number(f.get("variation_percent")),
+                    variation_min_cents: solesToCents(f.get("variation_min")),
+                  },
+                  "PUT",
+                );
+                onChanged();
+                notify("Alertas de variación guardadas.");
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <fieldset disabled={busy}>
+              <label className="variation-toggle">
+                <input
+                  type="checkbox"
+                  name="variation_enabled"
+                  defaultChecked={settings.variation_enabled ?? true}
+                />
+                Activar avisos de aumento para el gerente
+              </label>
+              <div className="form-grid">
+                <Field
+                  label="Aumento mínimo (%)"
+                  hint="Un porcentaje entero entre 1 y 1000."
+                >
+                  <input
+                    type="number"
+                    name="variation_percent"
+                    min={1}
+                    max={1000}
+                    step={1}
+                    required
+                    defaultValue={settings.variation_percent ?? 20}
+                  />
+                </Field>
+                <Field
+                  label="Diferencia mínima en soles"
+                  hint="La alerta requiere alcanzar ambos umbrales."
+                >
+                  <MoneyInput
+                    name="variation_min"
+                    cents={settings.variation_min_cents ?? 1000}
+                  />
+                </Field>
+              </div>
+              <p className="info-text">
+                Por ejemplo, S/100.00 a S/150.00 equivale a S/50.00 y 50 %. Se
+                excluyen cuotas de préstamos, referencias de ejemplo y periodos
+                con varios recibos del mismo suministro.
+              </p>
+              <Submit busy={busy}>Guardar alertas de variación</Submit>
             </fieldset>
           </form>
           <FormError message={error} />

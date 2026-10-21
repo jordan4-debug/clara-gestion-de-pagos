@@ -6,7 +6,7 @@ import { seedState } from "../server/cloud-state.mjs";
 test("Rendered manager and assistant screens expose only administrative actions and independent filters", async () => {
   const { outputFiles } = buildSync({
     stdin: {
-      contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import {RoleOverview} from './src/features/RoleOverview'; import {Shell} from './src/components/Shell'; import {BillForm} from './src/features/EntityForms'; import {MoneyInput} from './src/components/MoneyInput'; import {Loans} from './src/features/Loans'; import {Login} from './src/features/Access'; import {EntitySelector} from './src/components/EntitySelector'; import {SupplierForm} from './src/features/EntityForms'; export {React,renderToStaticMarkup,RoleOverview,Shell,BillForm,MoneyInput,Loans,Login,EntitySelector,SupplierForm};`,
+      contents: `import React from 'react'; import { renderToStaticMarkup } from 'react-dom/server'; import {RoleOverview} from './src/features/RoleOverview'; import {Shell} from './src/components/Shell'; import {BillForm} from './src/features/EntityForms'; import {MoneyInput} from './src/components/MoneyInput'; import {Loans} from './src/features/Loans'; import {Login} from './src/features/Access'; import {EntitySelector} from './src/components/EntitySelector'; import {SupplierForm} from './src/features/EntityForms'; import {SettingsView} from './src/features/SettingsView'; export {React,renderToStaticMarkup,RoleOverview,Shell,BillForm,MoneyInput,Loans,Login,EntitySelector,SupplierForm,SettingsView};`,
       resolveDir: process.cwd(),
       loader: "tsx",
     },
@@ -67,6 +67,40 @@ test("Rendered manager and assistant screens expose only administrative actions 
     ],
     month: "2026-10",
     totals: { total: 0, monthPaid: 0, undefined: 0 },
+    variation_summary: {
+      variation_enabled: true,
+      variation_percent: 20,
+      variation_min_cents: 1000,
+      total: 2,
+      compared: 1,
+      alerts: [
+        {
+          bill_id: 1,
+          title: "LUZ CON AUMENTO",
+          supplier: "Hidrandina",
+          month: "2026-10",
+          service_reference: "SUM-001",
+          current_cents: 15000,
+          previous_cents: 10000,
+          previous_month: "2026-09",
+          previous_bill_id: 9,
+          previous_receipt_id: 10,
+          current_receipt_id: 11,
+          difference_cents: 5000,
+          percent: 50,
+          status: "compared",
+          alert: true,
+        },
+      ],
+      unavailable: [
+        {
+          bill_id: 2,
+          title: "Sin referencia",
+          supplier: "Sedalib",
+          status: "missing_reference",
+        },
+      ],
+    },
     overview: {
       paid_cents: 125075,
       pending_cents: 2500,
@@ -138,6 +172,36 @@ test("Rendered manager and assistant screens expose only administrative actions 
       overview.startsWith('<div class="role-metrics monthly-metrics">'),
     );
     assert.equal(html.includes("Registrar recibo"), role === "assistant");
+    assert.equal(html.includes("Alertas de variación"), role === "owner");
+    if (role === "owner") {
+      assert.ok(html.includes("50 %"));
+      assert.ok(html.includes('href="/api/receipts/10"'));
+      assert.ok(html.includes('href="/api/receipts/11"'));
+      assert.ok(html.includes("Falta el código de suministro o contrato."));
+      assert.ok(
+        html.indexOf('class="role-metrics monthly-metrics"') <
+          html.indexOf('class="panel variation-panel"'),
+      );
+    }
+    const settings = m.renderToStaticMarkup(
+      e(m.SettingsView, {
+        user,
+        settings: {
+          reminder_days: 3,
+          recipient: "both",
+          variation_enabled: true,
+          variation_percent: 20,
+          variation_min_cents: 1000,
+        },
+        onChanged: () => {},
+        notify: () => {},
+      }),
+    );
+    assert.equal(
+      settings.includes('name="variation_percent"'),
+      role === "owner",
+    );
+    assert.equal(settings.includes('name="variation_min"'), role === "owner");
     const loans = m.renderToStaticMarkup(
       e(m.Loans, {
         suppliers: [],
@@ -188,6 +252,19 @@ test("Rendered manager and assistant screens expose only administrative actions 
     e(m.EntitySelector, { suppliers, loans: true }),
   );
   assert.ok(lenders.includes("Caja Trujillo"));
+  for (const name of [
+    "BCP",
+    "BBVA",
+    "Interbank",
+    "Scotiabank",
+    "Mibanco",
+    "Banco Pichincha",
+    "Caja Piura",
+    "Caja Arequipa",
+    "Caja Huancayo",
+  ])
+    assert.ok(lenders.includes(name), name);
+  assert.ok(!selector.includes(">BCP<"));
   const supplierForm = m.renderToStaticMarkup(
     e(m.SupplierForm, { onSaved: () => {}, onClose: () => {} }),
   );

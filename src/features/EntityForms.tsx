@@ -1,7 +1,7 @@
 import { MoneyInput } from "../components/MoneyInput";
 import { EntitySelector } from "../components/EntitySelector";
 import { ReceiptFields } from "../components/ReceiptFields";
-import { receiptError } from "../../shared/expenses.mjs";
+import { receiptError, comparableReference } from "../../shared/expenses.mjs";
 import { useState } from "react";
 import { Modal, Field, FormError, Submit, formData } from "../components/ui";
 import { send, solesToCents, localToday } from "../lib/api";
@@ -95,7 +95,9 @@ export function BillForm({
           onSelect={(supplier) => {
             setCategory(supplier.category);
             setReceiptFormat(supplier.receipt_format || "alphanumeric");
-            setReference(supplier.reference || "");
+            setReference(
+              comparableReference(supplier.reference) ? supplier.reference : "",
+            );
           }}
         />
         {!bill ? (
@@ -112,7 +114,10 @@ export function BillForm({
               />
             </Field>
             <ReceiptFields format={receiptFormat} />
-            <Field label="Código de servicio o referencia (opcional)">
+            <Field
+              label="Código de suministro o contrato (opcional)"
+              hint="Usa la misma referencia en cada periodo para comparar los importes de este servicio."
+            >
               <input
                 name="service_reference"
                 value={reference}

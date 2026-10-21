@@ -41,6 +41,18 @@ El asistente puede agregar un proveedor o entidad desde el selector del recibo o
 
 El botón Resumen PDF descarga un archivo del mes completo: importe registrado, pagado, pendiente, montos por definir, estado, entidad, vencimiento y fecha del último pago. Incluye las obligaciones liquidadas aunque no estén en la pestaña activa. La biblioteca se carga al pulsar el botón; el archivo se genera dentro del navegador sin servicios externos. Se repiten encabezados y se numeran las páginas. La descarga CSV conserva la lista filtrada.
 
+## Alertas de variación de importes
+
+El gerente ve los avisos después de las cuatro tarjetas iniciales. Mi cuenta permite activar o desactivar los avisos y configurar porcentaje mínimo (1 a 1000, entero) y diferencia mínima en soles (con hasta dos decimales). El umbral inicial es 20 % y S/10.00: deben cumplirse ambos. Los ajustes de variación y de vencimientos se guardan independientemente, conservando los otros valores.
+
+Se compara el importe total del recibo, no lo abonado ni el efectivo entregado. La identidad es proveedor más código de suministro/contrato, normalizado sin distinguir mayúsculas o espacios exteriores. Se necesita exactamente un recibo por suministro y periodo, importe positivo y original con número en los dos registros. Se usa el último periodo anterior disponible y se muestran sus fechas; no se mezclan periodos futuros ni se supone continuidad mensual. Las referencias ficticias o vacías, documentos incompletos, periodos ambiguos y cuotas de préstamos quedan fuera de la comparación. La pantalla explica los casos sin base comparable en vez de considerarlos importes correctos.
+
+Un aumento de S/100.00 a S/150.00 produce una diferencia de S/50.00 y 50 %. El umbral se evalúa con céntimos exactos, antes de redondear el porcentaje mostrado. El gerente accede a ambos originales y al detalle del pago con sus constancias. La alerta no acusa una irregularidad, no valida el movimiento bancario ni exige autorización previa para pagar. No se añade la justificación obligatoria ni el desglose de cargos de otras propuestas.
+
+La migración `0009_entities_variation_alerts.sql` agrega nueve entidades financieras conservando proveedores, IDs, contratos, importes, archivos, entregas y pagos existentes. Reconoce los alias bancarios comunes y no sobrescribe sus referencias o categorías. Los valores de alertas se inicializan solo si faltan; no se reemplazan decisiones ya guardadas. La misma lista está disponible al crear un espacio nuevo.
+
+La ampliación no necesita tablas o columnas nuevas. Si el operador puede publicar Pages pero no administrar D1, las entidades también se pueden registrar mediante `POST /api/suppliers` con una sesión autorizada; los umbrales por defecto se aplican al leer los ajustes existentes. La migración se puede ejecutar posteriormente sin duplicar esas entidades ni sobrescribir umbrales guardados.
+
 ## Efectivo
 
 La entrega física al asistente se registra por separado. No crea pagos ni modifica los gastos del mes. Solo guardar un pago con medio Efectivo consume fondos a cargo, con comprobación de saldo en la misma escritura. Las devoluciones no son gastos. Se muestran entregas, gastos y devoluciones del periodo, y el saldo acumulado por rendir. El historial identifica fecha, asistente y operación relacionada. Se muestra el saldo inicial del periodo y el cuadre completo hasta su cierre; el saldo actual por rendir conserva su alcance acumulado. Los pagos por transferencia o portal no consumen efectivo. Las devoluciones de prueba existentes se conservan como fueron registradas.

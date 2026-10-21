@@ -5,6 +5,8 @@ import {
   recordedPayment,
 } from "./expenses.mjs";
 import { today, monthDate, status, remaining } from "./domain.mjs";
+import { financialEntities } from "./financial-entities.mjs";
+import { variationConfig, variationSummary } from "./variations.mjs";
 
 export function seedState() {
   const selected = today().slice(0, 7);
@@ -38,6 +40,15 @@ export function seedState() {
           ? ["Portal de entidad", "Transferencia", "Ventanilla", "Otro"]
           : ["Transferencia", "Yape", "Plin", "Ventanilla", "Otro"],
   }));
+  for (const name of financialEntities) {
+    suppliers.push({
+      id: suppliers.length + 1,
+      name,
+      category: "Préstamos",
+      reference: "",
+      receipt_format: "alphanumeric",
+    });
+  }
   const definitions = [
     ["Luz", 1, null, 20],
     ["Agua", 2, null, 22],
@@ -93,9 +104,9 @@ export function seedState() {
         created_at: new Date().toISOString(),
       },
     ],
-    settings: { reminder_days: 3, recipient: "both" },
+    settings: { reminder_days: 3, recipient: "both", ...variationConfig() },
     next: {
-      suppliers: 8,
+      suppliers: suppliers.length + 1,
       loans: 1,
       cash: 1,
       templates: 7,
@@ -235,7 +246,10 @@ export function dashboard(state, selected, role) {
     all_bills: all,
     overview: expenseOverview(state, selected, bills),
     bills,
-    settings: state.settings,
+    settings: { ...state.settings, ...variationConfig(state.settings) },
+    ...(role === "owner"
+      ? { variation_summary: variationSummary(state, selected) }
+      : {}),
     totals: {
       total: bills.reduce((n, b) => n + (b.amount_cents || 0), 0),
       monthPaid: bills.reduce((n, b) => n + b.paid_cents, 0),

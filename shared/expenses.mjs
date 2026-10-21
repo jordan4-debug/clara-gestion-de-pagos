@@ -45,6 +45,20 @@ export const decimalText = (cents) =>
   cents == null
     ? ""
     : `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
+// Shared example text cannot identify an actual supply or contract.
+export function comparableReference(value) {
+  const reference =
+    typeof value === "string"
+      ? value
+          .normalize("NFKC")
+          .trim()
+          .replace(/\s+/g, " ")
+          .toLocaleLowerCase("es-PE")
+      : "";
+  return /ejemplo|fictici|no usar para transferencias/.test(reference)
+    ? ""
+    : reference;
+}
 export const paymentDay = (payment) =>
   payment.payment_date || payment.created_at?.slice(0, 10);
 export function selectExpenses(
