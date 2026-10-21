@@ -135,6 +135,56 @@ test("Assistant registers calculated loan installments; manager supervises and m
   m.sqlite.close();
 });
 
+test("Disbursement date is stored independently of the first due date without recalculating the schedule", async () => {
+  const m = await setup();
+  const loan = await make(m, {
+    disbursement_date: "2024-03-05",
+    first_due_date: "2024-04-05",
+  });
+  const expected = await make(m, {
+    reference: "CONTRATO-SIN-DESEMBOLSO",
+    first_due_date: "2024-04-05",
+  });
+  assert.equal(loan.disbursement_date, "2024-03-05");
+  assert.equal(loan.first_due_date, "2024-04-05");
+  assert.equal(
+    (await m.manager("/loans")).data.find((l) => l.id === loan.id)
+      .disbursement_date,
+    "2024-03-05",
+  );
+  assert.deepEqual(
+    loan.installments.map((b) => [b.due_date, b.amount_cents]),
+    expected.installments.map((b) => [b.due_date, b.amount_cents]),
+  );
+  const before = JSON.stringify((await readState(m.db)).state);
+  for (const disbursement_date of [
+    "2024-02-30",
+    "1899-12-31",
+    "2100-01-01",
+    "2099-01-01",
+    "2024-04-06",
+  ]) {
+    const rejected = await m.assistant(
+      "/loans",
+      "POST",
+      contract(m.lender.id, {
+        reference: "INVALIDO",
+        first_due_date: "2024-04-05",
+        disbursement_date,
+      }),
+    );
+    assert.equal(rejected.status, 400, JSON.stringify(rejected.data));
+    assert.equal(JSON.stringify((await readState(m.db)).state), before);
+  }
+  const sameDay = await make(m, {
+    reference: "MISMO-DIA",
+    disbursement_date: "2024-04-05",
+    first_due_date: "2024-04-05",
+  });
+  assert.equal(sameDay.disbursement_date, sameDay.first_due_date);
+  m.sqlite.close();
+});
+
 test("Ordinary February, one final installment and the full due day are handled without premature expiration", async () => {
   const m = await setup();
   const loan = await make(m, { first_due_date: "2027-01-31" });
