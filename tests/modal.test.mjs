@@ -39,7 +39,7 @@ const { createRoot } = await import("react-dom/client");
 const { outputFiles } = buildSync({
   stdin: {
     contents:
-      "export { Modal, Field, useModalLock } from './src/components/ui'; export { LoanForm, ScheduleTable } from './src/features/Loans'; export { EntitySelector } from './src/components/EntitySelector';",
+      "export { Modal, Field, useModalLock } from './src/components/ui'; export { LoanForm, ScheduleTable } from './src/features/Loans'; export { EntitySelector } from './src/components/EntitySelector'; export { ScrollableTable } from './src/components/ScrollableTable'; export { Cash } from './src/features/Cash'; export { PaymentFlow } from './src/features/PaymentFlow';",
     resolveDir: process.cwd(),
     loader: "tsx",
   },
@@ -57,7 +57,7 @@ new Function("require", "module", "exports", outputFiles[0].text)(
   module.exports,
 );
 const { Modal, useModalLock, EntitySelector } = module.exports;
-const { LoanForm } = module.exports;
+const { LoanForm, ScrollableTable, Cash, PaymentFlow } = module.exports;
 
 async function mounted(t) {
   const container = document.createElement("div");
@@ -427,6 +427,187 @@ test("Loan form previews and saves the textual annual rate and historical first 
   assert.equal(saved, 1);
 });
 
+test("Top scrollbar and arrow controls move the schedule both ways without visiting its last row", async (t) => {
+  const { container, render } = await mounted(t);
+  await render(
+    e(
+      ScrollableTable,
+      { label: "Cronograma de cuotas" },
+      e(
+        "table",
+        null,
+        e("tbody", null, e("tr", null, e("td", null, "Última columna"))),
+      ),
+    ),
+  );
+  const body = container.querySelector(".scrollable-table-body"),
+    top = container.querySelector(".table-scroll-top");
+  Object.defineProperty(body, "clientWidth", {
+    configurable: true,
+    value: 300,
+  });
+  Object.defineProperty(body, "scrollWidth", {
+    configurable: true,
+    value: 1000,
+  });
+  Object.defineProperty(top, "clientWidth", { configurable: true, value: 220 });
+  await act(() => window.dispatchEvent(new dom.window.Event("resize")));
+  assert.equal(top.firstElementChild.style.width, "920px");
+  const left = container.querySelector(
+      '[aria-label="Mover tabla a la izquierda"]',
+    ),
+    right = container.querySelector('[aria-label="Mover tabla a la derecha"]');
+  assert.equal(left.disabled, true);
+  assert.equal(right.disabled, false);
+  await click(right);
+  assert.equal(body.scrollLeft, 210);
+  assert.equal(top.scrollLeft, 210);
+  await act(() => {
+    top.scrollLeft = 700;
+    top.dispatchEvent(new dom.window.Event("scroll"));
+  });
+  assert.equal(body.scrollLeft, 700);
+  assert.equal(right.disabled, true);
+  await click(left);
+  assert.equal(body.scrollLeft, 490);
+  assert.equal(top.scrollLeft, 490);
+  assert.equal(
+    container.firstElementChild.firstElementChild.className,
+    "table-scroll-controls",
+  );
+});
+
+test("Assistant defaults to the manager fund for transfers and explicitly selects other funds when needed", async (t) => {
+  const { container, render } = await mounted(t);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = () =>
+    Promise.resolve(
+      new Response(JSON.stringify({ balance_cents: 1000, people: [] }), {
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  await render(
+    e(PaymentFlow, {
+      bill: { id: 1, remaining_cents: 2000 },
+      user: { id: 2, role: "assistant" },
+      onChanged: () => {},
+      notify: () => {},
+    }),
+  );
+  const selectors = container.querySelectorAll("select");
+  assert.equal(selectors[0].value, "Transferencia");
+  assert.equal(selectors[1].value, "manager_funds");
+  assert.equal(container.querySelector('button[type="submit"]').disabled, true);
+  assert.ok(container.textContent.includes("El fondo entregado no alcanza"));
+  await act(() => {
+    selectors[1].value = "other_funds";
+    selectors[1].dispatchEvent(
+      new dom.window.Event("change", { bubbles: true }),
+    );
+  });
+  assert.equal(
+    container.querySelector('button[type="submit"]').disabled,
+    false,
+  );
+  assert.ok(container.textContent.includes("cargo S/ 0.00"));
+});
+
+test("Cash view refreshes team payments on focus, reconciles cards and displays proof links without duplicating events", async (t) => {
+  const { container, render } = await mounted(t);
+  const originalFetch = globalThis.fetch;
+  let updated = false,
+    selected = null;
+  const event = {
+    id: 1,
+    bill_id: 5,
+    title: "Luz",
+    supplier: "Hidrandina",
+    actor: "Asistente1",
+    amount_cents: 20000,
+    method: "Plin",
+    funding_source: "manager_funds",
+    fund_spent_cents: 20000,
+    holder: "Asistente1",
+    balance_after_cents: 30000,
+    receipt_id: 10,
+    reconciled: true,
+    payment_date: "2026-10-21",
+    created_at: "2026-10-21T15:00:00Z",
+  };
+  globalThis.fetch = () =>
+    Promise.resolve(
+      new Response(
+        JSON.stringify({
+          balance_cents: updated ? 30000 : 50000,
+          people: [
+            {
+              id: 2,
+              name: "Asistente1",
+              active: 1,
+              balance_cents: updated ? 30000 : 50000,
+            },
+          ],
+          totals: { delivered: 50000, spent: updated ? 20000 : 0, returned: 0 },
+          reconciliation: {
+            opening_cents: 0,
+            closing_cents: updated ? 30000 : 50000,
+          },
+          movements: [],
+          payment_activity: updated ? [event] : [],
+        }),
+        { headers: { "Content-Type": "application/json" } },
+      ),
+    );
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  await render(
+    e(Cash, {
+      user: { id: 1, role: "owner" },
+      month: "2026-10",
+      refreshKey: null,
+      onChanged: () => {},
+      onSelect: (id) => {
+        selected = id;
+      },
+    }),
+  );
+  assert.equal(container.querySelectorAll(".cash-payment-event").length, 0);
+  updated = true;
+  await act(async () => {
+    window.dispatchEvent(new dom.window.Event("focus"));
+  });
+  assert.equal(container.querySelectorAll(".cash-payment-event").length, 1);
+  const message = container.querySelector(".cash-payment-event").textContent;
+  for (const fragment of [
+    "Asistente1",
+    "pagó",
+    "200.00",
+    "Gastado del fondo",
+    "300.00",
+    "Plin",
+    "Hidrandina",
+  ])
+    assert.ok(message.includes(fragment), fragment);
+  assert.equal(
+    container.querySelector('[role="log"]').getAttribute("aria-live"),
+    "polite",
+  );
+  assert.equal(
+    container.querySelector(".cash-payment-event a").getAttribute("href"),
+    "/api/receipts/10",
+  );
+  await click(container.querySelector(".cash-payment-event button"));
+  assert.equal(selected, 5);
+  await act(async () => {
+    window.dispatchEvent(new dom.window.Event("focus"));
+  });
+  assert.equal(container.querySelectorAll(".cash-payment-event").length, 1);
+});
+
 test("The active stylesheet cascade colors titles, field labels and every loan schedule header green", () => {
   const view = new JSDOM(
     '<body><h1>Página</h1><div class="modal-head"><h2>Préstamo</h2></div><div class="loan-preview"><h3>Vista previa</h3></div><label class="field"><span>Capital</span><input></label><table class="report-table calculated-schedule"><thead><tr>' +
@@ -445,6 +626,16 @@ test("The active stylesheet cascade colors titles, field labels and every loan s
       "</tr></thead></table></body>",
   );
   try {
+    const table = view.window.document.querySelector("table");
+    const viewport = view.window.document.createElement("div");
+    viewport.className = "scrollable-table-body";
+    table.replaceWith(viewport);
+    viewport.append(table);
+    const preview = view.window.document.querySelector(".loan-preview");
+    const dialog = view.window.document.createElement("dialog");
+    dialog.className = "modal wide";
+    preview.replaceWith(dialog);
+    dialog.append(preview);
     for (const file of [
       "src/styles.css",
       "src/white.css",
@@ -470,6 +661,18 @@ test("The active stylesheet cascade colors titles, field labels and every loan s
         ),
         element.textContent,
       );
+    assert.equal(view.window.getComputedStyle(viewport).overflow, "auto");
+    assert.ok(
+      view.window.getComputedStyle(viewport).maxHeight.includes("52dvh"),
+    );
+    assert.equal(
+      view.window.getComputedStyle(table.querySelector("th")).position,
+      "sticky",
+    );
+    assert.equal(
+      view.window.getComputedStyle(dialog).width,
+      `${Math.min(1120, view.window.innerWidth - 28)}px`,
+    );
   } finally {
     view.window.close();
   }

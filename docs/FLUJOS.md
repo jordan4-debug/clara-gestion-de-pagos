@@ -5,9 +5,9 @@ Consultar [alcance administrativo, permisos, reglas de recibo y filtros](ALCANCE
 1. Ambos roles ingresan a Deudas del mes, con las cuatro tarjetas de resumen antes de la lista y las acciones correspondientes a su rol.
 2. El asistente selecciona o crea la entidad desde el mismo formulario y registra concepto, número de recibo, importe, vencimiento y original. La categoría se asigna automáticamente según la entidad y queda de solo lectura: Hidrandina y Sedalib pertenecen a Servicios. El servidor rechaza categorías diferentes, incluso si cambió la configuración mientras se adjuntaba el original. Emisión, referencia y notas son opcionales.
 3. El importe queda fijo. Solo el asistente responsable corrige vencimiento y notas; los recibos compartidos se pueden consultar.
-4. Después de realizar un pago fuera de Clara, gerente o asistente archiva la fecha, medio, identificador y constancia del pago. La aplicación no mueve dinero.
+4. Después de realizar un pago fuera de Clara, gerente o asistente archiva la fecha, medio, origen del dinero, identificador y constancia del pago. La aplicación no mueve dinero.
 5. El gerente compara el original con la constancia y la revisa u observa. Las correcciones conservan los archivos anteriores y no duplican el abono.
-6. El gerente registra entregas físicas. Efectivo muestra entregado, utilizado, devuelto y por rendir. Entregar no significa gastar.
+6. El gerente registra la entrega al asistente. Los pagos con ese fondo se descuentan aunque se hagan por transferencia o billetera; los otros fondos se declaran por separado. Control de efectivo muestra el cuadre y los mensajes de cada pago con cargo y saldo. Entregar no significa gastar.
 7. En Préstamos, el asistente registra el contrato existente y sus cuotas pendientes. El gerente consulta capital, cronograma, pagado y pendiente. Cada cuota aparece en el mes correspondiente y se registra su pago con original y constancia.
 8. Deudas del mes, Vencidos y Pagados se consultan en tres vistas; la primera permite incluir los próximos meses, con contadores y totales coherentes.
 

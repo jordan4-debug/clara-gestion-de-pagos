@@ -85,6 +85,7 @@ export const paymentInput = z.object({
   operation: z.string().trim().min(3).max(100),
   receipt: receiptInput,
   cash_holder_id: z.number().int().positive().nullable().optional(),
+  funding_source: z.enum(["manager_funds", "other_funds"]).optional(),
 });
 export function decodeReceipt(receipt) {
   const content = Buffer.from(receipt.base64, "base64");

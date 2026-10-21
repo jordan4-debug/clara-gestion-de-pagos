@@ -88,7 +88,7 @@ export function RoleOverview({
         <Banknote size={22} />
         <p>
           <strong>
-            Efectivo físico ·{" "}
+            Fondo para pagos ·{" "}
             {user.role === "owner"
               ? "Entregado al asistente"
               : "Recibido del gerente"}
@@ -100,8 +100,8 @@ export function RoleOverview({
             {money(data.cash_summary.balance_cents)}
           </span>
           <small>
-            Una entrega de efectivo no es un gasto ni marca recibos como
-            pagados. El importe por rendir incluye periodos anteriores.
+            Una entrega no es un gasto ni marca recibos como pagados. El importe
+            por rendir incluye periodos anteriores.
           </small>
         </p>
       </div>

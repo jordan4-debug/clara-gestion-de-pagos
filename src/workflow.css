@@ -163,6 +163,108 @@ body :is(h1, h2, h3, h4, h5, h6),
   min-width: 900px;
   font-variant-numeric: tabular-nums;
 }
+.scrollable-table {
+  min-width: 0;
+  width: 100%;
+}
+.modal.wide:has(.loan-preview) {
+  width: min(1120px, calc(100vw - 28px));
+}
+.table-scroll-controls[hidden] {
+  display: none;
+}
+.table-scroll-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: #f6f8f7;
+  border: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+}
+.table-scroll-controls .icon-button {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  color: var(--green);
+}
+.table-scroll-controls .icon-button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.table-scroll-top {
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex: 1;
+  min-width: 0;
+  height: 18px;
+  scrollbar-color: var(--green) var(--mint);
+}
+.table-scroll-top > div {
+  height: 1px;
+}
+.scrollable-table-body {
+  max-height: min(52dvh, 500px);
+  overflow: auto;
+  padding: 0;
+  scrollbar-color: var(--green) var(--mint);
+  border: 1px solid var(--border);
+  border-top: 0;
+}
+.scrollable-table-body .report-table :is(td, th) {
+  padding: 12px;
+}
+.scrollable-table-body thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f6f8f7;
+}
+.scrollable-table-body tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #f6f8f7;
+}
+.scrollable-table-body thead th:first-child {
+  left: 0;
+  z-index: 3;
+}
+.scrollable-table-body tfoot :is(th, td) {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: #f6f8f7;
+}
+.cash-payment-activity {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.cash-payment-event {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--green);
+  border-radius: 8px;
+}
+.cash-payment-event > p {
+  margin: 8px 0;
+}
+.cash-payment-event > small {
+  display: block;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.cash-payment-event .button-row {
+  flex-wrap: wrap;
+}
+.cash-payment-event .cash-source {
+  font-size: 13px;
+  line-height: 1.7;
+  background: var(--mint);
+  padding: 10px 12px;
+  border-radius: 6px;
+}
 .calculated-schedule td,
 .calculated-schedule th {
   white-space: nowrap;

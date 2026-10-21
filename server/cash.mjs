@@ -2,6 +2,7 @@ import { z } from "zod";
 import { cents, date } from "./validation.mjs";
 import { today } from "./domain.mjs";
 import { addAudit } from "./cloud-state.mjs";
+import { recordMonth, recordedPayment } from "./expenses.mjs";
 export const cashInput = z.object({
   kind: z.enum(["delivery", "return"]),
   holder_id: z.number().int().positive(),
@@ -88,6 +89,7 @@ export function spendCash(
   user,
   holderId,
   paymentDate = today(),
+  paymentMethod = "Efectivo",
 ) {
   if (user.role === "owner" && holderId == null) return; // Personal cash does not consume an assistant's funds.
   const holder = user.role === "assistant" ? user.id : holderId;
@@ -95,7 +97,7 @@ export function spendCash(
     fail("No puedes usar efectivo de otro asistente.", 403);
   if (cashBalance(state, holder) < amount)
     fail(
-      "El efectivo entregado no cubre este pago. Registra primero la entrega real.",
+      "El fondo entregado no cubre este pago. Registra primero la entrega real.",
     );
   if ((state.cash_movements || []).length >= 500)
     fail("Se alcanzó el límite de movimientos de efectivo.");
@@ -114,6 +116,8 @@ export function spendCash(
     amount_cents: amount,
     bill_id: bill.id,
     payment_id: paymentId,
+    payment_method: paymentMethod,
+    balance_after_cents: cashBalance(state, holder) - amount,
     movement_date: paymentDate,
     note: bill.title,
     actor: user.name,
@@ -143,7 +147,71 @@ export function cashView(state, selected, user, people) {
     .filter((m) => movementMonth(m) < selected)
     .reduce((sum, m) => sum + signed(m), 0);
   const closing = opening + movements.reduce((sum, m) => sum + signed(m), 0);
+  const expenses = (state.cash_movements || []).filter(
+    (m) => m.kind === "expense",
+  );
+  const paymentActivity = (state.payments || [])
+    .filter((payment) => {
+      if (!state.bills || !payment.created_at) return false;
+      if (!recordedPayment(state, payment) || recordMonth(payment) !== selected)
+        return false;
+      const expense = expenses.find((m) => m.payment_id === payment.id);
+      return (
+        user.role === "owner" ||
+        payment.actor_id === user.id ||
+        payment.cash_holder_id === user.id ||
+        expense?.holder_id === user.id ||
+        (!payment.actor_id && payment.actor === user.name)
+      );
+    })
+    .map((payment) => {
+      const charges = expenses.filter((m) => m.payment_id === payment.id);
+      const expense = charges[0];
+      const matches =
+        expense?.amount_cents === payment.amount_cents &&
+        expense?.bill_id === payment.bill_id &&
+        (payment.cash_holder_id == null ||
+          expense?.holder_id === payment.cash_holder_id);
+      const bill = (state.bills || []).find((b) => b.id === payment.bill_id);
+      const source = expense
+        ? "manager_funds"
+        : payment.funding_source === "other_funds"
+          ? "other_funds"
+          : "unassigned";
+      return {
+        id: payment.id,
+        bill_id: payment.bill_id,
+        title: bill?.title || `Recibo ${payment.bill_id}`,
+        supplier:
+          (state.suppliers || []).find((s) => s.id === bill?.supplier_id)
+            ?.name || "",
+        amount_cents: payment.amount_cents,
+        method: payment.method,
+        actor: payment.actor,
+        payment_date:
+          payment.payment_date || today(new Date(payment.created_at)),
+        created_at: payment.created_at,
+        funding_source: source,
+        fund_spent_cents: charges.reduce(
+          (sum, charge) => sum + charge.amount_cents,
+          0,
+        ),
+        holder: people.find((p) => p.id === expense?.holder_id)?.name || null,
+        balance_after_cents:
+          charges.length === 1 ? (expense?.balance_after_cents ?? null) : null,
+        receipt_id: payment.receipt_id || null,
+        reconciled:
+          charges.length <= 1 &&
+          (payment.funding_source === "manager_funds"
+            ? !!expense && matches
+            : payment.funding_source === "other_funds"
+              ? !expense
+              : !expense || matches),
+      };
+    })
+    .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
   return {
+    payment_activity: paymentActivity,
     people: people.map((p) => ({
       ...p,
       balance_cents: cashBalance(state, p.id),

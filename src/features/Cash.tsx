@@ -18,9 +18,10 @@ import {
   localToday,
 } from "../lib/api";
 import type { User, CashData } from "../types";
+import { CashActivity } from "./CashActivity";
 const labels = {
   delivery: "Entrega al asistente",
-  expense: "Pago en efectivo",
+  expense: "Pago con el fondo entregado",
   return: "Devolución al gerente",
 };
 export function Cash({
@@ -28,11 +29,13 @@ export function Cash({
   month,
   refreshKey,
   onChanged,
+  onSelect,
 }: {
   user: User;
   month: string;
   refreshKey: object | null;
   onChanged: () => void;
+  onSelect?: (id: number) => void;
 }) {
   const [data, setData] = useState<CashData | null>(null),
     [error, setError] = useState(""),
@@ -41,18 +44,39 @@ export function Cash({
     [busy, setBusy] = useState(false);
   useEffect(() => {
     let live = true;
-    void api<CashData>(`/cash?month=${month}`)
-      .then((d) => {
-        if (live) {
+    let controller: AbortController | null = null;
+    const load = async () => {
+      controller?.abort();
+      const request = new AbortController();
+      controller = request;
+      try {
+        const d = await api<CashData>(`/cash?month=${month}`, {
+          signal: request.signal,
+        });
+        if (live && !request.signal.aborted) {
           setData(d);
           setError("");
         }
-      })
-      .catch((e) => {
-        if (live) setError(e.message);
-      });
+      } catch (e) {
+        if (live && !request.signal.aborted) setError((e as Error).message);
+      }
+    };
+    void load();
+    const updateVisible = () => {
+      if (!document.hidden) void load();
+    };
+    const focus = () => {
+      void load();
+    };
+    const timer = window.setInterval(updateVisible, 15000);
+    window.addEventListener("focus", focus);
+    document.addEventListener("visibilitychange", updateVisible);
     return () => {
       live = false;
+      controller?.abort();
+      window.clearInterval(timer);
+      window.removeEventListener("focus", focus);
+      document.removeEventListener("visibilitychange", updateVisible);
     };
   }, [month, version, refreshKey]);
   const changed = () => {
@@ -65,9 +89,9 @@ export function Cash({
       <div className="workflow-note">
         <Banknote size={23} />
         <p>
-          Registra el dinero físico entregado al asistente, los pagos
-          respaldados por constancias y las devoluciones. Este registro no mueve
-          dinero ni es una billetera.
+          Controla el dinero entregado al asistente, lo utilizado para pagar
+          recibos y lo devuelto. Cada pago identifica el origen del dinero y su
+          constancia.
         </p>
       </div>
       <FormError message={error} />
@@ -80,8 +104,9 @@ export function Cash({
         <>
           <div className="report-heading">
             <p className="muted">
-              Entregado, utilizado y devuelto en el mes seleccionado. El
-              efectivo por rendir incluye los meses anteriores.
+              Entregado, utilizado y devuelto en el mes seleccionado. El saldo
+              por rendir incluye los meses anteriores. Se actualiza
+              automáticamente cada 15 segundos.
             </p>
             <div className="button-row">
               {user.role === "owner" ? (
@@ -112,9 +137,9 @@ export function Cash({
           <div className="role-metrics monthly-metrics">
             {[
               ["Entregado este mes", data.totals.delivered],
-              ["Pagos en efectivo este mes", data.totals.spent],
+              ["Utilizado del fondo este mes", data.totals.spent],
               ["Devuelto este mes", data.totals.returned],
-              ["Efectivo por rendir", data.balance_cents],
+              ["Saldo por rendir", data.balance_cents],
             ].map(([label, n]) => (
               <div key={label} className="role-metric green">
                 <span>{label}</span>
@@ -128,20 +153,21 @@ export function Cash({
               Saldo inicial{" "}
               <strong>{money(data.reconciliation.opening_cents)}</strong> +
               entregas <strong>{money(data.totals.delivered)}</strong> − pagos
-              en efectivo <strong>{money(data.totals.spent)}</strong> −
+              con el fondo <strong>{money(data.totals.spent)}</strong> −
               devoluciones <strong>{money(data.totals.returned)}</strong> =
               saldo al cierre{" "}
               <strong>{money(data.reconciliation.closing_cents)}</strong>.
             </p>
             <p className="muted">
-              Las transferencias y los pagos en portales no consumen este
-              efectivo. Una devolución registra dinero devuelto al gerente, no
-              el pago de un recibo.
+              Los pagos con dinero entregado por el gerente descuentan del
+              fondo, también por transferencia, Yape o Plin. Los pagos con otros
+              fondos se muestran abajo con cargo S/ 0.00. Una devolución
+              registra dinero devuelto al gerente.
             </p>
           </section>
           {data.people.length ? (
             <section className="panel workflow-panel">
-              <h2>Efectivo a cargo</h2>
+              <h2>Fondo a cargo de cada asistente</h2>
               {data.people.map((p) => (
                 <div className="cash-person" key={p.id}>
                   <span>
@@ -153,6 +179,10 @@ export function Cash({
               ))}
             </section>
           ) : null}
+          <CashActivity
+            entries={data.payment_activity || []}
+            onSelect={onSelect}
+          />
           <section className="panel workflow-panel">
             <h2>Movimientos del mes</h2>
             {data.movements.length ? (
@@ -162,6 +192,9 @@ export function Cash({
                     <div>
                       <strong>{labels[m.kind]}</strong>
                       <p>{m.note}</p>
+                      {m.payment_method ? (
+                        <small>Medio utilizado: {m.payment_method}</small>
+                      ) : null}
                       <small>
                         {data.people.find((p) => p.id === m.holder_id)?.name} ·{" "}
                         {m.actor}
@@ -225,8 +258,8 @@ export function Cash({
             {kind === "return" ? (
               <p className="notice">
                 Usa esta opción solo si devolviste dinero al gerente. Si pagaste
-                un recibo, abre la deuda y registra el pago con medio Efectivo y
-                su constancia.
+                un recibo, abre la deuda y registra el pago con origen «Dinero
+                entregado por el gerente» y su constancia.
               </p>
             ) : null}
             <Field label="Asistente a cargo">
@@ -277,9 +310,9 @@ export function Cash({
               />
             </Field>
             <p className="info-text">
-              Registra una entrega o devolución que ya ocurrió físicamente. Los
-              pagos en efectivo se descuentan al guardar su comprobante dentro
-              de la deuda.
+              Registra una entrega o devolución que ya ocurrió. Los pagos
+              realizados con el fondo se descuentan al guardar su constancia
+              dentro del recibo.
             </p>
             <FormError message={error} />
             <div className="form-actions">

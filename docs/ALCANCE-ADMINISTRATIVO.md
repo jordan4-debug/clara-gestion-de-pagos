@@ -4,8 +4,8 @@ Esta corrección sustituye el alcance anterior de simulación bancaria. Clara co
 
 ## Roles y operaciones
 
-- **Gerente** (`owner` en la base, por compatibilidad): consulta el resumen de gastos y los recibos, administra las entidades existentes y los avisos, administra el equipo privado, registra entregas físicas de efectivo y revisa las constancias. Puede completar el original y su número cuando falten y registrar un pago que ya ocurrió, con fecha y evidencia, sin ejecutar movimientos bancarios.
-- **Asistente**: registra recibos, nuevas entidades desde sus formularios, préstamos ya contratados y sus originales; corrige vencimiento y notas de sus propios registros o de registros antiguos sin autor. Consulta el espacio compartido y registra pagos respaldados. Solo utiliza o devuelve efectivo a su cargo.
+- **Gerente** (`owner` en la base, por compatibilidad): consulta el resumen de gastos y los recibos, administra las entidades existentes y los avisos, administra el equipo privado, registra entregas de dinero y revisa las constancias. Puede completar el original y su número cuando falten y registrar un pago que ya ocurrió, con fecha y evidencia, sin ejecutar movimientos bancarios.
+- **Asistente**: registra recibos, nuevas entidades desde sus formularios, préstamos ya contratados y sus originales; corrige vencimiento y notas de sus propios registros o de registros antiguos sin autor. Consulta el espacio compartido y registra pagos respaldados. Solo utiliza o devuelve el fondo a su cargo.
 - Las acciones se validan en la API. Cambiar el nombre visible a Gerente no cambia IDs, roles internos ni contraseñas existentes. La publicación requiere correo y contraseña de cuentas privadas. Se eliminaron del código de la pantalla de acceso los botones de demostración.
 
 ## Ventanas de registro y presentación
@@ -59,7 +59,11 @@ La ampliación no necesita tablas o columnas nuevas. Si el operador puede public
 
 ## Efectivo
 
-La entrega física al asistente se registra por separado. No crea pagos ni modifica los gastos del mes. Solo guardar un pago con medio Efectivo consume fondos a cargo, con comprobación de saldo en la misma escritura. Las devoluciones no son gastos. Se muestran entregas, gastos y devoluciones del periodo, y el saldo acumulado por rendir. El historial identifica fecha, asistente y operación relacionada. Se muestra el saldo inicial del periodo y el cuadre completo hasta su cierre; el saldo actual por rendir conserva su alcance acumulado. Los pagos por transferencia o portal no consumen efectivo. Las devoluciones de prueba existentes se conservan como fueron registradas. Los nuevos movimientos incluyen fecha efectiva; los gastos usan la fecha declarada del pago. El servidor verifica el saldo cronológico diario e impide cubrir un pago anterior con una entrega posterior. Los registros antiguos sin fecha efectiva conservan su mes de registro en Lima.
+El dinero entregado al asistente se registra por separado y no crea pagos ni gastos. El pago declara su medio (Efectivo, transferencia, Yape, Plin, etc.) y el origen del dinero. Si usa el fondo del gerente, se descuentan sus fondos y se vinculan pago, constancia y movimiento en la misma escritura. El asistente tiene este origen seleccionado inicialmente; puede declarar otros fondos de forma explícita. El gerente debe indicar qué asistente tenía el dinero cuando registra un pago del fondo. No se permite usar fondos de otro asistente ni sobregirar el saldo.
+
+El cuadre muestra apertura + entregas − pagos del fondo − devoluciones = cierre. Cada pago aparece en el historial del mes con actor, recibo, importe, medio, origen, cargo al fondo, saldo al registrar y acceso a la constancia. Los pagos con otros fondos aparecen con cargo cero. Los registros anteriores sin origen y sin movimiento vinculado se indican como tales, sin reclasificarlos ni descontarlos retroactivamente. Las devoluciones de prueba se conservan. El panel se actualiza cada 15 segundos mientras está visible, al recuperar el foco y después de operaciones locales; no crea mensajes duplicados por cada consulta.
+
+Los movimientos conservan fecha efectiva y fecha de registro. El servidor valida el saldo cronológico diario e impide cubrir un pago anterior con una entrega posterior. Los registros antiguos sin fecha efectiva conservan el mes de registro en Lima. Ver [reglas y ejemplo completo](CONTROL-FONDO-Y-PAGOS.md).
 
 ## Préstamos y cuotas
 
@@ -67,7 +71,7 @@ La opción **Préstamos** está disponible para ambos roles. El asistente regist
 
 El sistema genera una obligación por cuota sin exigir autorización previa del gerente. Los importes se conservan, las cuotas comparten los permisos de sus recibos y se incluyen en deudas, filtros y totales mensuales sin sumar nuevamente el capital. Los meses cortos se ajustan al último día y los siguientes recuperan el día original. Se muestra capital, total del cronograma, pagado, pendiente, progreso y próximo vencimiento.
 
-Antes de archivar un pago de cuota, el asistente responsable o el gerente adjunta el documento original con su número. Gerente o asistente puede registrar el pago realizado con constancia. Un pago en efectivo utiliza el saldo entregado al asistente con las mismas validaciones del resto de obligaciones. Los pagos parciales existentes se conservan en el saldo.
+Antes de archivar un pago de cuota, el asistente responsable o el gerente adjunta el documento original con su número. Gerente o asistente puede registrar el pago realizado con constancia. Un pago con origen en el fondo del gerente utiliza el saldo entregado al asistente con las mismas validaciones del resto de obligaciones. Los pagos parciales existentes se conservan en el saldo.
 
 El gerente puede retirar un préstamo sin abonos con `POST /api/loans/:id/archive`. Se retiran todas sus cuotas de las consultas, totales y pagos; los datos quedan recuperables con `POST /api/loans/:id/restore`. Los préstamos con pagos no se retiran.
 

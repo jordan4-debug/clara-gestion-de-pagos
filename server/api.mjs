@@ -664,8 +664,28 @@ export async function handleRequest(request, env) {
 
       if (x.payment_date > today())
         fail("La fecha de pago no puede estar en el futuro.");
+      // Legacy clients retain their old meaning; new clients declare the source
+      // independently of the payment medium (cash, transfer or wallet).
+      const funded = x.funding_source
+        ? x.funding_source === "manager_funds"
+        : x.method === "Efectivo" &&
+          (user.role === "assistant" || x.cash_holder_id != null);
+      if (funded && user.role === "owner" && x.cash_holder_id == null)
+        fail("Selecciona al asistente cuyo fondo se utilizó.");
+      if (!funded && x.cash_holder_id != null)
+        fail(
+          "Un pago con otros fondos no puede cargar dinero de un asistente.",
+          403,
+        );
       if (
-        x.method === "Efectivo" &&
+        funded &&
+        user.role === "assistant" &&
+        x.cash_holder_id != null &&
+        x.cash_holder_id !== user.id
+      )
+        fail("No puedes usar el fondo de otro asistente.", 403);
+      if (
+        funded &&
         user.role === "owner" &&
         x.cash_holder_id != null &&
         !(await cashPeople(env.DB, user)).some((p) => p.id === x.cash_holder_id)
@@ -694,7 +714,7 @@ export async function handleRequest(request, env) {
                 "Esta operación ya está registrada. No vuelvas a ingresarla.",
                 409,
               );
-            if (x.method === "Efectivo")
+            if (funded)
               spendCash(
                 state,
                 bill,
@@ -703,6 +723,7 @@ export async function handleRequest(request, env) {
                 user,
                 x.cash_holder_id,
                 x.payment_date,
+                x.method,
               );
             const receipt_id = state.next.receipts++;
             state.receipts.push({
@@ -716,15 +737,15 @@ export async function handleRequest(request, env) {
               bill_id: id,
               amount_cents: x.amount_cents,
               method: x.method,
+              funding_source: funded ? "manager_funds" : x.funding_source,
               kind: "recorded",
               payment_date: x.payment_date,
               operation: x.operation,
-              cash_holder_id:
-                x.method === "Efectivo"
-                  ? user.role === "assistant"
-                    ? user.id
-                    : x.cash_holder_id || null
-                  : null,
+              cash_holder_id: funded
+                ? user.role === "assistant"
+                  ? user.id
+                  : x.cash_holder_id || null
+                : null,
               receipt_id,
               receipt_name: x.receipt.name,
               actor,

@@ -356,6 +356,7 @@ export function App() {
           user={user}
           month={month}
           refreshKey={snapshot}
+          onSelect={setSelected}
           onChanged={() => void refresh()}
         />
       ) : null}

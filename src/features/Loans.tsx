@@ -11,6 +11,7 @@ import {
 } from "../components/ui";
 import { api, send, money, localToday, solesToCents } from "../lib/api";
 import { MoneyInput } from "../components/MoneyInput";
+import { ScrollableTable } from "../components/ScrollableTable";
 import { EntitySelector } from "../components/EntitySelector";
 import type {
   Loan,
@@ -252,12 +253,7 @@ export function ScheduleTable({
   const calculated =
     rows.length > 0 && rows.every((row) => row.opening_balance_cents != null);
   return (
-    <div
-      className="table-scroll"
-      tabIndex={0}
-      role="region"
-      aria-label="Cronograma de cuotas"
-    >
+    <ScrollableTable label="Cronograma de cuotas">
       <table
         className={`report-table ${calculated ? "calculated-schedule" : ""}`}
       >
@@ -340,7 +336,7 @@ export function ScheduleTable({
           </tfoot>
         ) : null}
       </table>
-    </div>
+    </ScrollableTable>
   );
 }
 

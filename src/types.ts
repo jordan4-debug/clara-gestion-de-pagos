@@ -62,6 +62,8 @@ export type Bill = {
   variation?: Variation | null;
 };
 export type Payment = {
+  funding_source?: "manager_funds" | "other_funds";
+  cash_holder_id?: number | null;
   kind?: "simulated" | "recorded";
   payment_date?: string;
   id: number;
@@ -211,6 +213,7 @@ export type Attempt = {
 };
 
 export type CashData = {
+  payment_activity: CashPaymentActivity[];
   people: { id: number; name: string; active: number; balance_cents: number }[];
   balance_cents: number;
   reconciliation: { opening_cents: number; closing_cents: number };
@@ -226,7 +229,26 @@ export type CashData = {
     bill_id?: number;
     payment_id?: number;
     movement_date?: string;
+    payment_method?: string;
+    balance_after_cents?: number;
   }[];
+};
+export type CashPaymentActivity = {
+  id: number;
+  bill_id: number;
+  title: string;
+  supplier: string;
+  amount_cents: number;
+  method: string;
+  actor: string;
+  payment_date: string;
+  created_at: string;
+  funding_source: "manager_funds" | "other_funds" | "unassigned";
+  fund_spent_cents: number;
+  holder: string | null;
+  balance_after_cents: number | null;
+  receipt_id: number | null;
+  reconciled: boolean;
 };
 
 export type Loan = {

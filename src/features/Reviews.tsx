@@ -92,6 +92,15 @@ export function ReviewCard({
       <p>
         {p.method} · Constancia <b>{p.operation}</b>
       </p>
+      {p.funding_source ? (
+        <p className="muted">
+          Origen:{" "}
+          {p.funding_source === "manager_funds"
+            ? "dinero entregado por el gerente"
+            : "otros fondos, sin cargo al fondo del asistente"}
+          .
+        </p>
+      ) : null}
       <small>
         Pago: {p.payment_date || "Fecha anterior no registrada"} · Registrado
         por {p.actor} · {dateTime(p.created_at)}

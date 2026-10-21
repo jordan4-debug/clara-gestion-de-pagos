@@ -21,14 +21,18 @@ export function PaymentFlow({
   notify: (message: string) => void;
 }) {
   const [method, setMethod] = useState("Transferencia"),
+    [funding, setFunding] = useState<"manager_funds" | "other_funds">(
+      user.role === "assistant" ? "manager_funds" : "other_funds",
+    ),
     [cash, setCash] = useState<CashData | null>(null),
     [holder, setHolder] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   useModalLock(busy);
   useEffect(() => {
-    if (method !== "Efectivo") return;
+    if (funding !== "manager_funds") return;
     let live = true;
+    setCash(null);
     void api<CashData>("/cash")
       .then((data) => {
         if (live) setCash(data);
@@ -39,11 +43,14 @@ export function PaymentFlow({
     return () => {
       live = false;
     };
-  }, [method]);
+  }, [funding]);
+  const available =
+    user.role === "assistant"
+      ? cash?.balance_cents
+      : cash?.people.find((p) => p.id === Number(holder))?.balance_cents;
   const insufficient =
-    method === "Efectivo" &&
-    user.role === "assistant" &&
-    (!cash || cash.balance_cents < (bill.remaining_cents || 0));
+    funding === "manager_funds" &&
+    (available == null || available < (bill.remaining_cents || 0));
   return (
     <section className="detail-section payment-flow">
       <h3>Registrar pago realizado</h3>
@@ -62,11 +69,12 @@ export function PaymentFlow({
             await send(`/bills/${bill.id}/payments`, {
               amount_cents: bill.remaining_cents,
               method,
+              funding_source: funding,
               payment_date: f.get("payment_date"),
               operation: f.get("operation"),
               receipt,
               cash_holder_id:
-                method === "Efectivo"
+                funding === "manager_funds"
                   ? user.role === "assistant"
                     ? user.id
                     : holder
@@ -76,7 +84,9 @@ export function PaymentFlow({
             });
             onChanged();
             notify(
-              "Pago registrado. Constancia pendiente de revisión administrativa.",
+              funding === "manager_funds"
+                ? `Pago registrado. Se descontaron ${money(bill.remaining_cents)} del fondo del asistente.`
+                : "Pago registrado con otros fondos. No se descontó del fondo entregado.",
             );
           } catch (e) {
             setError((e as Error).message);
@@ -103,6 +113,7 @@ export function PaymentFlow({
         <Field label="Medio utilizado">
           <select
             value={method}
+            disabled={busy}
             onChange={(e) => {
               setMethod(e.target.value);
               setError("");
@@ -120,25 +131,46 @@ export function PaymentFlow({
             ))}
           </select>
         </Field>
-        {method === "Efectivo" ? (
+        <Field
+          label="Origen del dinero"
+          hint="Elige el fondo utilizado, independientemente de si pagaste en efectivo, por transferencia o billetera."
+        >
+          <select
+            value={funding}
+            disabled={busy}
+            onChange={(e) => {
+              setFunding(e.target.value as "manager_funds" | "other_funds");
+              setError("");
+            }}
+          >
+            <option value="manager_funds">
+              Dinero entregado por el gerente
+            </option>
+            <option value="other_funds">
+              Otros fondos · sin cargo al fondo del asistente
+            </option>
+          </select>
+        </Field>
+        {funding === "manager_funds" ? (
           <div className="notice">
             {user.role === "assistant" ? (
               <p>
-                Efectivo a tu cargo:{" "}
+                Fondo disponible:{" "}
                 <strong>
                   {cash ? money(cash.balance_cents) : "Cargando…"}
                 </strong>
                 {insufficient
-                  ? ". No hay efectivo entregado suficiente para este importe."
+                  ? ". El fondo entregado no alcanza para este pago."
                   : ""}
               </p>
             ) : (
-              <Field label="Origen del efectivo">
+              <Field label="Asistente cuyo fondo se utilizó">
                 <select
                   value={holder}
+                  disabled={busy}
                   onChange={(e) => setHolder(e.target.value)}
                 >
-                  <option value="">Efectivo propio del gerente</option>
+                  <option value="">Selecciona al asistente</option>
                   {cash?.people.map((p) => (
                     <option key={p.id} value={p.id}>
                       A cargo de {p.name} · {money(p.balance_cents)}
@@ -148,11 +180,22 @@ export function PaymentFlow({
               </Field>
             )}
             <small>
-              Solo se descuenta del efectivo a cargo si se registra este pago
-              con su constancia. Una entrega no es un gasto.
+              Se descontará {money(bill.remaining_cents)} al guardar la
+              constancia.
+              {available != null && !insufficient
+                ? ` Quedarán ${money(available - (bill.remaining_cents || 0))} por rendir.`
+                : ""}
+              {user.role === "owner" && insufficient
+                ? " Selecciona un fondo con saldo suficiente."
+                : ""}
             </small>
           </div>
-        ) : null}
+        ) : (
+          <p className="info-text">
+            Este pago aparecerá en Control de efectivo con cargo S/ 0.00 al
+            fondo del asistente.
+          </p>
+        )}
         <Field label="Número de operación o constancia">
           <input
             name="operation"
