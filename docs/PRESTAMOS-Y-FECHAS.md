@@ -6,6 +6,8 @@ La arquitectura sigue siendo React/TypeScript, API JavaScript en Cloudflare Page
 
 Capital en soles, tasa anual nominal como texto decimal de hasta dos cifras decimales (0 a 1000 %), primer vencimiento, plazo de 1 a 120 cuotas y meses con cuota doble. La etiqueta **Fecha de vencimiento** identifica la primera cuota; no se suma un mes a esa fecha. Los meses dobles se repiten cada año y solo afectan las cuotas cuyos vencimientos caen en esos meses.
 
+El formulario presenta **Fecha de desembolso** encima de **Fecha de vencimiento**. Registra cuándo se recibió el capital, admite fechas desde 1900 y no permite una fecha futura ni posterior al primer vencimiento. Se guarda en el contrato y se muestra al consultarlo. Es un dato administrativo independiente: no cambia la fórmula, los importes ni las fechas del cronograma. Los contratos anteriores y las solicitudes de versiones previas que no incluyen el dato siguen siendo compatibles y no reciben una fecha inventada.
+
 ## Fórmula financiera vigente
 
 Se emplea la regla proporcional del ejemplo del profesor: `r = tasa_anual / 100 / 12`. El campo se llama tasa anual nominal para diferenciarlo de una tasa efectiva anual y del porcentaje total que utilizaba la versión anterior. Con capital S/36,000.00 y tasa 17.02 %, el primer interés es S/510.60.
