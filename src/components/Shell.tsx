@@ -15,14 +15,8 @@ export const nav = [
   { id: "cash", label: "Control de efectivo", icon: Banknote },
   { id: "settings", label: "Configuración", icon: Settings },
 ];
-export function navigation(user: User) {
-  return nav.map((item) => ({
-    ...item,
-    label:
-      item.id === "settings" && user.role === "assistant"
-        ? "Mi cuenta"
-        : item.label,
-  }));
+export function navigation(_user: User) {
+  return nav;
 }
 export function Shell({
   user,

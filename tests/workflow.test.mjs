@@ -367,7 +367,7 @@ test("A concurrent entity category change is rechecked before committing the rec
     const upload = env.BUCKET.put.bind(env.BUCKET);
     env.BUCKET.put = async (...args) => {
       await upload(...args);
-      const changed = await manager("/suppliers/2", "PUT", {
+      const changed = await assistant("/suppliers/2", "PUT", {
         name: "Sedalib",
         category: "Otros",
       });
@@ -449,7 +449,7 @@ test("Banking, simulator and gateway endpoints remain retired without deleting l
   sqlite.close();
 });
 
-test("Both roles can register entities; only manager configures existing entities and alerts", async () => {
+test("Both roles can register entities and retired reminder settings reject changes", async () => {
   const { sqlite, manager, assistant } = await setup();
   assert.equal((await manager("/bills", "POST", input())).status, 403);
   assert.equal(
@@ -492,7 +492,7 @@ test("Both roles can register entities; only manager configures existing entitie
         recipient: "both",
       })
     ).status,
-    403,
+    410,
   );
   assert.equal(
     (
@@ -501,9 +501,12 @@ test("Both roles can register entities; only manager configures existing entitie
         recipient: "owner",
       })
     ).status,
-    200,
+    410,
   );
-  assert.equal((await assistant("/dashboard")).data.notifications.length, 0);
+  assert.deepEqual(
+    (await assistant("/dashboard")).data.notifications,
+    (await manager("/dashboard")).data.notifications,
+  );
   sqlite.close();
 });
 
@@ -997,7 +1000,7 @@ test("Direct links require a session; role changes, private team and exports are
         role: "owner",
       })
     ).status,
-    403,
+    410,
   );
   const me = (await manager("/auth/me")).data.user;
   assert.equal(me.name, "Gerente de demo");
@@ -1019,7 +1022,7 @@ test("Assistant creates and immediately uses an entity; normalized duplicates an
   assert.equal((await manager(`/bills/${id}`)).data.supplier, first.data.name);
   assert.equal(
     (
-      await assistant(`/suppliers/${first.data.id}`, "PUT", {
+      await manager(`/suppliers/${first.data.id}`, "PUT", {
         name: "No permitido",
         category: "Servicios",
       })

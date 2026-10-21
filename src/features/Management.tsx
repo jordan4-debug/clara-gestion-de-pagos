@@ -25,7 +25,7 @@ export function Suppliers({
     <section className="panel">
       <div className="panel-title">
         <h2>Servicios y proveedores</h2>
-        {user.role === "owner" ? (
+        {user.role === "assistant" ? (
           <button className="button primary" onClick={onNew}>
             Nueva entidad
           </button>
@@ -44,7 +44,7 @@ export function Suppliers({
                 {s.reference ? ` · ${s.reference}` : ""}
               </p>
             </div>
-            {user.role === "owner" ? (
+            {user.role === "assistant" ? (
               <button className="button" onClick={() => onEdit(s)}>
                 Editar entidad
               </button>

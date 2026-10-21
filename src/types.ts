@@ -59,7 +59,6 @@ export type Bill = {
   reference?: string;
   portal?: string;
   payments?: Payment[];
-  variation?: Variation | null;
 };
 export type Payment = {
   funding_source?: "manager_funds" | "other_funds";
@@ -131,42 +130,8 @@ export type Activity = {
   actor: string;
   created_at: string;
 };
-export type Settings = {
-  reminder_days: number;
-  recipient: string;
-  mode?: "administrative";
-  variation_enabled?: boolean;
-  variation_percent?: number;
-  variation_min_cents?: number;
-};
-export type Variation = {
-  bill_id: number;
-  title: string;
-  supplier: string;
-  month: string;
-  current_cents: number | null;
-  service_reference: string;
-  current_receipt_id: number | null;
-  status: string;
-  alert: boolean;
-  previous_bill_id?: number;
-  previous_month?: string;
-  previous_cents?: number;
-  previous_receipt_id?: number;
-  difference_cents?: number;
-  percent?: number;
-};
-export type VariationSummary = {
-  variation_enabled: boolean;
-  variation_percent: number;
-  variation_min_cents: number;
-  total: number;
-  compared: number;
-  alerts: Variation[];
-  unavailable: Variation[];
-};
+export type Settings = { mode: "administrative" };
 export type Dashboard = {
-  variation_summary?: VariationSummary;
   all_bills: Bill[];
   overview: {
     paid_cents: number;

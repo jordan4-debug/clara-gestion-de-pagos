@@ -67,9 +67,8 @@ Clara permite registrar recibos, consultar gastos y deudas por mes y rendir el e
 - Número de recibo como texto, formato aplicado automáticamente sin selector técnico, ceros iniciales y protección de duplicados por entidad.
 - Campos de dinero que bloquean letras, signos y un tercer decimal desde teclado, pegado o arrastre; importes exactos en céntimos y presentación con dos decimales; originales y constancias de hasta 5 MiB.
 - Tres vistas: Deudas del mes al ingresar, Vencidos y Pagados. Deudas del mes reemplaza la etiqueta Pendientes. La primera permite incluir las deudas de los próximos meses; búsqueda, categoría, selector mensual y fechas de emisión, vencimiento y pago.
-- Alta de entidades por gerente y asistente; desde el formulario se guarda y selecciona la entidad nueva sin perder el recibo. La edición de entidades existentes sigue a cargo del gerente.
+- Alta de entidades por gerente y asistente; desde el formulario se guarda y selecciona la entidad nueva sin perder el recibo. La edición de entidades existentes está a cargo del asistente desde Configuración.
 - La categoría del recibo se completa al elegir la entidad y no se puede cambiar en el recibo: Hidrandina y Sedalib → Servicios; SATT y SUNAT → Impuestos. El servidor valida la coincidencia al guardar.
-- Alertas de aumento para el gerente: comparan el importe original del mismo proveedor y suministro con el último periodo anterior disponible. Umbral inicial: 20 % y S/10.00, ambos necesarios y configurables en Mi cuenta. Se muestran las diferencias, los originales y el detalle con constancias. Los recibos sin base comparable se indican y las cuotas de préstamos se excluyen.
 - Entidades financieras para registrar contratos existentes: Caja Trujillo, BCP, BBVA, Interbank, Scotiabank, Mibanco, Banco Pichincha, Caja Piura, Caja Arequipa y Caja Huancayo. El catálogo no configura cuentas de destino ni ejecuta desembolsos.
 - Descarga directa de un resumen mensual PDF con importes, pagos, pendientes, vencimientos y paginación; exportación CSV de la lista filtrada.
 - Cuatro tarjetas de recibos al inicio para ambos roles: importe, abonado, falta pagar y vencidos. El gerente dispone además de comparación por fecha de pago.
@@ -145,3 +144,9 @@ Crear cuentas privadas y desactivar la demostración. Ampliar el modelo de almac
 `scripts/import-previous-demo.mjs` recupera el espacio del alojamiento anterior y sus archivos. Se niega a sobrescribir una base de destino que ya contiene un espacio. Los respaldos y el SQL de importación están en `.local/`, fuera del repositorio. No se trasladan sesiones, cookies ni contraseñas del alojamiento anterior.
 
 No incluir `.local`, `.wrangler`, `.env`, tokens, base local o archivos de usuarios al preparar un ZIP o repositorio.
+
+## Preparar la presentación
+
+Configuración del gerente contiene únicamente **Equipo y acceso**. El asistente administra **Servicios y proveedores**, consulta el alcance administrativo y cambia su contraseña. Se retiraron el formulario de vencimientos y las alertas de variación de pantallas y API. La campana conserva los avisos habituales de vencimiento de los próximos tres días.
+
+Para preparar el espacio vacío, ver [respaldo y limpieza de registros](docs/PRESENTACION.md). Los módulos y las cuentas se conservan; el vaciado no se ejecuta al abrir ni al publicar la aplicación.

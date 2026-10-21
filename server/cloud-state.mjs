@@ -6,7 +6,6 @@ import {
 } from "./expenses.mjs";
 import { today, monthDate, status, remaining } from "./domain.mjs";
 import { financialEntities } from "./financial-entities.mjs";
-import { variationConfig, variationSummary } from "./variations.mjs";
 
 export function seedState() {
   const selected = today().slice(0, 7);
@@ -104,7 +103,7 @@ export function seedState() {
         created_at: new Date().toISOString(),
       },
     ],
-    settings: { reminder_days: 3, recipient: "both", ...variationConfig() },
+    settings: {},
     next: {
       suppliers: suppliers.length + 1,
       loans: 1,
@@ -238,18 +237,13 @@ export function dashboard(state, selected, role) {
   const week = all.filter(
     (b) => b.due_date >= date && b.due_date <= dateAfter(6),
   );
-  const visible =
-    state.settings.recipient === "both" || state.settings.recipient === role;
   return {
     today: date,
     month: selected,
     all_bills: all,
     overview: expenseOverview(state, selected, bills),
     bills,
-    settings: { ...state.settings, ...variationConfig(state.settings) },
-    ...(role === "owner"
-      ? { variation_summary: variationSummary(state, selected) }
-      : {}),
+    settings: { mode: "administrative" },
     totals: {
       total: bills.reduce((n, b) => n + (b.amount_cents || 0), 0),
       monthPaid: bills.reduce((n, b) => n + b.paid_cents, 0),
@@ -262,13 +256,9 @@ export function dashboard(state, selected, role) {
       weekUndefined: week.filter((b) => b.amount_cents === null).length,
     },
     upcoming: all.filter((b) => b.status !== "Pagado").slice(0, 4),
-    notifications: visible
-      ? all.filter(
-          (b) =>
-            b.status !== "Pagado" &&
-            b.due_date <= dateAfter(state.settings.reminder_days),
-        )
-      : [],
+    notifications: all.filter(
+      (b) => b.status !== "Pagado" && b.due_date <= dateAfter(3),
+    ),
     activity: state.activity.slice(0, 8),
   };
 }

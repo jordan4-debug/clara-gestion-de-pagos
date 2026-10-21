@@ -68,40 +68,6 @@ test("Rendered manager and assistant screens expose only administrative actions 
     ],
     month: "2026-10",
     totals: { total: 0, monthPaid: 0, undefined: 0 },
-    variation_summary: {
-      variation_enabled: true,
-      variation_percent: 20,
-      variation_min_cents: 1000,
-      total: 2,
-      compared: 1,
-      alerts: [
-        {
-          bill_id: 1,
-          title: "LUZ CON AUMENTO",
-          supplier: "Hidrandina",
-          month: "2026-10",
-          service_reference: "SUM-001",
-          current_cents: 15000,
-          previous_cents: 10000,
-          previous_month: "2026-09",
-          previous_bill_id: 9,
-          previous_receipt_id: 10,
-          current_receipt_id: 11,
-          difference_cents: 5000,
-          percent: 50,
-          status: "compared",
-          alert: true,
-        },
-      ],
-      unavailable: [
-        {
-          bill_id: 2,
-          title: "Sin referencia",
-          supplier: "Sedalib",
-          status: "missing_reference",
-        },
-      ],
-    },
     overview: {
       paid_cents: 125075,
       pending_cents: 2500,
@@ -173,36 +139,42 @@ test("Rendered manager and assistant screens expose only administrative actions 
       overview.startsWith('<div class="role-metrics monthly-metrics">'),
     );
     assert.equal(html.includes("Registrar recibo"), role === "assistant");
-    assert.equal(html.includes("Alertas de variación"), role === "owner");
-    if (role === "owner") {
-      assert.ok(html.includes("50 %"));
-      assert.ok(html.includes('href="/api/receipts/10"'));
-      assert.ok(html.includes('href="/api/receipts/11"'));
-      assert.ok(html.includes("Falta el código de suministro o contrato."));
-      assert.ok(
-        html.indexOf('class="role-metrics monthly-metrics"') <
-          html.indexOf('class="panel variation-panel"'),
-      );
-    }
+    assert.ok(!html.includes("Alertas de variación"));
     const settings = m.renderToStaticMarkup(
       e(m.SettingsView, {
         user,
-        settings: {
-          reminder_days: 3,
-          recipient: "both",
-          variation_enabled: true,
-          variation_percent: 20,
-          variation_min_cents: 1000,
-        },
+        suppliers: seedState().suppliers,
+        publicDemo: false,
+        onNewSupplier: () => {},
+        onEditSupplier: () => {},
         onChanged: () => {},
         notify: () => {},
       }),
     );
+    for (const removed of [
+      "Alertas de variación",
+      "Vencimientos y avisos",
+      "Guardar avisos",
+      "variation_percent",
+    ])
+      assert.ok(!settings.includes(removed), removed);
+    assert.equal(settings.includes("Equipo y acceso"), role === "owner");
     assert.equal(
-      settings.includes('name="variation_percent"'),
+      settings.includes("Integrantes del espacio"),
       role === "owner",
     );
-    assert.equal(settings.includes('name="variation_min"'), role === "owner");
+    assert.equal(
+      settings.includes("Servicios y proveedores"),
+      role === "assistant",
+    );
+    assert.equal(
+      settings.includes("Control administrativo"),
+      role === "assistant",
+    );
+    assert.equal(settings.includes("Nueva entidad"), role === "assistant");
+    assert.equal(settings.includes("Editar entidad"), role === "assistant");
+    assert.ok(settings.includes("Acceso de tu cuenta"));
+    assert.ok(settings.includes("Contraseña actual"));
     const loans = m.renderToStaticMarkup(
       e(m.Loans, {
         suppliers: [],

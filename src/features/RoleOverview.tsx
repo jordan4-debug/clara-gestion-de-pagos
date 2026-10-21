@@ -1,20 +1,17 @@
 import { Plus, Banknote } from "lucide-react";
 import { money } from "../lib/api";
 import { BillTable } from "./BillTable";
-import { VariationAlerts } from "./VariationAlerts";
 import type { Dashboard, User } from "../types";
 export function RoleOverview({
   data,
   user,
   onSelect,
   onNew,
-  onConfigureAlerts,
 }: {
   data: Dashboard;
   user: User;
   onSelect: (id: number) => void;
   onNew: () => void;
-  onConfigureAlerts?: () => void;
 }) {
   const o = data.overview;
   const metrics = [
@@ -33,13 +30,6 @@ export function RoleOverview({
           </div>
         ))}
       </div>
-      {user.role === "owner" ? (
-        <VariationAlerts
-          summary={data.variation_summary}
-          onSelect={onSelect}
-          onConfigure={onConfigureAlerts}
-        />
-      ) : null}
       <div className="monthly-intro">
         <p>
           {user.role === "owner"

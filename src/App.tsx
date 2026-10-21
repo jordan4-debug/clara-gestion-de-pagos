@@ -15,13 +15,11 @@ import { Cash } from "./features/Cash";
 import { Loans } from "./features/Loans";
 
 import { Modal, FormError } from "./components/ui";
-import { Team } from "./features/Team";
 import { BillDetail } from "./features/BillDetail";
 import { BillForm, SupplierForm } from "./features/EntityForms";
-import { Suppliers } from "./features/Management";
 import { SettingsView } from "./features/SettingsView";
 import { api, send, setCsrf, shortDate, ApiError } from "./lib/api";
-import type { User, Dashboard, Supplier, Settings, Bill } from "./types";
+import type { User, Dashboard, Supplier, Bill } from "./types";
 type Editor =
   | { type: "bill"; bill?: Bill }
   | { type: "supplier"; supplier?: Supplier };
@@ -41,7 +39,6 @@ export function App() {
     ),
     [snapshot, setData] = useState<Dashboard | null>(null),
     [suppliers, setSuppliers] = useState<Supplier[]>([]),
-    [settings, setSettings] = useState<Settings | null>(null),
     [selected, setSelected] = useState<number | null>(null),
     [editor, setEditor] = useState<Editor | null>(null),
     [error, setError] = useState(""),
@@ -81,15 +78,13 @@ export function App() {
     if (!user) return;
     const version = ++requestVersion.current;
     try {
-      const [d, s, c] = await Promise.all([
+      const [d, s] = await Promise.all([
         api<Dashboard>(`/dashboard?month=${month}`),
         api<Supplier[]>("/suppliers"),
-        api<Settings>("/settings"),
       ]);
       if (version !== requestVersion.current) return;
       setData(d);
       setSuppliers(s);
-      setSettings(c);
       setError("");
     } catch (e) {
       if (version !== requestVersion.current) return;
@@ -191,8 +186,8 @@ export function App() {
     history: "Cada movimiento queda registrado.",
     settings:
       user.role === "owner"
-        ? "Tu manera de trabajar, tus reglas."
-        : "Consulta tu acceso y administra tu contraseña.",
+        ? "Administra el equipo y el acceso de tu cuenta."
+        : "Administra proveedores, entidades y el acceso de tu cuenta.",
     cash: "Entregas, pagos y devoluciones con su respaldo.",
     loans:
       "Organiza contratos y cuotas sin modificar los importes registrados.",
@@ -333,7 +328,6 @@ export function App() {
           user={user}
           onSelect={setSelected}
           onNew={() => setEditor({ type: "bill" })}
-          onConfigureAlerts={() => onNavigate("settings")}
         />
       ) : null}
       {data && page === "loans" ? (
@@ -360,38 +354,17 @@ export function App() {
           onChanged={() => void refresh()}
         />
       ) : null}
-      {page === "settings" && settings ? (
-        <>
-          <SettingsView
-            settings={settings}
-            user={user}
-            onChanged={() => void refresh()}
-            notify={notify}
-          />
-          {user.role === "owner" ? (
-            <>
-              <details className="panel settings-disclosure">
-                <summary>Servicios y proveedores</summary>
-                <p className="muted">
-                  Administra las entidades y el formato de sus recibos. No se
-                  solicitan datos bancarios.
-                </p>
-                <Suppliers
-                  items={suppliers}
-                  user={user}
-                  onNew={() => setEditor({ type: "supplier" })}
-                  onEdit={(supplier) =>
-                    setEditor({ type: "supplier", supplier })
-                  }
-                />
-              </details>
-              <details className="panel settings-disclosure">
-                <summary>Equipo y accesos</summary>
-                <Team user={user} notify={notify} publicDemo={demo} />
-              </details>
-            </>
-          ) : null}
-        </>
+      {page === "settings" ? (
+        <SettingsView
+          user={user}
+          suppliers={suppliers}
+          onNewSupplier={() => setEditor({ type: "supplier" })}
+          onEditSupplier={(supplier) =>
+            setEditor({ type: "supplier", supplier })
+          }
+          notify={notify}
+          publicDemo={demo}
+        />
       ) : null}
       <p className="workspace-footer">
         Clara Gestión de Pagos · Montos en soles · Horario de Lima, Perú
@@ -407,7 +380,6 @@ export function App() {
             setEditor({ type: "bill", bill });
           }}
           notify={notify}
-          onSelectRelated={setSelected}
         />
       ) : null}
       {editor?.type === "bill" && user.role === "assistant" ? (

@@ -1,16 +1,19 @@
-# Recorrido de presentación
+# Espacio vacío para la presentación
 
-1. Ingresar como gerente y mostrar primero las cuatro tarjetas: gastos pagados en el mes, deuda por pagar, deuda vencida y recibos registrados. El efectivo se presenta aparte.
-2. Mostrar las cuatro opciones principales: deudas del mes, préstamos, control de efectivo y configuración.
-3. Cerrar sesión con confirmación e ingresar como asistente. Registrar un recibo ficticio con original. Desde el selector, crear una entidad nueva y comprobar que quede seleccionada sin perder el formulario.
-4. Pegar un número de recibo con ceros iniciales o la serie del documento. No se muestra un selector de formato; la validación se aplica automáticamente. En los importes, probar que no se pueden escribir ni pegar letras o más de dos decimales.
-5. Introducir 25.00 y mostrar que no se aceptan tres decimales ni el número duplicado para la misma entidad.
-6. Consultar las tres pestañas: Deudas del mes, Vencidos y Pagados. En la primera, activar Incluir deudas de los próximos meses y comprobar las siguientes cuotas. Descargar Resumen PDF y revisar totales y fechas. Mostrar luz a S/ 100.00 e internet a S/ 80.00 en los ejemplos vencidos de octubre de 2026. Un recibo vencido sigue incluido en el total por pagar.
-7. Como gerente registrar una entrega ficticia al asistente. Comprobar que no cambian los gastos ni el estado del recibo.
-8. Como asistente abrir el recibo, desplegar Registrar pago, elegir medio, fecha e identificador, adjuntar constancia y confirmar la declaración. El importe original no se edita.
-9. Como gerente consultar el pago y revisar u observar la constancia. Diferenciar fecha del pago y fecha de registro.
-10. Mostrar que el efectivo utilizado se vincula al pago y que el asistente puede registrar una devolución sin superar lo disponible.
-11. Como asistente abrir Préstamos, registrar un contrato ficticio con tres cuotas y comprobar la vista previa calculada con tasa anual nominal, primer vencimiento histórico y meses dobles, el interés calculado sobre el saldo inicial y el desglose de capital y el saldo final cero. Ingresar como gerente y mostrar que puede consultar el contrato, pero no crear uno. Adjuntar el recibo original a una cuota antes de registrar su pago.
-12. Explicar que Clara no procesa dinero y que los módulos bancarios anteriores están archivados con sus datos conservados.
+Los módulos Deudas del mes, Vencidos, Pagados, Préstamos y Control de efectivo permanecen disponibles. Los registros se ingresarán durante la presentación.
 
-Usar únicamente información y documentos ficticios en la demostración compartida.
+Configuración del gerente contiene Equipo y acceso. El asistente administra Servicios y proveedores, ve Control administrativo y cambia su contraseña. La edición de entidades se valida por rol también en el servidor. El formulario de Vencimientos y avisos se retira; la campana sigue mostrando los próximos vencimientos con una anticipación fija de tres días. Las alertas de variación se eliminan del panel, el detalle, los ajustes y los cálculos del servidor.
+
+## Respaldo y vaciado
+
+El procedimiento de mantenimiento no aparece como botón en Configuración. Requiere una cuenta privada de gerente, sesión, origen, CSRF, contraseña actual, confirmación exacta y la huella SHA-256 del estado respaldado. Si alguien registra un cambio durante la descarga o antes del vaciado, la operación se detiene para exigir un respaldo actualizado.
+
+El script `scripts/prepare-presentation.mjs` recibe `CLARA_MANAGER_EMAIL` y `CLARA_MANAGER_PASSWORD` en variables del entorno local. Sin argumentos **solo respalda**. El argumento `--reset` respalda y luego vacía el espacio; debe usarse únicamente cuando el responsable haya autorizado la limpieza.
+
+El respaldo se guarda en `.local/respaldo-presentacion-<fecha>/` con estado completo, equipo sin contraseñas, manifiesto y archivos binarios originales identificados por ID. El manifiesto conserva nombres, tipos, claves y hashes. Se verifica cada archivo descargado antes de borrar. Los respaldos privados no se incluyen en Git ni en el ZIP del código.
+
+El vaciado elimina las obligaciones de todos los meses y años, préstamos activos y archivados con sus cuotas, pagos con sus revisiones, originales y constancias, entregas, gastos y devoluciones, plantillas y actividad previa. Se conserva una entrada de auditoría de la preparación. No modifica cuentas, contraseñas, sesiones, catálogo de entidades ni historial de accesos del equipo.
+
+La limpieza de registros usa una única escritura condicional del estado D1. Los archivos se retiran después de confirmar esa escritura; la respuesta informa cualquier fallo de borrado físico. Los IDs continúan aumentando para que enlaces o pestañas antiguas no afecten registros nuevos. Una publicación, consulta o cambio de mes no ejecuta la limpieza ni vuelve a generar datos.
+
+Después del procedimiento se comprueban los módulos y saldos de ambos roles, la conservación del catálogo y del equipo, y que los documentos anteriores ya no sean accesibles. El sistema queda preparado para registrar recibos, préstamos y pagos nuevos con su flujo habitual.

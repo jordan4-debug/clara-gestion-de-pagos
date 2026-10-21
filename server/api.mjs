@@ -30,7 +30,7 @@ import { report } from "./reports.mjs";
 import { handleTeam } from "./team.mjs";
 import { loanInput, createLoan, listLoans, archiveLoan } from "./loans.mjs";
 import { calculateSchedule } from "./loan-schedule.mjs";
-import { variationConfig, billVariation } from "./variations.mjs";
+import { resetPresentation } from "./maintenance.mjs";
 
 import {
   cashInput,
@@ -59,18 +59,6 @@ const json = (value, status = 200, headers = {}) =>
       ...headers,
     },
   });
-const settingsSchema = z
-  .object({
-    reminder_days: z.number().int().min(0).max(30).optional(),
-    recipient: z.enum(["owner", "assistant", "both"]).optional(),
-    variation_enabled: z.boolean().optional(),
-    variation_percent: z.number().int().min(1).max(1000).optional(),
-    variation_min_cents: z.number().int().min(0).max(100000000).optional(),
-  })
-  .refine(
-    (value) => Object.keys(value).length > 0,
-    "No hay ajustes válidos para guardar.",
-  );
 const owner = (session) => {
   if (session.role !== "owner") fail("Solo el gerente puede hacer esto.", 403);
 };
@@ -136,6 +124,7 @@ export async function handleRequest(request, env) {
     if (
       /^\/(?:finance|templates|attempts)(?:\/|$)/.test(path) ||
       path === "/months/generate" ||
+      (path === "/settings" && method !== "GET") ||
       /\/(?:simulate|checkout|voucher)$/.test(path)
     )
       fail(
@@ -212,12 +201,7 @@ export async function handleRequest(request, env) {
             .sort((a, b) => a.name.localeCompare(b.name)),
         );
       if (path === "/activity") return json(state.activity.slice(0, 300));
-      if (path === "/settings")
-        return json({
-          ...state.settings,
-          ...variationConfig(state.settings),
-          mode: "administrative",
-        });
+      if (path === "/settings") return json({ mode: "administrative" });
       if (path === "/attempts") {
         owner(session);
         return json([]);
@@ -227,9 +211,6 @@ export async function handleRequest(request, env) {
         const bill = findBill(state, Number(match[1]));
         return json({
           ...decorate(state, bill),
-          ...(user.role === "owner"
-            ? { variation: billVariation(state, bill) }
-            : {}),
           payments: state.payments
             .map((p) => ({
               ...p,
@@ -263,6 +244,8 @@ export async function handleRequest(request, env) {
       fail("Ruta no encontrada.", 404);
     }
     const input = await body(request);
+    if (method === "POST" && path === "/maintenance/reset-records")
+      return json(await resetPresentation(env, user, input));
     const loanAction = path.match(/^\/loans\/(\d+)\/(archive|restore)$/);
     if (method === "POST" && loanAction) {
       owner(session);
@@ -447,7 +430,7 @@ export async function handleRequest(request, env) {
       }
     }
     if (path === "/suppliers" || /^\/suppliers\/\d+$/.test(path)) {
-      if (!(method === "POST" && path === "/suppliers")) owner(session);
+      if (!(method === "POST" && path === "/suppliers")) assistant(session);
       const x = supplierInput.parse(input);
       if (
         [
@@ -780,22 +763,6 @@ export async function handleRequest(request, env) {
         await env.BUCKET.delete(key);
         throw error;
       }
-    }
-    if (method === "PUT" && path === "/settings") {
-      owner(session);
-      const x = settingsSchema.parse(input);
-      return json(
-        await mutateState(env.DB, (state) => {
-          Object.assign(state.settings, x);
-          addAudit(
-            state,
-            actor,
-            "Configuración actualizada",
-            "Avisos de vencimiento y variación de importes actualizados.",
-          );
-          return { ok: true };
-        }),
-      );
     }
     fail("Ruta no encontrada.", 404);
   } catch (error) {

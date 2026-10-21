@@ -110,7 +110,7 @@ assert.equal(
       recipient: "both",
     })
   ).status,
-  403,
+  410,
 );
 assert.equal((await call(owner, "/settings")).data.mode, "administrative");
 const selected = first.data.month;
