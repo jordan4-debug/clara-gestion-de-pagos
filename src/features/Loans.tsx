@@ -176,9 +176,14 @@ export function Loans({
                   : " · Sin cuotas dobles"}
               </p>
             ) : null}
-            {l.calculation_method && l.disbursement_date ? (
+            {l.disbursement_date ? (
               <p className="muted loan-next">
-                Desembolso: {loanDate(l.disbursement_date)} · Interés total:{" "}
+                Fecha de desembolso: {loanDate(l.disbursement_date)}
+              </p>
+            ) : null}
+            {l.total_interest_percent != null && l.disbursement_date ? (
+              <p className="muted loan-next">
+                Interés total:{" "}
                 {l.total_interest_percent}%
                 {l.double_months?.length
                   ? ` · Meses dobles: ${l.double_months.map((month) => monthNames[month - 1]).join(", ")}`
@@ -438,6 +443,7 @@ export function LoanForm({
               ...scheduleParameters(f),
               title: f.get("title"),
               supplier_id: Number(f.get("supplier_id")),
+              disbursement_date: f.get("disbursement_date"),
               reference: f.get("reference"),
               notes: f.get("notes"),
             });
@@ -482,6 +488,21 @@ export function LoanForm({
             hint="Regla del ejemplo BCP: tasa anual ÷ 12 para obtener la tasa mensual sobre saldo. Hasta dos decimales; 0 si no tiene interés."
           >
             <MoneyInput name="annual_interest_percent" />
+          </Field>
+        </div>
+        <div className="form-grid">
+          <Field
+            label="Fecha de desembolso"
+            hint="Fecha en que recibiste el capital del préstamo."
+          >
+            <input
+              name="disbursement_date"
+              type="date"
+              required
+              min="1900-01-01"
+              max={localToday()}
+              defaultValue={localToday()}
+            />
           </Field>
         </div>
         <div className="form-grid">
