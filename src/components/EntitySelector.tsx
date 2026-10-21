@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
 import { Field, FormError } from "./ui";
 import { send } from "../lib/api";
 import type { Supplier } from "../types";
@@ -75,6 +74,7 @@ export function EntitySelector({
               setError("");
               return;
             }
+            setAdding(false);
             setSelected(e.target.value);
             const supplier = items.find((s) => String(s.id) === e.target.value);
             if (supplier) onSelect?.(supplier);
@@ -105,19 +105,6 @@ export function EntitySelector({
           ) : null}
         </select>
       </Field>
-      {!disabled && !adding ? (
-        <button
-          type="button"
-          className="text-button"
-          onClick={() => {
-            setAdding(true);
-            setError("");
-          }}
-        >
-          <Plus size={15} />
-          {loans ? "Agregar entidad financiera" : "Agregar proveedor o entidad"}
-        </button>
-      ) : null}
       {adding ? (
         <fieldset
           className="inline-entity"
