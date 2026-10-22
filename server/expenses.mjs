@@ -28,13 +28,26 @@ export function assertReceipt(state, bill, number, format = "alphanumeric") {
     state.bills.some(
       (b) =>
         b.id !== bill.id &&
-        b.supplier_id === bill.supplier_id &&
         b.invoice_number?.toUpperCase() === number.toUpperCase(),
     )
   )
     throw Object.assign(
       new Error(
-        "Este número de recibo ya está registrado para la misma entidad. Revisa el registro existente.",
+        "Este número de recibo ya está registrado. No se puede guardar otro comprobante con el mismo número.",
+      ),
+      { status: 409 },
+    );
+}
+export function assertPaymentOperation(state, operation) {
+  const normalized = operation.trim().toUpperCase();
+  if (
+    state.payments.some(
+      (payment) => payment.operation?.trim().toUpperCase() === normalized,
+    )
+  )
+    throw Object.assign(
+      new Error(
+        "Este código de pago o número de operación ya está registrado. No se puede guardar otro comprobante con el mismo código.",
       ),
       { status: 409 },
     );
