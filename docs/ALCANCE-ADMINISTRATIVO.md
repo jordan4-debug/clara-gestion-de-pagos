@@ -21,7 +21,9 @@ Se conserva como texto, sin convertir a número, recortar espacios o retirar cer
 | Numérico     | Entre 1 y 40 dígitos del 0 al 9.                                                                                           |
 | Alfanumérico | Hasta 60 caracteres; grupos de letras y números separados opcionalmente por guion o barra. Sin espacios ni otros símbolos. |
 
-Estas reglas no se presentan como formatos oficiales de Hidrandina, Sedalib ni ninguna otra entidad. Se centralizan en `shared/expenses.mjs`. El servidor compara el número dentro de la misma entidad, sin distinguir mayúsculas de minúsculas, y rechaza duplicados incluso en solicitudes concurrentes. Los ceros son significativos. Los registros históricos se conservan y no se renumeran.
+Estas reglas no se presentan como formatos oficiales de Hidrandina, Sedalib ni ninguna otra entidad. Se centralizan en `shared/expenses.mjs`. El número de recibo es único en todo el sistema: el servidor rechaza su reutilización aunque cambien la entidad, el concepto, el mes o la cuenta que lo registra. La comparación no distingue mayúsculas de minúsculas y conserva los ceros significativos. La regla también se aplica al adjuntar o completar originales históricos y a las solicitudes simultáneas. Un duplicado muestra un error y no guarda el nuevo recibo ni su archivo. Los registros históricos se conservan y no se renumeran.
+
+El código de pago o número de operación también es único en todo el sistema, aunque cambien el medio de pago, el mes o el usuario. Se compara sin distinguir mayúsculas de minúsculas ni espacios al inicio o al final. La API comprueba los duplicados antes de almacenar la constancia y nuevamente dentro de la escritura compartida para impedir carreras entre solicitudes; si otra solicitud se adelantó, se elimina el archivo provisional y no se registra el pago ni se descuenta el fondo. Estas reglas comparan identificadores ingresados; no leen texto de imágenes ni detectan imágenes iguales con códigos diferentes.
 
 ## Dinero y fechas
 

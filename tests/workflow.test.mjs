@@ -337,7 +337,7 @@ test("Receipts inherit their entity category and reject category overrides befor
     for (const supplier of before.suppliers.filter(
       (s) => s.category !== "Préstamos",
     )) {
-      const id = await make(assistant, "000777", { supplier_id: supplier.id });
+      const id = await make(assistant, `000777${supplier.id}`, { supplier_id: supplier.id });
       const saved = (await readState(db)).state.bills.find((b) => b.id === id);
       assert.equal(saved.category, supplier.category, supplier.name);
       assert.equal(
@@ -350,7 +350,7 @@ test("Receipts inherit their entity category and reject category overrides befor
       category: "Otros",
     });
     assert.equal(created.status, 200);
-    const id = await make(assistant, "000777", {
+    const id = await make(assistant, `000777${created.data.id}`, {
       supplier_id: created.data.id,
       category: created.data.category,
     });
@@ -392,7 +392,7 @@ test("A concurrent entity category change is rechecked before committing the rec
   }
 });
 
-test("Receipt uniqueness is per entity, ignores alphabetic case, preserves zeroes and survives concurrent creation", async () => {
+test("Receipt numbers are unique across entities and months, ignore alphabetic case, preserve zeroes and survive concurrent creation", async () => {
   const { sqlite, db, assistant } = await setup();
   await make(assistant, "F001-000123", { receipt_format: "alphanumeric" });
   assert.equal(
@@ -405,12 +405,21 @@ test("Receipt uniqueness is per entity, ignores alphabetic case, preserves zeroe
     ).status,
     409,
   );
-  await make(assistant, "F001-000123", {
+  const unchanged = JSON.stringify((await readState(db)).state);
+  const filesBefore = sqlite.prepare("SELECT COUNT(*) n FROM receipt_files").get().n;
+  const duplicate = await assistant("/bills", "POST", input("f001-000123", {
     receipt_format: "alphanumeric",
     supplier_id: 1,
-  });
+    due_date: "2025-01-01",
+  }));
+  assert.equal(duplicate.status, 409);
+  assert.match(duplicate.data.error, /número de recibo ya está registrado/);
+  assert.equal(JSON.stringify((await readState(db)).state), unchanged);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM receipt_files").get().n, filesBefore);
+  // Significant leading zeroes are preserved, not coerced to a number.
+  await make(assistant, "F001-0000123", { receipt_format: "alphanumeric", supplier_id: 1 });
   const results = await Promise.all([
-    assistant("/bills", "POST", input("0000456")),
+    assistant("/bills", "POST", input("0000456", { supplier_id: 1 })),
     assistant("/bills", "POST", input("0000456")),
   ]);
   assert.deepEqual(results.map((r) => r.status).sort(), [201, 409]);
@@ -420,6 +429,7 @@ test("Receipt uniqueness is per entity, ignores alphabetic case, preserves zeroe
     1,
   );
   assert.equal(state.receipts.length, 3);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM receipt_files").get().n, 3);
   sqlite.close();
 });
 
@@ -768,6 +778,69 @@ test("Insufficient original proof, future payment, duplicate operation and overp
     409,
   );
   assert.equal((await assistant(`/bills/${id}`)).data.paid_cents, 1000);
+  sqlite.close();
+});
+
+test("Payment codes cannot be reused across methods, roles or months, including concurrent submissions", async () => {
+  const { sqlite, db, env, assistant, manager } = await setup();
+  const first = await make(assistant, "PAGO-001", { receipt_format: "alphanumeric" });
+  const second = await make(assistant, "PAGO-002", { receipt_format: "alphanumeric" });
+  assert.equal((await assistant(`/bills/${first}/payments`, "POST", payment(1000, "OPERACION-ABC001", {
+    payment_date: "2024-01-01",
+    funding_source: "other_funds",
+  }))).status, 201);
+  let uploads = 0;
+  const put = env.BUCKET.put.bind(env.BUCKET);
+  env.BUCKET.put = async (...args) => { uploads++; return put(...args); };
+  const before = JSON.stringify((await readState(db)).state);
+  const files = sqlite.prepare("SELECT COUNT(*) n FROM receipt_files").get().n;
+  for (const method of ["Transferencia", "Yape", "Plin", "Efectivo"]) {
+    const result = await manager(`/bills/${second}/payments`, "POST", payment(1000, "  operacion-abc001  ", {
+      method,
+      payment_date: "2025-02-01",
+      funding_source: "other_funds",
+    }));
+    assert.equal(result.status, 409, JSON.stringify(result.data));
+    assert.match(result.data.error, /código de pago o número de operación ya está registrado/);
+  }
+  assert.equal(uploads, 0, "A known duplicate is rejected before storing its attachment");
+  assert.equal(JSON.stringify((await readState(db)).state), before);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM receipt_files").get().n, files);
+  const racing = await Promise.all([
+    assistant(`/bills/${first}/payments`, "POST", payment(1000, "CONCURRENTE-42", { funding_source: "other_funds" })),
+    manager(`/bills/${second}/payments`, "POST", payment(1000, "concurrente-42", { method: "Yape", funding_source: "other_funds" })),
+  ]);
+  assert.deepEqual(racing.map(r => r.status).sort(), [201, 409]);
+  const state = (await readState(db)).state;
+  assert.equal(state.payments.filter(p => p.operation.toUpperCase() === "CONCURRENTE-42").length, 1);
+  assert.equal(state.bills.filter(b => [first, second].includes(b.id)).reduce((sum, b) => sum + b.paid_cents, 0), 2000);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM receipt_files").get().n, files + 1);
+  assert.equal(state.receipts.length, files + 1, "Rejected concurrent attachments leave no orphan files");
+  sqlite.close();
+});
+
+test("Attaching or completing a historical original cannot bypass global receipt uniqueness", async () => {
+  const { sqlite, db, assistant, manager } = await setup();
+  await make(assistant, "ORIGINAL-UNICO", { receipt_format: "alphanumeric" });
+  // Historical obligations may have no original, or an archived original without a number.
+  await mutateState(db, state => {
+    delete state.bills.find(b => b.id === 1).invoice_receipt_id;
+    delete state.bills.find(b => b.id === 1).invoice_number;
+    state.bills.find(b => b.id === 2).invoice_receipt_id = state.receipts[0].id;
+    delete state.bills.find(b => b.id === 2).invoice_number;
+  });
+  const before = JSON.stringify((await readState(db)).state);
+  const files = sqlite.prepare("SELECT COUNT(*) n FROM receipt_files").get().n;
+  for (const [path, method, payload] of [
+    ["/bills/1/document", "POST", { receipt: receipt("mismo-nombre.pdf"), invoice_number: "original-unico", receipt_format: "alphanumeric" }],
+    ["/bills/2/document", "PATCH", { invoice_number: "ORIGINAL-UNICO", receipt_format: "alphanumeric" }],
+  ]) {
+    const result = await manager(path, method, payload);
+    assert.equal(result.status, 409, JSON.stringify(result.data));
+    assert.match(result.data.error, /número de recibo ya está registrado/);
+  }
+  assert.equal(JSON.stringify((await readState(db)).state), before);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM receipt_files").get().n, files);
   sqlite.close();
 });
 

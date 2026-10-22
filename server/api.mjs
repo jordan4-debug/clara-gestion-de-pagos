@@ -43,6 +43,7 @@ import {
   activeExpense,
   assertEditable,
   assertReceipt,
+  assertPaymentOperation,
   assertOriginal,
   publicSupplier,
 } from "./expenses.mjs";
@@ -644,6 +645,7 @@ export async function handleRequest(request, env) {
       const { state } = await readState(env.DB);
       assertPayable(findBill(state, id), x.amount_cents);
       assertOriginal(state, findBill(state, id));
+      assertPaymentOperation(state, x.operation);
 
       if (x.payment_date > today())
         fail("La fecha de pago no puede estar en el futuro.");
@@ -688,15 +690,7 @@ export async function handleRequest(request, env) {
 
             cap(state.payments, 300);
             cap(state.receipts, 100);
-            if (
-              state.payments.some(
-                (p) => p.method === x.method && p.operation === x.operation,
-              )
-            )
-              fail(
-                "Esta operación ya está registrada. No vuelvas a ingresarla.",
-                409,
-              );
+            assertPaymentOperation(state, x.operation);
             if (funded)
               spendCash(
                 state,
