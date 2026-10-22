@@ -196,7 +196,10 @@ export function PaymentFlow({
             fondo del asistente.
           </p>
         )}
-        <Field label="Número de operación o constancia">
+        <Field
+          label="Número de operación o constancia"
+          hint="El código de pago debe ser único, incluso si cambia el medio de pago."
+        >
           <input
             name="operation"
             minLength={3}
