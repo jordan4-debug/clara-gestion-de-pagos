@@ -23,7 +23,10 @@ export function ReceiptFields({
       <input type="hidden" name="receipt_format" value={format} />
       <Field
         label="Número de recibo"
-        hint={error || "Ingresa el número tal como aparece en el documento."}
+        hint={
+          error ||
+          "Ingresa el número tal como aparece en el documento. No puede repetirse en otro recibo del sistema."
+        }
       >
         <input
           ref={numberRef}
